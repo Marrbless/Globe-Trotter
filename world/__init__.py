@@ -11,6 +11,8 @@ from .generation import (
     generate_temperature_map,
     generate_rainfall,
     determine_biome,
+    generate_elevation_map,
+    terrain_from_elevation,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "generate_temperature_map",
     "generate_rainfall",
     "determine_biome",
+    "generate_elevation_map",
+    "terrain_from_elevation",
 ]
