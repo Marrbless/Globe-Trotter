@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional, TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
 
 if TYPE_CHECKING:
@@ -49,17 +49,21 @@ def mitigate_building_damage(buildings: List[DefensiveBuilding], damage: int) ->
 @dataclass
 class Building:
     """Base class for all buildings."""
+
     name: str
-    construction_cost: int
+    construction_cost: Dict[ResourceType, int]
     upkeep: int
     resource_bonus: int = 0
     population_bonus: int = 0
     resource_type: Optional[ResourceType] = None
     level: int = 1
 
-    def upgrade_cost(self) -> int:
+    def upgrade_cost(self) -> Dict[ResourceType, int]:
         """Cost required to upgrade this building."""
-        return int(self.construction_cost * 1.5 * self.level)
+        return {
+            res: int(amount * 1.5 * self.level)
+            for res, amount in self.construction_cost.items()
+        }
 
     def upgrade(self) -> None:
         """Upgrade this building, improving bonuses and upkeep."""
@@ -72,7 +76,9 @@ class Building:
 @dataclass
 class Farm(Building):
     name: str = "Farm"
-    construction_cost: int = 100
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 100}
+    )
     upkeep: int = 10
     resource_bonus: int = 5
     resource_type: ResourceType = ResourceType.FOOD
@@ -81,7 +87,9 @@ class Farm(Building):
 @dataclass
 class Mine(Building):
     name: str = "Mine"
-    construction_cost: int = 150
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 150}
+    )
     upkeep: int = 15
     resource_bonus: int = 10
     resource_type: ResourceType = ResourceType.ORE
@@ -90,7 +98,9 @@ class Mine(Building):
 @dataclass
 class IronMine(Building):
     name: str = "IronMine"
-    construction_cost: int = 180
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 180}
+    )
     upkeep: int = 18
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.IRON
@@ -99,7 +109,9 @@ class IronMine(Building):
 @dataclass
 class GoldMine(Building):
     name: str = "GoldMine"
-    construction_cost: int = 200
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 200}
+    )
     upkeep: int = 20
     resource_bonus: int = 1
     resource_type: ResourceType = ResourceType.GOLD
@@ -108,7 +120,9 @@ class GoldMine(Building):
 @dataclass
 class House(Building):
     name: str = "House"
-    construction_cost: int = 50
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 50}
+    )
     upkeep: int = 5
     population_bonus: int = 2
     resource_type: Optional[ResourceType] = None
@@ -117,7 +131,9 @@ class House(Building):
 @dataclass
 class LumberMill(Building):
     name: str = "LumberMill"
-    construction_cost: int = 120
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 120}
+    )
     upkeep: int = 12
     resource_bonus: int = 3
     resource_type: ResourceType = ResourceType.WOOD
@@ -126,7 +142,9 @@ class LumberMill(Building):
 @dataclass
 class Quarry(Building):
     name: str = "Quarry"
-    construction_cost: int = 130
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 130}
+    )
     upkeep: int = 14
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.STONE
@@ -152,7 +170,9 @@ class ProcessingBuilding(Building):
 @dataclass
 class Smeltery(ProcessingBuilding):
     name: str = "Smeltery"
-    construction_cost: int = 200
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 200}
+    )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.ORE
     output_resource: ResourceType = ResourceType.METAL
@@ -162,7 +182,9 @@ class Smeltery(ProcessingBuilding):
 @dataclass
 class TextileMill(ProcessingBuilding):
     name: str = "TextileMill"
-    construction_cost: int = 160
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 160}
+    )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.CLOTH
@@ -174,7 +196,9 @@ class Mill(ProcessingBuilding):
     """Grinds wheat into flour."""
 
     name: str = "Mill"
-    construction_cost: int = 120
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 120}
+    )
     upkeep: int = 10
     input_resource: ResourceType = ResourceType.WHEAT
     output_resource: ResourceType = ResourceType.FLOUR
@@ -186,7 +210,9 @@ class Bakery(ProcessingBuilding):
     """Bakes flour into bread."""
 
     name: str = "Bakery"
-    construction_cost: int = 150
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 150}
+    )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.FLOUR
     output_resource: ResourceType = ResourceType.BREAD
@@ -198,7 +224,9 @@ class Forge(ProcessingBuilding):
     """Forges iron into weapons."""
 
     name: str = "Forge"
-    construction_cost: int = 220
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 220}
+    )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.IRON
     output_resource: ResourceType = ResourceType.WEAPON
@@ -210,7 +238,9 @@ class Tailor(ProcessingBuilding):
     """Turns wool into clothes."""
 
     name: str = "Tailor"
-    construction_cost: int = 160
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 160}
+    )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOL
     output_resource: ResourceType = ResourceType.CLOTHES
@@ -222,7 +252,9 @@ class Sawmill(ProcessingBuilding):
     """Cuts wood into planks."""
 
     name: str = "Sawmill"
-    construction_cost: int = 140
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 140}
+    )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.PLANK
@@ -234,7 +266,9 @@ class Mason(ProcessingBuilding):
     """Cuts stone into blocks."""
 
     name: str = "Mason"
-    construction_cost: int = 160
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 160}
+    )
     upkeep: int = 14
     input_resource: ResourceType = ResourceType.STONE
     output_resource: ResourceType = ResourceType.STONE_BLOCK
@@ -246,7 +280,9 @@ class SoupKitchen(ProcessingBuilding):
     """Turns vegetables into soup."""
 
     name: str = "SoupKitchen"
-    construction_cost: int = 110
+    construction_cost: Dict[ResourceType, int] = field(
+        default_factory=lambda: {ResourceType.WOOD: 110}
+    )
     upkeep: int = 8
     input_resource: ResourceType = ResourceType.VEGETABLE
     output_resource: ResourceType = ResourceType.SOUP

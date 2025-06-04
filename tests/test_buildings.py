@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World, ResourceType
+from world.world import World, ResourceType
 from game.buildings import (
     Farm,
     Smeltery,
@@ -32,7 +32,7 @@ def test_building_upgrade():
     assert farm.upkeep == int(10 * 1.2)
 
 
-def test_tick_applies_building_bonus():
+def test_tick_applies_building_bonus(monkeypatch):
     world = make_world()
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
@@ -45,9 +45,16 @@ def test_tick_applies_building_bonus():
     farm = Farm()
     farm.upgrade()
     faction.buildings.append(farm)
+
+    # Deterministic population change: +1 citizen
+    values = [1, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+
     initial_population = faction.citizens.count
     game.tick()
+
     expected_food = (initial_population + 1) // 2 + farm.resource_bonus
+    assert faction.citizens.count == initial_population + 1
     assert faction.resources[ResourceType.FOOD] == expected_food
 
 
@@ -91,3 +98,17 @@ def test_full_processing_chain_over_ticks():
     assert faction.resources[ResourceType.WHEAT] == 0
     assert faction.resources[ResourceType.FLOUR] == 0
     assert faction.resources[ResourceType.BREAD] == 4
+
+
+def test_build_structure_deducts_resources():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    farm = Farm()
+    faction.resources[ResourceType.WOOD] = 200
+    starting = faction.resources[ResourceType.WOOD]
+    cost = farm.construction_cost[ResourceType.WOOD]
+    faction.build_structure(farm)
+    assert faction.resources[ResourceType.WOOD] == starting - cost
+    assert farm in faction.buildings
