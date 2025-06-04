@@ -43,6 +43,12 @@ class ResourceManager:
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
 
+        # Automatically assign any idle citizens to gathering if the faction is
+        # not under manual worker control.
+        if not getattr(faction, "manual_assignment", False):
+            idle = faction.workers.available(faction.citizens.count)
+            faction.workers.assigned += idle
+
         # Count how many tiles yield each resource type
         counts: Dict[ResourceType, int] = {}
         for tile in tiles:

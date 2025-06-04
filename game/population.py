@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import random
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
     from .game import Faction
@@ -31,6 +31,14 @@ class FactionManager:
     """Manage population counts for all factions."""
 
     factions: List[Faction] = field(default_factory=list)
+    # When True, automatically assign idle citizens using ``assign_strategy``
+    # during each tick for factions that have ``manual_assignment`` disabled.
+    auto_assign: bool = True
+    assign_strategy: Callable[[Faction], None] | None = None
+
+    def __post_init__(self) -> None:
+        if self.assign_strategy is None:
+            self.assign_strategy = self._default_assign_strategy
 
     def add_faction(self, faction: Faction) -> None:
         self.factions.append(faction)
@@ -48,10 +56,18 @@ class FactionManager:
         faction.workers.assigned -= to_unassign
         return to_unassign
 
+    def _default_assign_strategy(self, faction: Faction) -> None:
+        """Assign all idle citizens as workers."""
+        idle = faction.workers.available(faction.citizens.count)
+        faction.workers.assigned += idle
+
     def tick(self) -> None:
         """Update population for each faction."""
         for faction in self.factions:
             self._update_population(faction)
+            if self.auto_assign and not getattr(faction, "manual_assignment", False):
+                if self.assign_strategy:
+                    self.assign_strategy(faction)
 
     def _update_population(self, faction: Faction) -> None:
         """Apply births, deaths and migration to a faction."""

@@ -66,6 +66,9 @@ class Faction:
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
     unlocked_actions: List[str] = field(default_factory=list)
+    # When True, workers will only be assigned manually. When False, all idle
+    # citizens are automatically distributed to resource tasks each tick.
+    manual_assignment: bool = False
 
     @property
     def population(self) -> int:
@@ -299,7 +302,9 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.population = sum(f.citizens.count for f in self.map.factions)
+        # Persist resources and whatever population value has been tracked.
+        # ``self.population`` may be updated elsewhere (e.g. during ticks);
+        # saving does not recompute it so tests can control the value directly.
         self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
