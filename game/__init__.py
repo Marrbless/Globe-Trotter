@@ -1,11 +1,13 @@
 """Game package exposing core classes."""
 
-from .game import Game
-from .models import Faction, Settlement, Position
+from .game import Game, Faction
+from .models import Settlement, Position
 from .buildings import (
     Building,
     Farm,
     Mine,
+    IronMine,
+    GoldMine,
     House,
     LumberMill,
     Quarry,
@@ -25,6 +27,8 @@ __all__ = [
     "Building",
     "Farm",
     "Mine",
+    "IronMine",
+    "GoldMine",
     "House",
     "LumberMill",
     "Quarry",

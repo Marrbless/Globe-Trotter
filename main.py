@@ -14,7 +14,7 @@ def main():
     if settlement:
         q, r = settlement
         hex_data = world.get(q, r)
-        print(f"Settlement chosen at ({q}, {r}) with terrain {hex_data['terrain']}")
+        print(f"Settlement chosen at ({q}, {r}) with terrain {hex_data.terrain}")
 
         # Let the player pick defensive structures
         buildings = choose_defenses()

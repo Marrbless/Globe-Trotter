@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World
+from game.world import World, ResourceType
 from game.buildings import Farm
 
 
@@ -14,7 +14,7 @@ def make_world():
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
         tile = w.get(center[0] + dq, center[1] + dr)
         if tile:
-            tile["terrain"] = "plains"
+            tile.terrain = "plains"
     return w
 
 
@@ -31,11 +31,15 @@ def test_tick_applies_building_bonus():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     faction = game.player_faction
-    faction.resources = {"food": 0, "wood": 0, "stone": 0}
+    faction.resources = {
+        ResourceType.FOOD: 0,
+        ResourceType.WOOD: 0,
+        ResourceType.STONE: 0,
+    }
     farm = Farm()
     farm.upgrade()
     faction.buildings.append(farm)
-    initial_population = faction.population
+    initial_population = faction.citizens.count
     game.tick()
     expected_food = (initial_population + 1) // 2 + farm.resource_bonus
-    assert faction.resources["food"] == expected_food
+    assert faction.resources[ResourceType.FOOD] == expected_food
