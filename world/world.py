@@ -285,7 +285,11 @@ class World:
             while current and current not in visited:
                 visited.add(current)
                 nxt = self._downhill_neighbor(*current)
-                if not nxt or nxt == current or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height):
+                if (
+                    not nxt
+                    or nxt == current
+                    or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height)
+                ):
                     self.lakes.append(current)
                     self.get(*current).lake = True
                     break
