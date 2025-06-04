@@ -1,5 +1,8 @@
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import List
+
+from .buildings import Building
 
 from . import settings
 
@@ -17,6 +20,21 @@ class Settlement:
 class Faction:
     name: str
     settlement: Settlement
+    resources: int = 500
+    buildings: List[Building] = field(default_factory=list)
+
+    def build_structure(self, building: Building) -> None:
+        if self.resources < building.construction_cost:
+            raise ValueError("Not enough resources to build")
+        self.resources -= building.construction_cost
+        self.buildings.append(building)
+
+    def upgrade_structure(self, building: Building) -> None:
+        cost = building.upgrade_cost()
+        if self.resources < cost:
+            raise ValueError("Not enough resources to upgrade")
+        self.resources -= cost
+        building.upgrade()
 
 class Map:
     def __init__(self, width: int, height: int):
@@ -77,6 +95,16 @@ class Game:
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+
+    def build_for_player(self, building: Building) -> None:
+        if not self.player_faction:
+            raise RuntimeError("Player faction not initialized")
+        self.player_faction.build_structure(building)
+
+    def upgrade_player_building(self, building: Building) -> None:
+        if not self.player_faction:
+            raise RuntimeError("Player faction not initialized")
+        self.player_faction.upgrade_structure(building)
 
 def main():
     game = Game()
