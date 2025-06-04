@@ -33,12 +33,19 @@ class ResourceManager:
         self.register(faction)
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
-        terrain_map = {"plains": "food", "hills": "food", "forest": "wood", "mountains": "stone"}
+        terrain_map = {
+            "plains": "food",
+            "hills": "food",
+            "forest": "wood",
+            "mountains": "stone",
+        }
         counts = {"food": 0, "wood": 0, "stone": 0}
+
         for tile in tiles:
             res = terrain_map.get(tile["terrain"])
             if res:
                 counts[res] += 1
+
         for res, count in counts.items():
             workers = min(faction.workers.get(res, 0), faction.population)
             gather_amount = min(count, workers)
