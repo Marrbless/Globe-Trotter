@@ -46,10 +46,12 @@ class WorldSettings:
     height: int = 50
     biome_distribution: Dict[str, float] = field(
         default_factory=lambda: {
-            "plains": 0.4,
-            "forest": 0.3,
-            "desert": 0.2,
-            "mountain": 0.1,
+            "plains": 0.3,
+            "forest": 0.25,
+            "hills": 0.2,
+            "desert": 0.15,
+            "mountains": 0.05,
+            "water": 0.05,
         }
     )
     weather_patterns: Dict[str, float] = field(
@@ -106,10 +108,15 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
         resources[ResourceType.WOOD] = rng.randint(5, 15)
         if rng.random() < 0.3:
             resources[ResourceType.STONE] = rng.randint(1, 4)
-    elif terrain == "mountain":
+    elif terrain == "mountains":
         resources[ResourceType.STONE] = rng.randint(5, 15)
         if rng.random() < 0.7:
             resources[ResourceType.ORE] = rng.randint(1, 5)
+    elif terrain == "hills":
+        if rng.random() < 0.5:
+            resources[ResourceType.WOOD] = rng.randint(1, 5)
+        if rng.random() < 0.6:
+            resources[ResourceType.STONE] = rng.randint(1, 4)
     elif terrain == "plains":
         if rng.random() < 0.5:
             resources[ResourceType.WOOD] = rng.randint(1, 5)
@@ -118,6 +125,8 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
     elif terrain == "desert":
         if rng.random() < 0.2:
             resources[ResourceType.STONE] = rng.randint(1, 3)
+    elif terrain == "water":
+        pass
     return resources
 
 
