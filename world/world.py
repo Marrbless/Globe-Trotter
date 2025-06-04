@@ -8,6 +8,9 @@ from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
 from .generation import (
+    perlin_noise,
+    terrain_from_elevation,
+    determine_biome,
     generate_elevation_map,
     generate_temperature_map,
     generate_rainfall,
@@ -214,7 +217,7 @@ class World:
         elevation = self.elevation_map[r][q]
         temperature = self.temperature_map[r][q]
         moisture = self.rainfall_map[r][q]
-        terrain = self.biome_map[r][q]
+        terrain = determine_biome(elevation, temperature, moisture)
         resources = generate_resources(rng, terrain)
 
         return Hex(

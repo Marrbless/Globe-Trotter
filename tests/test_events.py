@@ -1,6 +1,6 @@
 import random
-from game.events import EventSystem, SettlementState, Flood
-from world.world import WorldSettings, World
+from game.events import EventSystem, SettlementState, Flood, Drought, Raid
+from world.world import WorldSettings, World, RiverSegment
 
 
 def test_event_frequency_reduced():
@@ -31,4 +31,51 @@ def test_event_severity_varies_by_location():
     event_b.apply(state_b, world)
 
     assert (state_a.buildings != state_b.buildings) or (state_a.resources != state_b.resources)
+
+
+def test_flood_converts_river_to_lake(monkeypatch):
+    settings = WorldSettings(seed=1, width=3, height=3)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+    coord = (1, 1)
+    hex_ = world.get(*coord)
+    hex_.river = True
+    world.rivers.append(RiverSegment(coord, (1, 2)))
+    state = SettlementState(location=coord)
+    event = Flood()
+    monkeypatch.setattr(event, "severity", lambda *_: 1.4)
+    event.apply(state, world)
+    assert hex_.lake
+    assert not hex_.river
+    assert coord in world.lakes
+    assert all(seg.start != coord and seg.end != coord for seg in world.rivers)
+
+
+def test_drought_drains_lake(monkeypatch):
+    settings = WorldSettings(seed=1, width=3, height=3)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+    coord = (1, 1)
+    hex_ = world.get(*coord)
+    hex_.lake = True
+    hex_.terrain = "water"
+    world.lakes.append(coord)
+    state = SettlementState(location=coord)
+    event = Drought()
+    monkeypatch.setattr(event, "severity", lambda *_: 1.4)
+    event.apply(state, world)
+    assert not hex_.lake
+    assert hex_.terrain == "plains"
+    assert coord not in world.lakes
+
+
+def test_raid_raises_hill(monkeypatch):
+    settings = WorldSettings(seed=1, width=3, height=3)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+    coord = (1, 1)
+    hex_ = world.get(*coord)
+    hex_.terrain = "hills"
+    state = SettlementState(location=coord, buildings=10)
+    event = Raid()
+    monkeypatch.setattr(event, "severity", lambda *_: 1.4)
+    event.apply(state, world)
+    assert hex_.terrain == "mountains"
 

@@ -52,8 +52,24 @@ class Flood(Event):
             if hex_:
                 hex_.flooded = True
                 if sev > 1.3:
-                    hex_.terrain = "water"
-                    hex_.lake = True
+                    if hex_.river:
+                        # convert rivers into lakes when flooding is severe
+                        hex_.river = False
+                        world.rivers = [
+                            seg
+                            for seg in world.rivers
+                            if seg.start != hex_.coord and seg.end != hex_.coord
+                        ]
+                        if hex_.coord not in world.lakes:
+                            world.lakes.append(hex_.coord)
+                        hex_.lake = True
+                        hex_.terrain = "water"
+                    if hex_.terrain == "hills":
+                        # severe flooding can reshape hills into mountains
+                        hex_.terrain = "mountains"
+                    else:
+                        hex_.terrain = "water"
+                        hex_.lake = True
 
 
 class Drought(Event):
@@ -70,7 +86,13 @@ class Drought(Event):
             if hex_:
                 hex_.moisture = max(0.0, hex_.moisture - 0.1 * sev)
                 if sev > 1.3:
-                    hex_.terrain = "desert"
+                    if hex_.lake:
+                        # severe drought dries up lakes completely
+                        hex_.lake = False
+                        hex_.terrain = "plains"
+                        world.lakes = [c for c in world.lakes if c != hex_.coord]
+                    else:
+                        hex_.terrain = "desert"
 
 
 class Raid(Event):
@@ -90,6 +112,9 @@ class Raid(Event):
                 hex_.ruined = True
                 if sev > 1.3:
                     state.buildings = 0
+                    if hex_.terrain == "hills":
+                        # extreme raids can reshape the land into mountains
+                        hex_.terrain = "mountains"
 
 
 ALL_EVENTS: List[type[Event]] = [Flood, Drought, Raid]
