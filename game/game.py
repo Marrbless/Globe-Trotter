@@ -2,6 +2,12 @@ import random
 from dataclasses import dataclass
 
 from . import settings
+from .buildings import (
+    Building,
+    mitigate_building_damage,
+    mitigate_population_loss,
+)
+
 
 @dataclass
 class Position:
@@ -61,6 +67,7 @@ class Game:
     def __init__(self):
         self.map = Map(*settings.MAP_SIZE)
         self.player_faction: Faction | None = None
+        self.player_buildings: list[Building] = []
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -70,6 +77,10 @@ class Game:
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
 
+    def add_building(self, building: Building):
+        """Add a defensive building to the player's settlement."""
+        self.player_buildings.append(building)
+
     def begin(self):
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
@@ -77,6 +88,22 @@ class Game:
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+        self.simulate_events()
+
+    def simulate_events(self):
+        """Run sample attack and disaster to show defensive buildings."""
+        if not self.player_faction:
+            return
+        base_pop_loss = 100
+        base_damage = 50
+        pop_loss = mitigate_population_loss(self.player_buildings, base_pop_loss)
+        damage = mitigate_building_damage(self.player_buildings, base_damage)
+        print(
+            f"Population loss mitigated from {base_pop_loss} to {pop_loss}"
+        )
+        print(
+            f"Building damage mitigated from {base_damage} to {damage}"
+        )
 
 def main():
     game = Game()
