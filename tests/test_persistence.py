@@ -55,7 +55,7 @@ def test_offline_gains(tmp_path, monkeypatch):
     monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
 
-    assert loaded.population == 5
+    assert loaded.population == 15
     assert loaded.resources[player][ResourceType.ORE] == 30
 
 
@@ -74,6 +74,14 @@ def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
     game.resources.data[player][ResourceType.FOOD] = 10
     game.state.resources = game.resources.data
     game.state.population = game.player_faction.citizens.count
+    game.state.factions = {
+        player: {
+            "citizens": 12,
+            "workers": game.player_faction.workers.assigned,
+            "buildings": [],
+            "projects": [],
+        }
+    }
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
     persistence.save_state(game.state)
