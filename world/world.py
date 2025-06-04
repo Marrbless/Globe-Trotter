@@ -7,7 +7,13 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
-from .generation import perlin_noise, terrain_from_elevation
+from .generation import (
+    generate_elevation_map,
+    generate_temperature_map,
+    generate_rainfall,
+    generate_biome_map,
+    determine_biome,
+)
 
 Coordinate = Tuple[int, int]
 
@@ -170,6 +176,14 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
+        # Precompute world maps for consistent terrain generation
+        self.elevation_map = generate_elevation_map(width, height, self.settings)
+        self.temperature_map = generate_temperature_map(self.settings, self.rng)
+        self.rainfall_map = generate_rainfall(self.elevation_map, self.settings, self.rng)
+        self.biome_map = generate_biome_map(
+            self.elevation_map, self.temperature_map, self.rainfall_map
+        )
+
         self._initialize_base_area()
         self._generate_rivers()
 
@@ -190,13 +204,22 @@ class World:
             self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        """Generate a single hex tile using Perlin noise for elevation."""
+        """Generate a single hex tile using precomputed world maps."""
         rng = random.Random(hash((q, r, self.settings.seed)))
-        elevation = perlin_noise(q, r, self.settings.seed)
-        terrain = terrain_from_elevation(elevation, self.settings)
-        moisture = rng.random() * self.settings.moisture
-        temperature = rng.random() * self.settings.temperature
+
+        max_r = len(self.elevation_map) - 1
+        max_q = len(self.elevation_map[0]) - 1 if self.elevation_map else 0
+        r_idx = min(r, max_r)
+        q_idx = min(q, max_q)
+
+        elevation = self.elevation_map[r_idx][q_idx]
+        temperature = self.temperature_map[r_idx][q_idx]
+        rainfall = self.rainfall_map[r_idx][q_idx]
+        terrain = determine_biome(elevation, temperature, rainfall)
+
+        moisture = rainfall
         resources = generate_resources(rng, terrain)
+
         return Hex(
             coord=(q, r),
             terrain=terrain,
