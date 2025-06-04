@@ -227,16 +227,17 @@ class Game:
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
                 if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
+                    bonus = getattr(building, "resource_bonus", 5)
+                    faction.resources["food"] = faction.resources.get("food", 0) + bonus
                 elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
+                    bonus = getattr(building, "resource_bonus", 3)
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + bonus
                 elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                    bonus = getattr(building, "resource_bonus", 2)
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + bonus
                 elif b_type == "Mine":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
-
-        # After all factions have been processed, update ResourceManager data
-        self.resources.tick(self.map.factions)
+                    bonus = getattr(building, "resource_bonus", 4)
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + bonus
 
         # Debug output for the player faction
         if self.player_faction:

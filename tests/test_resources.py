@@ -61,3 +61,14 @@ def test_quarry_increases_stone():
     game.tick()
     after = game.player_faction.resources["stone"]
     assert after - initial >= 2
+
+
+def test_resource_manager_updates_once():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    player = game.player_faction.name
+    before = game.resources.data[player]["food"]
+    game.tick()
+    after = game.resources.data[player]["food"]
+    assert after - before == 6
