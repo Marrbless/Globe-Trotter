@@ -1,18 +1,20 @@
-# Projects
+# Python Strategy Game Prototypes
 
-This repository contains prototype modules for two systems:
-- A **Faction Creation UI**
-- A **Procedural World Generation Module**
+This repository contains modular prototypes for a turn-based strategy game. It includes:
+
+- A **Faction Creation UI** to let players customize their faction
+- A **Procedural World Generator** using hex tiles
+- A **Game Runtime Module** that spawns AI factions after the player starts the game
 
 ---
 
-## Faction Creation UI
+## 1. Faction Creation UI
 
-Located in the `ui` folder, this module provides a simple GUI for experimenting with UI components.
+A simple GUI for experimenting with player faction creation.
 
-### Usage
+**Location:** `ui/faction_creation.py`
 
-Run the script to open the faction creation window:
+### How to Run
 
 ```bash
 python ui/faction_creation.py
