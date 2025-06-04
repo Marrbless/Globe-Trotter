@@ -11,15 +11,13 @@ This repository contains modular prototypes for a turn-based strategy game. It i
 ## Requirements
 
 * Python 3.10+
-* [pygame](https://www.pygame.org/) for the map view
-* `tkinter` for the faction and building UIs (usually provided by the
-  `python3-tk` system package on Linux)
+* [DearPyGui](https://github.com/hoffstadt/dearpygui) for all GUI windows
 * [pytest](https://docs.pytest.org/) for running the test suite
 
 Install the Python packages with:
 
 ```bash
-pip install pygame pytest
+pip install dearpygui pytest
 ```
 
 ## 1. Faction Creation UI
