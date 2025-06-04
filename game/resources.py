@@ -47,7 +47,7 @@ class ResourceManager:
             "plains": ResourceType.FOOD,
             "hills": ResourceType.FOOD,
             "forest": ResourceType.WOOD,
-            "mountains": ResourceType.STONE,
+            "mountain": ResourceType.STONE,
         }
 
         # Count how many tiles of each resource type are adjacent

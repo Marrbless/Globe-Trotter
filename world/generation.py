@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+"""Procedural world generation helpers."""
+
+from typing import List, TYPE_CHECKING
+import random
+import math
+
+if TYPE_CHECKING:
+    from .world import WorldSettings
+
+
+# -- Noise utilities ---------------------------------------------------------
+
+def _fade(t: float) -> float:
+    return t * t * t * (t * (t * 6 - 15) + 10)
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    return a + t * (b - a)
+
+
+def _grad(ix: int, iy: int, seed: int) -> tuple[float, float]:
+    """Return a pseudo-random gradient vector for the grid point."""
+    rnd = random.Random(hash((ix, iy, seed)))
+    angle = rnd.random() * 2 * math.pi
+    return math.cos(angle), math.sin(angle)
+
+
+def _perlin(x: float, y: float, seed: int) -> float:
+    """Classic 2D Perlin noise in range [0, 1]."""
+    x0 = math.floor(x)
+    y0 = math.floor(y)
+    x1 = x0 + 1
+    y1 = y0 + 1
+
+    sx = _fade(x - x0)
+    sy = _fade(y - y0)
+
+    n00 = _dot_grid_gradient(x0, y0, x, y, seed)
+    n10 = _dot_grid_gradient(x1, y0, x, y, seed)
+    n01 = _dot_grid_gradient(x0, y1, x, y, seed)
+    n11 = _dot_grid_gradient(x1, y1, x, y, seed)
+
+    ix0 = _lerp(n00, n10, sx)
+    ix1 = _lerp(n01, n11, sx)
+    value = _lerp(ix0, ix1, sy)
+    return (value + 1) / 2
+
+
+def _dot_grid_gradient(ix: int, iy: int, x: float, y: float, seed: int) -> float:
+    gx, gy = _grad(ix, iy, seed)
+    dx = x - ix
+    dy = y - iy
+    return gx * dx + gy * dy
+
+
+def perlin_noise(x: float, y: float, seed: int, octaves: int = 4, persistence: float = 0.5, lacunarity: float = 2.0, scale: float = 0.05) -> float:
+    """Generate fractal Perlin noise value for given coordinates."""
+    value = 0.0
+    amplitude = 1.0
+    frequency = scale
+    max_amp = 0.0
+    for i in range(octaves):
+        value += _perlin(x * frequency, y * frequency, seed + i) * amplitude
+        max_amp += amplitude
+        amplitude *= persistence
+        frequency *= lacunarity
+    return value / max_amp
+
+
+# -- Elevation map generation ------------------------------------------------
+
+def generate_elevation_map(width: int, height: int, settings: WorldSettings) -> List[List[float]]:
+    """Return a 2D list of elevation values in range [0, 1]."""
+    elev: List[List[float]] = []
+    for y in range(height):
+        row = []
+        for x in range(width):
+            n = perlin_noise(x, y, settings.seed)
+            row.append(n)
+        elev.append(row)
+    apply_tectonic_plates(elev, settings)
+    return elev
+
+
+def apply_tectonic_plates(elev: List[List[float]], settings: WorldSettings) -> None:
+    """Modify elevation map in place to create continents and mountains."""
+    width = len(elev[0])
+    height = len(elev)
+    rng = random.Random(settings.seed)
+    plates = max(2, int(3 + settings.plate_activity * 5))
+    centers = [
+        (rng.randint(0, width - 1), rng.randint(0, height - 1), rng.random())
+        for _ in range(plates)
+    ]
+    for y in range(height):
+        for x in range(width):
+            dists = sorted(
+                (
+                    (cx - x) ** 2 + (cy - y) ** 2,
+                    base,
+                )
+                for cx, cy, base in centers
+            )
+            dist0, base = dists[0]
+            dist1 = dists[1][0] if len(dists) > 1 else dist0
+            ratio = dist0 / (dist0 + dist1) if dist1 > 0 else 0.0
+            boundary = 1.0 - abs(0.5 - ratio) * 2.0
+            plate_height = base * settings.base_height + boundary * settings.plate_activity
+            elev[y][x] = min(1.0, max(0.0, (elev[y][x] + plate_height) / 2))
+
+
+def terrain_from_elevation(value: float, settings: WorldSettings) -> str:
+    """Convert elevation value to a terrain type."""
+    if value < settings.sea_level:
+        return "water"
+    if value < settings.sea_level + 0.2:
+        return "plains"
+    if value < settings.sea_level + 0.4:
+        return "hills"
+    return "mountain"
+
+
+__all__ = [
+    "generate_elevation_map",
+    "apply_tectonic_plates",
+    "terrain_from_elevation",
+    "perlin_noise",
+]
