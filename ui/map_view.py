@@ -186,6 +186,9 @@ def terrain_color(name):
         "forest": (34, 139, 34, 255),
         "mountains": (139, 137, 137, 255),
         "hills": (107, 142, 35, 255),
+        "desert": (237, 201, 175, 255),
+        "tundra": (220, 220, 220, 255),
+        "rainforest": (0, 100, 0, 255),
         "water": (65, 105, 225, 255),
     }
     return mapping.get(name, (200, 200, 200, 255))
