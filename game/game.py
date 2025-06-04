@@ -246,6 +246,9 @@ class Game:
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
+
         for faction in self.map.factions:
             # 1. Population growth
             faction.population += 1
@@ -256,13 +259,13 @@ class Game:
 
             # 3. Building effects
             for building in faction.buildings:
-                b_type = getattr(building, "name", None)
-                if b_type == "farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
-                elif b_type == "lumber_mill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                b_type = getattr(building, "name", "").lower()
+                if "farm" in b_type:
+                    faction.resources["food"] = faction.resources.get("food", 0) + building.resource_bonus
+                elif "lumber" in b_type:
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + building.resource_bonus
+                elif "mine" in b_type or "quarry" in b_type:
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
 
         # Debug output for the player faction
         if self.player_faction:
