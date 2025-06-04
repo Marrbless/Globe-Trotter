@@ -61,7 +61,7 @@ class WorldSetupUI:
                 tag="tectonic",
                 min_value=0.0,
                 max_value=1.0,
-                default_value=self.settings.tectonic_activity,
+                default_value=self.settings.plate_activity,
                 callback=self._update_world,
             )
             dpg.add_button(label="Confirm", callback=self._confirm)
@@ -73,7 +73,7 @@ class WorldSetupUI:
         self.settings.elevation = dpg.get_value("elevation")
         self.settings.temperature = dpg.get_value("temperature")
         self.settings.moisture = dpg.get_value("moisture")
-        self.settings.tectonic_activity = dpg.get_value("tectonic")
+        self.settings.plate_activity = dpg.get_value("tectonic")
 
         self.world = World(
             width=self.settings.width,
