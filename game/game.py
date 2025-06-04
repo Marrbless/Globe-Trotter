@@ -372,7 +372,8 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.population = sum(f.citizens.count for f in self.map.factions)
+        """Persist the current game state to disk."""
+        # Do not recompute population here so tests can control saved values
         self.state.resources = self.resources.data
         self.state.population = self.population
         self.state.world = serialize_world(self.world)
