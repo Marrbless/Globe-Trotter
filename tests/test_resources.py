@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from world.world import World
+from world.world import World, ResourceType
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
 
@@ -23,10 +23,10 @@ def test_resources_increase_without_buildings():
     world = make_world()
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
-    initial = game.player_faction.resources["food"]
+    initial = game.player_faction.resources[ResourceType.FOOD]
     for _ in range(5):
         game.tick()
-    after = game.player_faction.resources["food"]
+    after = game.player_faction.resources[ResourceType.FOOD]
     assert after > initial
 
 
@@ -35,9 +35,9 @@ def test_farm_increases_food():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     game.player_faction.buildings.append(Farm())
-    initial = game.player_faction.resources["food"]
+    initial = game.player_faction.resources[ResourceType.FOOD]
     game.tick()
-    after = game.player_faction.resources["food"]
+    after = game.player_faction.resources[ResourceType.FOOD]
     assert after - initial >= 10  # base + farm bonus
 
 
@@ -46,9 +46,9 @@ def test_lumbermill_increases_wood():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     game.player_faction.buildings.append(LumberMill())
-    initial = game.player_faction.resources["wood"]
+    initial = game.player_faction.resources[ResourceType.WOOD]
     game.tick()
-    after = game.player_faction.resources["wood"]
+    after = game.player_faction.resources[ResourceType.WOOD]
     assert after - initial >= 3
 
 
@@ -57,9 +57,9 @@ def test_quarry_increases_stone():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     game.player_faction.buildings.append(Quarry())
-    initial = game.player_faction.resources["stone"]
+    initial = game.player_faction.resources[ResourceType.STONE]
     game.tick()
-    after = game.player_faction.resources["stone"]
+    after = game.player_faction.resources[ResourceType.STONE]
     assert after - initial >= 2
 
 
@@ -68,7 +68,7 @@ def test_resource_manager_updates_once():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
-    before = game.resources.data[player]["food"]
+    before = game.resources.data[player][ResourceType.FOOD]
     game.tick()
-    after = game.resources.data[player]["food"]
+    after = game.resources.data[player][ResourceType.FOOD]
     assert after - before == 6
