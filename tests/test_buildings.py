@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World, ResourceType
+from world.world import World, ResourceType
 from game.buildings import (
     Farm,
     Smeltery,
