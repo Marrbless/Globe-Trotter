@@ -96,8 +96,11 @@ class Map:
                 return True
         return False
 
-    def distance(self, pos1: Position, pos2: Position) -> float:
-        return ((pos1.x - pos2.x) ** 2 + (pos1.y - pos2.y) ** 2) ** 0.5
+    def distance(self, pos1: Position, pos2: Position) -> int:
+        """Return axial hex distance between two positions."""
+        dq = pos1.x - pos2.x
+        dr = pos1.y - pos2.y
+        return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
 
     def add_faction(self, faction: Faction):
         if not self.is_occupied(faction.settlement.position):
@@ -129,6 +132,9 @@ class Map:
                 new_factions.append(ai)
                 spawned += 1
         return new_factions
+
+
+from .resources import ResourceManager
 
 
 class Game:
@@ -232,6 +238,9 @@ class Game:
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
         # Update ResourceManager data
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
+
         if isinstance(self.resources, ResourceManager):
             self.resources.tick(self.map.factions)
 
