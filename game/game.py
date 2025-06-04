@@ -60,6 +60,16 @@ class Faction:
             ResourceType.ORE: 0,
             ResourceType.METAL: 0,
             ResourceType.CLOTH: 0,
+            ResourceType.WHEAT: 0,
+            ResourceType.FLOUR: 0,
+            ResourceType.BREAD: 0,
+            ResourceType.WOOL: 0,
+            ResourceType.CLOTHES: 0,
+            ResourceType.PLANK: 0,
+            ResourceType.STONE_BLOCK: 0,
+            ResourceType.VEGETABLE: 0,
+            ResourceType.SOUP: 0,
+            ResourceType.WEAPON: 0,
         }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
@@ -299,7 +309,6 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
