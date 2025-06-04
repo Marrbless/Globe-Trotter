@@ -299,7 +299,6 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
