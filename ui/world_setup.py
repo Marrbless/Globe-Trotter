@@ -34,10 +34,10 @@ class WorldSetupUI:
             )
             dpg.add_slider_float(
                 label="Sea Level",
-                tag="elevation",
+                tag="sea_level",
                 min_value=0.0,
                 max_value=1.0,
-                default_value=self.settings.elevation,
+                default_value=self.settings.sea_level,
                 callback=self._update_world,
             )
             dpg.add_slider_float(
@@ -61,7 +61,7 @@ class WorldSetupUI:
                 tag="tectonic",
                 min_value=0.0,
                 max_value=1.0,
-                default_value=self.settings.tectonic_activity,
+                default_value=self.settings.plate_activity,
                 callback=self._update_world,
             )
             dpg.add_button(label="Confirm", callback=self._confirm)
@@ -70,10 +70,10 @@ class WorldSetupUI:
         """Regenerate world when any slider changes."""
 
         self.settings.seed = dpg.get_value("seed")
-        self.settings.elevation = dpg.get_value("elevation")
+        self.settings.sea_level = dpg.get_value("sea_level")
         self.settings.temperature = dpg.get_value("temperature")
         self.settings.moisture = dpg.get_value("moisture")
-        self.settings.tectonic_activity = dpg.get_value("tectonic")
+        self.settings.plate_activity = dpg.get_value("tectonic")
 
         self.world = World(
             width=self.settings.width,
