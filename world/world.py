@@ -135,6 +135,15 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
     elif terrain == "desert":
         if rng.random() < 0.2:
             resources[ResourceType.STONE] = rng.randint(1, 3)
+    elif terrain == "tundra":
+        if rng.random() < 0.3:
+            resources[ResourceType.STONE] = rng.randint(1, 4)
+        if rng.random() < 0.2:
+            resources[ResourceType.WOOD] = rng.randint(1, 3)
+    elif terrain == "rainforest":
+        resources[ResourceType.WOOD] = rng.randint(8, 20)
+        if rng.random() < 0.3:
+            resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
     return resources
@@ -142,6 +151,8 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
 
 class World:
     """Collection of hexes with optional road network."""
+
+    CHUNK_SIZE = 10
 
     def __init__(
         self,
@@ -158,6 +169,7 @@ class World:
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
+
         self._initialize_base_area()
         self._generate_rivers()
 
@@ -169,9 +181,8 @@ class World:
     def height(self) -> int:
         return self.settings.height
 
-    CHUNK_SIZE = 10
-
     def _initialize_base_area(self) -> None:
+        """Populate hexes for the entire world by lazily generating each chunk."""
         for r in range(self.settings.height):
             row: List[Hex] = []
             for q in range(self.settings.width):
@@ -179,6 +190,7 @@ class World:
             self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
+        """Generate a single hex tile using Perlin noise for elevation."""
         rng = random.Random(hash((q, r, self.settings.seed)))
         elevation = perlin_noise(q, r, self.settings.seed)
         terrain = terrain_from_elevation(elevation, self.settings)
@@ -195,6 +207,7 @@ class World:
         )
 
     def _generate_chunk(self, cx: int, cy: int) -> None:
+        """Generate a CHUNK_SIZE × CHUNK_SIZE block of hexes on demand."""
         chunk: List[List[Hex]] = []
         base_q = cx * self.CHUNK_SIZE
         base_r = cy * self.CHUNK_SIZE
@@ -229,11 +242,11 @@ class World:
         return best
 
     def _generate_rivers(self) -> None:
-        """Create simple rivers flowing downhill based on elevation."""
+        """Create simple rivers flowing downhill based on perlin-derived elevation."""
         density = max(0.0, min(1.0, self.settings.rainfall_intensity))
         seeds = max(1, int(density * 5))
         for _ in range(seeds):
-            # choose a random high elevation starting hex
+            # choose a random high-elevation starting hex
             for _ in range(100):
                 q = self.rng.randint(0, self.width - 1)
                 r = self.rng.randint(0, self.height - 1)
@@ -257,6 +270,9 @@ class World:
                 current = nxt
 
     def get(self, q: int, r: int) -> Optional[Hex]:
+        """Retrieve a hex at (q, r), generating its chunk if necessary."""
+        if not (0 <= q < self.settings.width and 0 <= r < self.settings.height):
+            return None
         cx = q // self.CHUNK_SIZE
         cy = r // self.CHUNK_SIZE
         if (cx, cy) not in self.chunks:
@@ -267,6 +283,7 @@ class World:
         return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
 
     def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
+        """Sum up resources of all hexes within a given radius."""
         totals: Dict[ResourceType, int] = {r: 0 for r in ResourceType}
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):

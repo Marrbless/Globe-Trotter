@@ -143,7 +143,7 @@ def terrain_from_elevation(
         return "plains"
     if value < settings.sea_level + 0.4:
         return "hills"
-    return "mountain"
+    return "mountains"
 
 
 # -- Climate and biome utilities ------------------------------------------------
