@@ -11,7 +11,7 @@ from .buildings import (
 )
 from .population import Citizen, Worker
 from . import settings
-from world.world import World
+from world.world import World, ResourceType
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject
 
@@ -51,14 +51,14 @@ class Faction:
     name: str
     settlement: Settlement
     citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
-    resources: Dict[str, int] = field(
+    resources: Dict[ResourceType, int] = field(
         default_factory=lambda: {
-            "food": 100,
-            "wood": 50,
-            "stone": 30,
-            "ore": 0,
-            "metal": 0,
-            "cloth": 0,
+            ResourceType.FOOD: 100,
+            ResourceType.WOOD: 50,
+            ResourceType.STONE: 30,
+            ResourceType.ORE: 0,
+            ResourceType.METAL: 0,
+            ResourceType.CLOTH: 0,
         }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
@@ -68,6 +68,7 @@ class Faction:
 
     @property
     def population(self) -> int:
+        """Return total citizens for backward compatibility."""
         return self.citizens.count
 
     @population.setter
@@ -96,10 +97,10 @@ class Faction:
 
     def build_structure(self, building: Building) -> None:
         """
-        Pay the required resources (assumed to be a dict mapping resource types to amounts)
+        Pay the required resources (assumed to be a dict mapping ResourceType to amounts)
         and add the Building instance to this faction.
         """
-        cost: Dict[str, int] = building.construction_cost  # e.g. {"wood": 20, "stone": 10}
+        cost: Dict[ResourceType, int] = building.construction_cost
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to build {building.name}")
@@ -110,9 +111,9 @@ class Faction:
     def upgrade_structure(self, building: Building) -> None:
         """
         Pay the upgrade cost and then call the building's internal upgrade() method.
-        Assumes building.upgrade_cost() returns a dict like construction_cost.
+        Assumes building.upgrade_cost() returns a dict keyed by ResourceType.
         """
-        cost: Dict[str, int] = building.upgrade_cost()
+        cost: Dict[ResourceType, int] = building.upgrade_cost()
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to upgrade {building.name}")
@@ -249,31 +250,26 @@ class Game:
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
-        # First, let the ResourceManager update if needed
-        self.resources.tick(self.map.factions)
-
         for faction in self.map.factions:
             # 1. Population growth
             faction.citizens.count += 1
 
             # 2. Generate base food from population
             food_gain = faction.citizens.count // 2
-            faction.resources["food"] = faction.resources.get("food", 0) + food_gain
+            faction.resources[ResourceType.FOOD] = (
+                faction.resources.get(ResourceType.FOOD, 0) + food_gain
+            )
 
-            # 3. Building effects (explicit mapping by building name)
+            # 3. Building effects
             for building in faction.buildings:
                 if isinstance(building, ProcessingBuilding):
                     building.process(faction)
                     continue
-                b_type = getattr(building, "name", None)
-                if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + building.resource_bonus
-                elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + building.resource_bonus
-                elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
-                elif b_type == "Mine":
-                    faction.resources["ore"] = faction.resources.get("ore", 0) + building.resource_bonus
+                if building.resource_type is not None:
+                    current = faction.resources.get(building.resource_type, 0)
+                    faction.resources[building.resource_type] = (
+                        current + building.resource_bonus
+                    )
 
         # After all factions have been processed, update ResourceManager data
         self.resources.tick(self.map.factions)

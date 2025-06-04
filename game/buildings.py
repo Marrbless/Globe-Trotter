@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING
+from world.world import ResourceType
 
 if TYPE_CHECKING:
     from .game import Faction
@@ -53,6 +54,7 @@ class Building:
     upkeep: int
     resource_bonus: int = 0
     population_bonus: int = 0
+    resource_type: Optional[ResourceType] = None
     level: int = 1
 
     def upgrade_cost(self) -> int:
@@ -73,6 +75,7 @@ class Farm(Building):
     construction_cost: int = 100
     upkeep: int = 10
     resource_bonus: int = 5
+    resource_type: ResourceType = ResourceType.FOOD
 
 
 @dataclass
@@ -81,6 +84,25 @@ class Mine(Building):
     construction_cost: int = 150
     upkeep: int = 15
     resource_bonus: int = 10
+    resource_type: ResourceType = ResourceType.ORE
+
+
+@dataclass
+class IronMine(Building):
+    name: str = "IronMine"
+    construction_cost: int = 180
+    upkeep: int = 18
+    resource_bonus: int = 2
+    resource_type: ResourceType = ResourceType.IRON
+
+
+@dataclass
+class GoldMine(Building):
+    name: str = "GoldMine"
+    construction_cost: int = 200
+    upkeep: int = 20
+    resource_bonus: int = 1
+    resource_type: ResourceType = ResourceType.GOLD
 
 
 @dataclass
@@ -89,6 +111,7 @@ class House(Building):
     construction_cost: int = 50
     upkeep: int = 5
     population_bonus: int = 2
+    resource_type: Optional[ResourceType] = None
 
 
 @dataclass
@@ -97,6 +120,7 @@ class LumberMill(Building):
     construction_cost: int = 120
     upkeep: int = 12
     resource_bonus: int = 3
+    resource_type: ResourceType = ResourceType.WOOD
 
 
 @dataclass
@@ -105,17 +129,17 @@ class Quarry(Building):
     construction_cost: int = 130
     upkeep: int = 14
     resource_bonus: int = 2
+    resource_type: ResourceType = ResourceType.STONE
 
 
 @dataclass
 class ProcessingBuilding(Building):
     """Building that converts one resource into another each tick."""
-
     input_resource: str = ""
     output_resource: str = ""
     conversion_rate: int = 1
 
-    def process(self, faction: 'Faction') -> None:
+    def process(self, faction: Faction) -> None:
         available = faction.resources.get(self.input_resource, 0)
         to_convert = min(self.conversion_rate, available)
         if to_convert > 0:

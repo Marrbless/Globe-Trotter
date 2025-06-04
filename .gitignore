@@ -1,0 +1,41 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+*.pyo
+*.pyd
+*.pyc
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Jupyter Notebook artifacts
+.ipynb_checkpoints
+
+# VS Code, PyCharm, and other IDEs
+.vscode/
+.idea/
+
+# Mac OS artifacts
+.DS_Store
+
+# Unit test / coverage
+.coverage
+.tox/
+
