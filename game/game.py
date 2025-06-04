@@ -1,9 +1,16 @@
 import random
 import time
-from typing import List, Dict
+from typing import List, Dict, Any
 from dataclasses import dataclass, field
 
-from .persistence import GameState, load_state, save_state
+from .persistence import (
+    GameState,
+    load_state,
+    save_state,
+    serialize_world,
+    serialize_factions,
+    deserialize_world,
+)
 from .buildings import (
     Building,
     ProcessingBuilding,
@@ -213,18 +220,84 @@ class Game:
         for faction in self.map.factions:
             self.resources.register(faction)
 
-        # Load saved state now that all factions exist
+        # Peek saved state to rebuild world and faction data
+        initial_state = load_state()
+        if initial_state.world:
+            from world.world import WorldSettings, World
+            settings = WorldSettings(**initial_state.world.get("settings", {}))
+            self.world = World(
+                width=settings.width,
+                height=settings.height,
+                settings=settings,
+            )
+            deserialize_world(initial_state.world, self.world)
+
+        # Apply offline gains now that the world and factions exist
         self.state = load_state(world=self.world, factions=self.map.factions)
         self.resources = ResourceManager(self.world, self.state.resources)
+
+        def restore_buildings(faction: Faction, data: List[Dict[str, Any]]):
+            from .buildings import (
+                Farm,
+                Mine,
+                IronMine,
+                GoldMine,
+                House,
+                LumberMill,
+                Quarry,
+                Smeltery,
+                TextileMill,
+            )
+
+            cls_map = {
+                cls().name: cls
+                for cls in [
+                    Farm,
+                    Mine,
+                    IronMine,
+                    GoldMine,
+                    House,
+                    LumberMill,
+                    Quarry,
+                    Smeltery,
+                    TextileMill,
+                ]
+            }
+            faction.buildings.clear()
+            for b in data:
+                cls = cls_map.get(b.get("name"))
+                if cls:
+                    inst = cls()
+                    inst.level = int(b.get("level", 1))
+                    faction.buildings.append(inst)
+
+        def restore_projects(faction: Faction, data: List[Dict[str, Any]]):
+            from copy import deepcopy
+            from .game import GREAT_PROJECT_TEMPLATES
+
+            faction.projects.clear()
+            for p in data:
+                template = GREAT_PROJECT_TEMPLATES.get(p.get("name"))
+                if template:
+                    proj = deepcopy(template)
+                    proj.progress = int(p.get("progress", 0))
+                    faction.projects.append(proj)
 
         for faction in self.map.factions:
             self.resources.register(faction)
             saved = self.state.resources.get(faction.name)
             if saved is not None:
                 faction.resources.update(saved)
+            fdata = self.state.factions.get(faction.name)
+            if fdata:
+                faction.citizens.count = fdata.get("citizens", faction.citizens.count)
+                faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
+                restore_buildings(faction, fdata.get("buildings", []))
+                restore_projects(faction, fdata.get("projects", []))
+
+        self.turn = self.state.turn
         if self.player_faction:
-            self.player_faction.citizens.count = self.state.population
-            self.population = self.state.population
+            self.population = self.player_faction.citizens.count
 
         print("Game started with factions:")
         for faction in self.map.factions:
@@ -302,6 +375,9 @@ class Game:
         self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
+        self.state.world = serialize_world(self.world)
+        self.state.factions = serialize_factions(self.map.factions)
+        self.state.turn = self.turn
         save_state(self.state)
 
     def advance_turn(self) -> None:
