@@ -6,7 +6,6 @@ from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
 from . import settings
 from .world import World
-from .resources import ResourceManager
 
 
 @dataclass
@@ -122,8 +121,11 @@ class Map:
                 return True
         return False
 
-    def distance(self, pos1: Position, pos2: Position) -> float:
-        return ((pos1.x - pos2.x) ** 2 + (pos1.y - pos2.y) ** 2) ** 0.5
+    def distance(self, pos1: Position, pos2: Position) -> int:
+        """Return axial hex distance between two positions."""
+        dq = pos1.x - pos2.x
+        dr = pos1.y - pos2.y
+        return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
 
     def add_faction(self, faction: Faction):
         if not self.is_occupied(faction.settlement.position):
@@ -155,6 +157,9 @@ class Map:
                 new_factions.append(ai)
                 spawned += 1
         return new_factions
+
+
+from .resources import ResourceManager
 
 
 class Game:
@@ -263,6 +268,9 @@ class Game:
                     faction.resources["wood"] = faction.resources.get("wood", 0) + 3
                 elif b_type == "quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
         if self.player_faction:
