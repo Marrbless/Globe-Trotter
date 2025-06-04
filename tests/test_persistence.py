@@ -16,7 +16,7 @@ def make_world():
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
         tile = w.get(center[0] + dq, center[1] + dr)
         if tile:
-            tile["terrain"] = "plains"
+            tile.terrain = "plains"
     return w
 
 
