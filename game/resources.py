@@ -20,24 +20,7 @@ class ResourceManager:
     def register(self, faction: "Faction") -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
-            self.data[faction.name] = {
-                ResourceType.FOOD: 0,
-                ResourceType.WOOD: 0,
-                ResourceType.STONE: 0,
-                ResourceType.ORE: 0,
-                ResourceType.METAL: 0,
-                ResourceType.CLOTH: 0,
-                ResourceType.WHEAT: 0,
-                ResourceType.FLOUR: 0,
-                ResourceType.BREAD: 0,
-                ResourceType.WOOL: 0,
-                ResourceType.CLOTHES: 0,
-                ResourceType.PLANK: 0,
-                ResourceType.STONE_BLOCK: 0,
-                ResourceType.VEGETABLE: 0,
-                ResourceType.SOUP: 0,
-                ResourceType.WEAPON: 0,
-            }
+            self.data[faction.name] = faction.resources.copy()
 
     def adjacent_tiles(self, pos: "Position") -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]

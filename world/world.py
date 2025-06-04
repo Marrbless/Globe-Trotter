@@ -151,6 +151,7 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
+
     return resources
 
 
@@ -175,6 +176,7 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
+        # Precompute world data maps
         self.elevation_map = generate_elevation_map(
             self.settings.width, self.settings.height, self.settings
         )
