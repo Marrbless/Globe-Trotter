@@ -39,6 +39,12 @@ def test_offline_gains(tmp_path, monkeypatch):
     monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
 
     world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.ORE: 1}
+
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
@@ -50,10 +56,10 @@ def test_offline_gains(tmp_path, monkeypatch):
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
 
     assert loaded.population == 5
-    assert loaded.resources[player][ResourceType.FOOD] == 30
+    assert loaded.resources[player][ResourceType.ORE] == 30
 
 
-def test_game_reloads_saved_state(tmp_path, monkeypatch):
+def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
     tmp_file = tmp_path / "save.json"
     monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
 
@@ -62,17 +68,20 @@ def test_game_reloads_saved_state(tmp_path, monkeypatch):
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
 
-    for _ in range(3):
-        game.tick()
+    # Prepare some saved data
+    game.player_faction.resources[ResourceType.FOOD] = 10
+    game.player_faction.citizens.count = 12
+    game.resources.data[player][ResourceType.FOOD] = 10
+    game.state.resources = game.resources.data
+    game.state.population = game.player_faction.citizens.count
 
-    game.population = game.player_faction.citizens.count
-    saved_food = game.resources.data[player][ResourceType.FOOD]
-    saved_pop = game.population
-    game.save()
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    persistence.save_state(game.state)
 
-    new_world = make_world()
-    new_game = Game(world=new_world)
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    new_game = Game(world=world)
     new_game.place_initial_settlement(1, 1)
+    new_game.begin()
 
-    assert new_game.resources.data[player][ResourceType.FOOD] == saved_food
-    assert new_game.population == saved_pop
+    assert new_game.player_faction.resources[ResourceType.FOOD] == 10
+    assert new_game.player_faction.citizens.count == 12

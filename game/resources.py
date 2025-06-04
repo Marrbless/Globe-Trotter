@@ -43,26 +43,11 @@ class ResourceManager:
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
 
-        terrain_map: Dict[str, ResourceType] = {
-            "plains": ResourceType.FOOD,
-            "hills": ResourceType.FOOD,
-            "forest": ResourceType.WOOD,
-            "mountains": ResourceType.STONE,
-            "rainforest": ResourceType.WOOD,
-            "desert": ResourceType.STONE,
-            "tundra": ResourceType.FOOD,
-        }
-
-        # Count how many tiles of each resource type are adjacent
-        counts: Dict[ResourceType, int] = {
-            ResourceType.FOOD: 0,
-            ResourceType.WOOD: 0,
-            ResourceType.STONE: 0,
-        }
+        # Count how many tiles yield each resource type
+        counts: Dict[ResourceType, int] = {}
         for tile in tiles:
-            res = terrain_map.get(tile.terrain)
-            if res is not None:
-                counts[res] += 1
+            for res_type in tile.resources.keys():
+                counts[res_type] = counts.get(res_type, 0) + 1
 
         # Determine how many workers can gather (limited by assigned workers and available citizens)
         workers_available = min(faction.workers.assigned, faction.citizens.count)
@@ -70,6 +55,8 @@ class ResourceManager:
         # Gather from each resource type up to the number of available workers
         for res_type, tile_count in counts.items():
             gathered = min(tile_count, workers_available)
+            if res_type not in resources:
+                resources[res_type] = 0
             resources[res_type] += gathered
 
     def tick(self, factions: List["Faction"]) -> None:

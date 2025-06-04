@@ -1,4 +1,5 @@
 import random
+import time
 from typing import List, Dict
 from dataclasses import dataclass, field
 
@@ -178,10 +179,12 @@ class Game:
         self.map = Map(*settings.MAP_SIZE)
         self.world = world or World(*settings.MAP_SIZE)
 
-        # Load or create state
-        self.state = state or load_state()
+        # Prepare state container; actual saved data will be loaded in begin()
+        self.state = state or GameState(
+            timestamp=time.time(), resources={}, population=0
+        )
 
-        # Initialize resource manager with persisted data
+        # Initialize resource manager with whatever data we have so far
         self.resources = ResourceManager(self.world, self.state.resources)
 
         self.population = self.state.population
@@ -209,6 +212,19 @@ class Game:
         ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
         for faction in self.map.factions:
             self.resources.register(faction)
+
+        # Load saved state now that all factions exist
+        self.state = load_state(world=self.world, factions=self.map.factions)
+        self.resources = ResourceManager(self.world, self.state.resources)
+
+        for faction in self.map.factions:
+            self.resources.register(faction)
+            saved = self.state.resources.get(faction.name)
+            if saved is not None:
+                faction.resources.update(saved)
+        if self.player_faction:
+            self.player_faction.citizens.count = self.state.population
+            self.population = self.state.population
 
         print("Game started with factions:")
         for faction in self.map.factions:
@@ -268,10 +284,12 @@ class Game:
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (
-                        current + building.resource_bonus
-                    )
+                    current + building.resource_bonus
+                )
 
-        # After all factions have been processed, update ResourceManager data
+        # After all factions have been processed, update overall population and
+        # ResourceManager data
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
@@ -281,6 +299,7 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
