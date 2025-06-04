@@ -7,7 +7,15 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
-from .generation import perlin_noise, terrain_from_elevation
+from .generation import (
+    perlin_noise,
+    terrain_from_elevation,
+    generate_elevation_map,
+    generate_temperature_map,
+    generate_rainfall,
+    generate_biome_map,
+    determine_biome,
+)
 
 Coordinate = Tuple[int, int]
 
@@ -170,6 +178,18 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
+        # Precompute climate and biome maps for tests that access them
+        self.elevation_map = generate_elevation_map(
+            self.settings.width, self.settings.height, self.settings
+        )
+        self.temperature_map = generate_temperature_map(self.settings, self.rng)
+        self.rainfall_map = generate_rainfall(
+            self.elevation_map, self.settings, self.rng
+        )
+        self.biome_map = generate_biome_map(
+            self.elevation_map, self.temperature_map, self.rainfall_map
+        )
+
         self._initialize_base_area()
         self._generate_rivers()
 
@@ -192,10 +212,10 @@ class World:
     def _generate_hex(self, q: int, r: int) -> Hex:
         """Generate a single hex tile using Perlin noise for elevation."""
         rng = random.Random(hash((q, r, self.settings.seed)))
-        elevation = perlin_noise(q, r, self.settings.seed)
-        terrain = terrain_from_elevation(elevation, self.settings)
-        moisture = rng.random() * self.settings.moisture
-        temperature = rng.random() * self.settings.temperature
+        elevation = self.elevation_map[r][q]
+        temperature = self.temperature_map[r][q]
+        moisture = self.rainfall_map[r][q]
+        terrain = determine_biome(elevation, temperature, moisture)
         resources = generate_resources(rng, terrain)
         return Hex(
             coord=(q, r),
@@ -211,9 +231,9 @@ class World:
         chunk: List[List[Hex]] = []
         base_q = cx * self.CHUNK_SIZE
         base_r = cy * self.CHUNK_SIZE
-        for r_off in range(self.CHUNK_SIZE):
+        for r_off in range(min(self.CHUNK_SIZE, self.height - base_r)):
             row: List[Hex] = []
-            for q_off in range(self.CHUNK_SIZE):
+            for q_off in range(min(self.CHUNK_SIZE, self.width - base_q)):
                 q = base_q + q_off
                 r = base_r + r_off
                 row.append(self._generate_hex(q, r))
