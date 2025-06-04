@@ -6,7 +6,7 @@ from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
 from .population import Citizen, Worker
 from . import settings
-from world.world import World
+from world.world import World, ResourceType
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject
 
@@ -33,12 +33,20 @@ class Faction:
     name: str
     settlement: Settlement
     citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
-    resources: Dict[str, int] = field(
-        default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
+    resources: Dict[ResourceType, int] = field(
+        default_factory=lambda: {
+            ResourceType.FOOD: 100,
+            ResourceType.WOOD: 50,
+            ResourceType.STONE: 30,
+        }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
+
+    @property
+    def population(self) -> int:
+        return self.citizens.count
 
     def start_project(self, project: GreatProject) -> None:
         """Begin constructing a great project."""
@@ -62,7 +70,7 @@ class Faction:
         Pay the required resources (assumed to be a dict mapping resource types to amounts)
         and add the Building instance to this faction.
         """
-        cost: Dict[str, int] = building.construction_cost  # e.g. {"wood": 20, "stone": 10}
+        cost: Dict[ResourceType, int] = building.construction_cost  # e.g. {ResourceType.WOOD: 20}
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to build {building.name}")
@@ -75,7 +83,7 @@ class Faction:
         Pay the upgrade cost and then call the building's internal upgrade() method.
         Assumes building.upgrade_cost() returns a dict like construction_cost.
         """
-        cost: Dict[str, int] = building.upgrade_cost()
+        cost: Dict[ResourceType, int] = building.upgrade_cost()
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to upgrade {building.name}")
@@ -221,19 +229,17 @@ class Game:
 
             # 2. Generate base food from population
             food_gain = faction.citizens.count // 2
-            faction.resources["food"] = faction.resources.get("food", 0) + food_gain
+            faction.resources[ResourceType.FOOD] = (
+                faction.resources.get(ResourceType.FOOD, 0) + food_gain
+            )
 
-            # 3. Building effects (explicit mapping by building name)
+            # 3. Building effects
             for building in faction.buildings:
-                b_type = getattr(building, "name", None)
-                if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
-                elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
-                elif b_type == "Mine":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
+                if building.resource_type is not None:
+                    current = faction.resources.get(building.resource_type, 0)
+                    faction.resources[building.resource_type] = (
+                        current + building.resource_bonus
+                    )
 
         # After all factions have been processed, update ResourceManager data
         self.resources.tick(self.map.factions)

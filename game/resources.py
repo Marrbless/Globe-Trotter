@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
-from .world import World, Hex
+from .world import World, Hex, ResourceType
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -15,12 +15,16 @@ class ResourceManager:
     """Tracks resource quantities for each faction and handles gathering."""
 
     world: World
-    data: Dict[str, Dict[str, int]] = field(default_factory=dict)
+    data: Dict[str, Dict[ResourceType, int]] = field(default_factory=dict)
 
     def register(self, faction: 'Faction') -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
-            self.data[faction.name] = {"food": 0, "wood": 0, "stone": 0}
+            self.data[faction.name] = {
+                ResourceType.FOOD: 0,
+                ResourceType.WOOD: 0,
+                ResourceType.STONE: 0,
+            }
 
     def adjacent_tiles(self, pos: Position) -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
@@ -36,12 +40,16 @@ class ResourceManager:
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
         terrain_map = {
-            "plains": "food",
-            "hills": "food",
-            "forest": "wood",
-            "mountains": "stone",
+            "plains": ResourceType.FOOD,
+            "hills": ResourceType.FOOD,
+            "forest": ResourceType.WOOD,
+            "mountains": ResourceType.STONE,
         }
-        counts = {"food": 0, "wood": 0, "stone": 0}
+        counts: Dict[ResourceType, int] = {
+            ResourceType.FOOD: 0,
+            ResourceType.WOOD: 0,
+            ResourceType.STONE: 0,
+        }
 
         for tile in tiles:
             res = terrain_map.get(tile.terrain)

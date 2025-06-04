@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
+from world.world import ResourceType
 
 # Categories for defensive structures
 FACTION_DEFENSE = "faction"
@@ -48,6 +51,7 @@ class Building:
     upkeep: int
     resource_bonus: int = 0
     population_bonus: int = 0
+    resource_type: Optional[ResourceType] = None
     level: int = 1
 
     def upgrade_cost(self) -> int:
@@ -68,6 +72,7 @@ class Farm(Building):
     construction_cost: int = 100
     upkeep: int = 10
     resource_bonus: int = 5
+    resource_type: ResourceType = ResourceType.FOOD
 
 
 @dataclass
@@ -76,6 +81,25 @@ class Mine(Building):
     construction_cost: int = 150
     upkeep: int = 15
     resource_bonus: int = 10
+    resource_type: ResourceType = ResourceType.ORE
+
+
+@dataclass
+class IronMine(Building):
+    name: str = "IronMine"
+    construction_cost: int = 180
+    upkeep: int = 18
+    resource_bonus: int = 2
+    resource_type: ResourceType = ResourceType.IRON
+
+
+@dataclass
+class GoldMine(Building):
+    name: str = "GoldMine"
+    construction_cost: int = 200
+    upkeep: int = 20
+    resource_bonus: int = 1
+    resource_type: ResourceType = ResourceType.GOLD
 
 
 @dataclass
@@ -84,6 +108,7 @@ class House(Building):
     construction_cost: int = 50
     upkeep: int = 5
     population_bonus: int = 2
+    resource_type: Optional[ResourceType] = None
 
 
 @dataclass
@@ -92,6 +117,7 @@ class LumberMill(Building):
     construction_cost: int = 120
     upkeep: int = 12
     resource_bonus: int = 3
+    resource_type: ResourceType = ResourceType.WOOD
 
 
 @dataclass
@@ -100,3 +126,4 @@ class Quarry(Building):
     construction_cost: int = 130
     upkeep: int = 14
     resource_bonus: int = 2
+    resource_type: ResourceType = ResourceType.STONE
