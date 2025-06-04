@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
-from .world import World
+from world.world import World, Hex
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -22,9 +22,9 @@ class ResourceManager:
         if faction.name not in self.data:
             self.data[faction.name] = {"food": 0, "wood": 0, "stone": 0}
 
-    def adjacent_tiles(self, pos: 'Position') -> List[dict]:
+    def adjacent_tiles(self, pos: Position) -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
-        tiles: List[dict] = []
+        tiles: List[Hex] = []
         for dq, dr in directions:
             tile = self.world.get(pos.x + dq, pos.y + dr)
             if tile is not None:
@@ -44,7 +44,7 @@ class ResourceManager:
         counts = {"food": 0, "wood": 0, "stone": 0}
 
         for tile in tiles:
-            res = terrain_map.get(tile["terrain"])
+            res = terrain_map.get(tile.terrain)
             if res:
                 counts[res] += 1
         workers = min(faction.workers.assigned, faction.citizens.count)

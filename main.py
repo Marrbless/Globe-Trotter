@@ -1,5 +1,5 @@
 import time
-from game.world import World
+from world.world import World
 from ui.map_view import MapView
 from ui.defense_building_ui import choose_defenses
 from game.game import Game

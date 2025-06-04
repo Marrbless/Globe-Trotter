@@ -6,7 +6,7 @@ from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
 from .population import Citizen, Worker
 from . import settings
-from .world import World
+from world.world import World
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject
 
@@ -232,6 +232,9 @@ class Game:
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
         # Update ResourceManager data
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
+
         if isinstance(self.resources, ResourceManager):
             self.resources.tick(self.map.factions)
 

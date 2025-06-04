@@ -112,7 +112,7 @@ class MapView:
         for r in range(self.world.height):
             for q in range(self.world.width):
                 hex_data = self.world.hexes[r][q]
-                terrain = hex_data["terrain"]
+                terrain = hex_data.terrain
                 color = terrain_color(terrain)
                 self.draw_hex(q, r, color)
         self.draw_roads()
@@ -139,7 +139,7 @@ class MapView:
                     if event.button == 1:
                         hex_data = self.hex_at_pos(event.pos)
                         if hex_data:
-                            coords = (hex_data["q"], hex_data["r"])
+                            coords = hex_data.coord
                             if self.road_mode:
                                 if self.road_start is None:
                                     self.road_start = coords
