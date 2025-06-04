@@ -10,7 +10,7 @@ This repository contains modular prototypes for a turn-based strategy game. It i
 
 ## 1. Faction Creation UI
 
-A simple GUI that lets users configure their faction.
+A simple GUI for experimenting with player faction creation.
 
 **Location:** `ui/faction_creation.py`
 
