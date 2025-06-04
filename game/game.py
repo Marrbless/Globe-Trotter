@@ -2,6 +2,7 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Dict
 
+from .persistence import GameState, load_state, save_state
 from .buildings import Building
 from . import settings
 from .world import World
@@ -39,14 +40,11 @@ class Faction:
         and add the Building instance to this faction.
         """
         cost: Dict[str, int] = building.construction_cost  # e.g. {"wood": 20, "stone": 10}
-        # Check if we have enough of each resource
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to build {building.name}")
-        # Subtract the cost
         for res_type, amt in cost.items():
             self.resources[res_type] -= amt
-        # Add building
         self.buildings.append(building)
 
     def upgrade_structure(self, building: Building) -> None:
@@ -111,10 +109,26 @@ class Map:
 
 
 class Game:
-    def __init__(self, world: World | None = None):
+    def __init__(self, state: GameState | None = None, world: World | None = None):
+        # Initialize map and world
         self.map = Map(*settings.MAP_SIZE)
         self.world = world or World(*settings.MAP_SIZE)
-        self.resources = ResourceManager(self.world)
+
+        # Load or create state
+        self.state = state or load_state()
+        # If state has stored resources, use them; otherwise create ResourceManager
+        self.resources: ResourceManager | Dict[str, int]
+        if isinstance(self.state.resources, ResourceManager):
+            self.resources = self.state.resources
+        else:
+            self.resources = ResourceManager(self.world)
+            # Overwrite with persisted dictionary if necessary
+            for faction in self.map.factions:
+                self.resources.register(faction)
+            # In a freshly loaded state, the resources dict should map faction names to resource states
+            # If needed, user should handle registration elsewhere
+
+        self.population = self.state.population
         self.player_faction: Faction | None = None
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
@@ -124,18 +138,25 @@ class Game:
         settlement = Settlement(name="Home", position=pos)
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
-        self.resources.register(self.player_faction)
+        # Register resources for the new faction
+        if isinstance(self.resources, ResourceManager):
+            self.resources.register(self.player_faction)
 
     def begin(self):
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
         ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
-        for faction in self.map.factions:
-            self.resources.register(faction)
+        if isinstance(self.resources, ResourceManager):
+            for faction in self.map.factions:
+                self.resources.register(faction)
+
         print("Game started with factions:")
         for faction in self.map.factions:
             pos = faction.settlement.position
             print(f"- {faction.name} at ({pos.x}, {pos.y})")
+
+        print(f"Resources: {self.state.resources}")
+        print(f"Population: {self.state.population}")
 
     def build_for_player(self, building: Building) -> None:
         if not self.player_faction:
@@ -164,7 +185,6 @@ class Game:
 
             # 3. Building effects
             for building in faction.buildings:
-                # Assume each Building instance has a `name` attribute indicating its type.
                 b_type = getattr(building, "name", None)
                 if b_type == "farm":
                     faction.resources["food"] = faction.resources.get("food", 0) + 5
@@ -179,12 +199,18 @@ class Game:
             pop = self.player_faction.population
             print(f"Resources: {res} | Population: {pop}")
 
+    def save(self) -> None:
+        self.state.resources = self.resources
+        self.state.population = self.population
+        save_state(self.state)
+
 
 def main():
     game = Game()
-    # Example: player places settlement at (0,0)
+    # Example: player places settlement at (0, 0)
     game.place_initial_settlement(0, 0)
     game.begin()
+    game.save()
 
 
 if __name__ == "__main__":
