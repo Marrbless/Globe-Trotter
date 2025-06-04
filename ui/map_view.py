@@ -91,12 +91,22 @@ class MapView:
         self.screen = pygame.display.set_mode(size)
         self.camera = Camera(*size)
         self.clock = pygame.time.Clock()
+        self.road_mode = False
+        self.road_start = None
 
     def draw_hex(self, q, r, color, width=0):
         x, y = hex_to_pixel(q, r)
         x, y = self.camera.apply((x, y))
         corners = hex_corners(x, y)
         pygame.draw.polygon(self.screen, color, corners, width)
+
+    def draw_roads(self):
+        for road in getattr(self.world, "roads", []):
+            x1, y1 = hex_to_pixel(*road.start)
+            x2, y2 = hex_to_pixel(*road.end)
+            x1, y1 = self.camera.apply((x1, y1))
+            x2, y2 = self.camera.apply((x2, y2))
+            pygame.draw.line(self.screen, (139, 69, 19), (x1, y1), (x2, y2), 4)
 
     def draw_map(self, selected=None):
         for r in range(self.world.height):
@@ -105,9 +115,13 @@ class MapView:
                 terrain = hex_data["terrain"]
                 color = terrain_color(terrain)
                 self.draw_hex(q, r, color)
+        self.draw_roads()
         if selected:
             q, r = selected
             self.draw_hex(q, r, (255, 255, 0), 3)
+        if self.road_start:
+            q, r = self.road_start
+            self.draw_hex(q, r, (255, 165, 0), 3)
 
     def hex_at_pos(self, pos):
         x, y = self.camera.reverse(pos)
@@ -125,7 +139,15 @@ class MapView:
                     if event.button == 1:
                         hex_data = self.hex_at_pos(event.pos)
                         if hex_data:
-                            selected = (hex_data["q"], hex_data["r"])
+                            coords = (hex_data["q"], hex_data["r"])
+                            if self.road_mode:
+                                if self.road_start is None:
+                                    self.road_start = coords
+                                else:
+                                    self.world.add_road(self.road_start, coords)
+                                    self.road_start = None
+                            else:
+                                selected = coords
                     elif event.button == 4:
                         self.camera.change_zoom(0.1, event.pos)
                     elif event.button == 5:
@@ -133,6 +155,9 @@ class MapView:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN and selected:
                         return selected
+                    elif event.key == pygame.K_r:
+                        self.road_mode = not self.road_mode
+                        self.road_start = None
             keys = pygame.key.get_pressed()
             pan_speed = 10
             if keys[pygame.K_LEFT]:

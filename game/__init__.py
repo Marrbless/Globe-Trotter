@@ -1,8 +1,11 @@
-"""Simple game package exposing common classes."""
+"""Game package exposing core classes."""
 
-from .game import Game, Position, Settlement, Faction
+from .game import Game, Faction, Settlement, Position
 from .buildings import (
     Building,
+    Farm,
+    Mine,
+    House,
     WALLS,
     FORT,
     FLOOD_BARRIER,
@@ -13,10 +16,13 @@ from .buildings import (
 
 __all__ = [
     "Game",
-    "Position",
-    "Settlement",
     "Faction",
+    "Settlement",
+    "Position",
     "Building",
+    "Farm",
+    "Mine",
+    "House",
     "WALLS",
     "FORT",
     "FLOOD_BARRIER",

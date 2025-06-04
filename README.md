@@ -18,3 +18,29 @@ A simple GUI for experimenting with player faction creation.
 
 ```bash
 python ui/faction_creation.py
+```
+
+## 2. Random Event System
+
+The `game.events` module provides a lightweight framework for triggering
+random events such as floods, droughts or raids during gameplay. Each
+event affects a settlement's resources, population and buildings.
+Probabilities are influenced by the biome and weather settings from the
+world generator, allowing different worlds to feel unique.
+
+Example usage:
+
+```python
+from world.generation import WorldSettings
+from game.events import EventSystem, SettlementState
+
+settings = WorldSettings()
+events = EventSystem(settings)
+state = SettlementState()
+
+# Advance turns and print triggered events
+for _ in range(10):
+    event = events.advance_turn(state)
+    if event:
+        print("Triggered", event.name)
+```
