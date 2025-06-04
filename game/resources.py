@@ -53,18 +53,23 @@ class ResourceManager:
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
 
-        # Count how many tiles yield each resource type
+        # Sum resource values for adjacent tiles
         counts: Dict[ResourceType, int] = {}
         for tile in tiles:
-            for res_type in tile.resources.keys():
-                counts[res_type] = counts.get(res_type, 0) + 1
+            for res_type, amount in tile.resources.items():
+                counts[res_type] = counts.get(res_type, 0) + amount
 
         # Determine how many workers can gather (limited by assigned workers and available citizens)
         workers_available = min(faction.workers.assigned, faction.citizens.count)
 
-        # Gather from each resource type up to the number of available workers
-        for res_type, tile_count in counts.items():
-            gathered = min(tile_count, workers_available)
+        # Gather from each resource type up to the number of available workers and building bonuses
+        for res_type, amount in counts.items():
+            bonus = sum(
+                b.resource_bonus
+                for b in getattr(faction, "buildings", [])
+                if getattr(b, "resource_type", None) == res_type
+            )
+            gathered = min(amount, workers_available + bonus)
             if res_type not in resources:
                 resources[res_type] = 0
             resources[res_type] += gathered
