@@ -162,11 +162,16 @@ class MapView:
 
     def draw_map(self):
         dpg.delete_item(self.canvas, children_only=True)
-        for r in range(self.world.height):
-            for q in range(self.world.width):
-                hex_data = self.world.hexes[r][q]
-                color = terrain_color("water" if hex_data.lake else hex_data.terrain)
-                self.draw_hex(q, r, color, 0)
+        tl = self.camera.reverse((0, 0))
+        br = self.camera.reverse(self.size)
+        qmin, rmin = pixel_to_hex(*tl)
+        qmax, rmax = pixel_to_hex(*br)
+        for r in range(rmin - 2, rmax + 3):
+            for q in range(qmin - 2, qmax + 3):
+                hex_data = self.world.get(q, r)
+                if hex_data:
+                    color = terrain_color("water" if hex_data.lake else hex_data.terrain)
+                    self.draw_hex(q, r, color, 0)
         self.draw_roads()
         self.draw_rivers()
         if self.selected:

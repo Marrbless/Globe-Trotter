@@ -227,6 +227,7 @@ class Game:
         self.map.add_faction(self.player_faction)
         # Register resources and population management for the new faction
         self.resources.register(self.player_faction)
+        # Register faction with faction manager to handle population ticks and saving
         self.faction_manager.add_faction(self.player_faction)
         self.population = self.player_faction.citizens.count
 
@@ -397,9 +398,9 @@ class Game:
 
     def save(self) -> None:
         """Persist the current game state to disk.
-        Persist resources and whatever population value has been tracked.
-        self.population may be updated elsewhere (e.g., during ticks); saving does not recompute it so tests can control the value directly.
+        Persist resources and recompute population from all factions.
         """
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         self.state.claimed_projects = list(self.claimed_projects)
@@ -407,7 +408,6 @@ class Game:
         self.state.factions = serialize_factions(self.map.factions)
         self.state.turn = self.turn
         save_state(self.state)
-
 
     def advance_turn(self) -> None:
         """Progress construction on all ongoing projects."""
