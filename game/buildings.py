@@ -84,3 +84,19 @@ class House(Building):
     construction_cost: int = 50
     upkeep: int = 5
     population_bonus: int = 2
+
+
+@dataclass
+class LumberMill(Building):
+    name: str = "LumberMill"
+    construction_cost: int = 120
+    upkeep: int = 12
+    resource_bonus: int = 3
+
+
+@dataclass
+class Quarry(Building):
+    name: str = "Quarry"
+    construction_cost: int = 130
+    upkeep: int = 14
+    resource_bonus: int = 2

@@ -1,40 +1,14 @@
 import random
-from dataclasses import dataclass, field
 from typing import List, Dict
+from dataclasses import dataclass, field
 
 from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
+from .population import Citizen, Worker
 from . import settings
 from world.world import World
 from .resources import ResourceManager
-
-
-@dataclass
-class Position:
-    x: int
-    y: int
-
-
-@dataclass
-class Settlement:
-    name: str
-    position: Position
-
-
-@dataclass
-class GreatProject:
-    """High-cost project that requires multiple turns to complete."""
-    name: str
-    build_time: int
-    victory_points: int = 0
-    bonus: str = ""
-    progress: int = 0
-
-    def is_complete(self) -> bool:
-        return self.progress >= self.build_time
-
-    def advance(self, amount: int = 1) -> None:
-        self.progress = min(self.build_time, self.progress + amount)
+from .models import Position, Settlement, GreatProject
 
 
 # Predefined templates for special high-cost projects
@@ -58,11 +32,11 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
 class Faction:
     name: str
     settlement: Settlement
-    population: int = 10
+    citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
     resources: Dict[str, int] = field(
         default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
     )
-    workers: Dict[str, int] = field(default_factory=lambda: {"food": 10, "wood": 0, "stone": 0})
+    workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
 
@@ -149,7 +123,7 @@ class Map:
                 ai = Faction(
                     name=f"AI #{spawned + 1}",
                     settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
-                    population=random.randint(8, 15),
+                    citizens=Citizen(count=random.randint(8, 15)),
                 )
                 self.add_faction(ai)
                 new_factions.append(ai)
@@ -166,17 +140,8 @@ class Game:
         # Load or create state
         self.state = state or load_state()
 
-        # If state has stored resources, use them; otherwise create ResourceManager
-        self.resources: ResourceManager | Dict[str, int]
-        if isinstance(self.state.resources, ResourceManager):
-            self.resources = self.state.resources
-        else:
-            self.resources = ResourceManager(self.world)
-            # Overwrite with persisted dictionary if necessary
-            for faction in self.map.factions:
-                self.resources.register(faction)
-            # In a freshly loaded state, the resources dict should map faction names to resource states
-            # If needed, user should handle registration elsewhere
+        # Initialize resource manager with persisted data
+        self.resources = ResourceManager(self.world, self.state.resources)
 
         self.population = self.state.population
         self.player_faction: Faction | None = None
@@ -248,21 +213,27 @@ class Game:
         """
         for faction in self.map.factions:
             # 1. Population growth
-            faction.population += 1
+            faction.citizens.count += 1
 
             # 2. Generate base food from population
-            food_gain = faction.population // 2
+            food_gain = faction.citizens.count // 2
             faction.resources["food"] = faction.resources.get("food", 0) + food_gain
 
             # 3. Building effects
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
-                if b_type == "farm":
+                if b_type == "Farm":
                     faction.resources["food"] = faction.resources.get("food", 0) + 5
-                elif b_type == "lumber_mill":
+                elif b_type == "LumberMill":
                     faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "quarry":
+                elif b_type == "Quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                elif b_type == "Mine":
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
+
+        # Update ResourceManager data
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
 
         if isinstance(self.resources, ResourceManager):
             self.resources.tick(self.map.factions)
@@ -270,11 +241,11 @@ class Game:
         # Debug output for the player faction
         if self.player_faction:
             res = self.player_faction.resources
-            pop = self.player_faction.population
+            pop = self.player_faction.citizens.count
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.state.resources = self.resources
+        self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
 
