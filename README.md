@@ -8,6 +8,20 @@ This repository contains modular prototypes for a turn-based strategy game. It i
 
 ---
 
+## Requirements
+
+* Python 3.10+
+* [pygame](https://www.pygame.org/) for the map view
+* `tkinter` for the faction and building UIs (usually provided by the
+  `python3-tk` system package on Linux)
+* [pytest](https://docs.pytest.org/) for running the test suite
+
+Install the Python packages with:
+
+```bash
+pip install pygame pytest
+```
+
 ## 1. Faction Creation UI
 
 A simple GUI for experimenting with player faction creation.
@@ -43,4 +57,29 @@ for _ in range(10):
     event = events.advance_turn(state)
     if event:
         print("Triggered", event.name)
+```
+
+## Running the Game
+
+Launch the main prototype loop with:
+
+```bash
+python main.py
+```
+
+This loads `save.json` if it exists, applying any resource gains that would have
+accumulated while the game was not running.
+
+## Saving Progress
+
+Call `game.save()` from your own scripts to persist the current state to
+`save.json`. The next time you run the game, `load_state()` will apply offline
+progress based on the timestamp stored in this file.
+
+## Running Tests
+
+Execute the unit tests with:
+
+```bash
+pytest
 ```
