@@ -5,7 +5,7 @@ from typing import List, Dict
 from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
 from . import settings
-from .world import World
+from world.world import World
 from .resources import ResourceManager
 
 
@@ -263,6 +263,9 @@ class Game:
                     faction.resources["wood"] = faction.resources.get("wood", 0) + 3
                 elif b_type == "quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
         if self.player_faction:

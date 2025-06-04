@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass
 from typing import List, Optional
 
-from world.generation import WorldSettings
+from world.world import WorldSettings
 
 
 @dataclass
