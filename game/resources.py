@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from .world import World
-from .game import Position, Faction
+from .models import Position, Faction
 
 
 @dataclass
