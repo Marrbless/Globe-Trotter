@@ -227,10 +227,7 @@ class Game:
         self.map.add_faction(self.player_faction)
         # Register resources and population management for the new faction
         self.resources.register(self.player_faction)
-        # Ensure population reflects the newly founded settlement
-        # Register faction with faction manager to handle population ticks and saving (and track initial population for save/load logic)
         self.faction_manager.add_faction(self.player_faction)
-
         self.population = self.player_faction.citizens.count
 
     def add_building(self, building: Building):
@@ -248,7 +245,7 @@ class Game:
         # Peek saved state to rebuild world and faction data
         initial_state = load_state()
         if initial_state.world:
-            from world.world import WorldSettings, World
+            from world.world import WorldSettings
 
             settings_obj = WorldSettings(**initial_state.world.get("settings", {}))
             self.world = World(
@@ -300,7 +297,6 @@ class Game:
 
         def restore_projects(faction: Faction, data: List[Dict[str, Any]]):
             from copy import deepcopy
-            from .game import GREAT_PROJECT_TEMPLATES
 
             faction.projects.clear()
             for p in data:
@@ -315,12 +311,11 @@ class Game:
             saved = self.state.resources.get(faction.name)
             if saved is not None:
                 faction.resources.update(saved)
-            fdata = self.state.factions.get(faction.name)
-            if fdata:
-                faction.citizens.count = fdata.get("citizens", faction.citizens.count)
-                faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
-                restore_buildings(faction, fdata.get("buildings", []))
-                restore_projects(faction, fdata.get("projects", []))
+            fdata = self.state.factions.get(faction.name, {})
+            faction.citizens.count = fdata.get("citizens", faction.citizens.count)
+            faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
+            restore_buildings(faction, fdata.get("buildings", []))
+            restore_projects(faction, fdata.get("projects", []))
 
         self.turn = self.state.turn
         if self.player_faction:
@@ -362,7 +357,7 @@ class Game:
     def tick(self) -> None:
         """
         Advance the game state by one tick. This includes:
-          1. Population growth via ``FactionManager``
+          1. Population growth via `FactionManager`
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
