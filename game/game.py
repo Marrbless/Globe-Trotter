@@ -1,6 +1,8 @@
 import random
 from dataclasses import dataclass
 
+from .persistence import GameState, load_state, save_state
+
 from . import settings
 
 @dataclass
@@ -58,9 +60,12 @@ class Map:
                 spawned += 1
 
 class Game:
-    def __init__(self):
+    def __init__(self, state: GameState | None = None):
         self.map = Map(*settings.MAP_SIZE)
         self.player_faction: Faction | None = None
+        self.state = state or load_state()
+        self.resources = self.state.resources
+        self.population = self.state.population
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -77,12 +82,20 @@ class Game:
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+        print(f"Resources: {self.state.resources}")
+        print(f"Population: {self.state.population}")
+
+    def save(self) -> None:
+        self.state.resources = self.resources
+        self.state.population = self.population
+        save_state(self.state)
 
 def main():
     game = Game()
     # Example: player places settlement at (0,0)
     game.place_initial_settlement(0, 0)
     game.begin()
+    game.save()
 
 if __name__ == "__main__":
     main()
