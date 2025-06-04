@@ -40,6 +40,10 @@ class Faction:
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
 
+    @property
+    def population(self) -> int:
+        return self.citizens.count
+
     def start_project(self, project: GreatProject) -> None:
         """Begin constructing a great project."""
         self.projects.append(project)
@@ -227,13 +231,13 @@ class Game:
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
                 if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
+                    faction.resources["food"] = faction.resources.get("food", 0) + building.resource_bonus
                 elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + building.resource_bonus
                 elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
                 elif b_type == "Mine":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
 
         # After all factions have been processed, update ResourceManager data
         self.resources.tick(self.map.factions)
