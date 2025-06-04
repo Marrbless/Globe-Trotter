@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from .world import World
-from .game import Position, Faction
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .game import Position, Faction
 
 
 @dataclass
@@ -15,12 +18,12 @@ class ResourceManager:
     world: World
     data: Dict[str, Dict[str, int]] = field(default_factory=dict)
 
-    def register(self, faction: Faction) -> None:
+    def register(self, faction: 'Faction') -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
             self.data[faction.name] = {"food": 0, "wood": 0, "stone": 0}
 
-    def adjacent_tiles(self, pos: Position) -> List[dict]:
+    def adjacent_tiles(self, pos: 'Position') -> List[dict]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
         tiles: List[dict] = []
         for dq, dr in directions:
@@ -29,7 +32,7 @@ class ResourceManager:
                 tiles.append(tile)
         return tiles
 
-    def gather_for_faction(self, faction: Faction) -> None:
+    def gather_for_faction(self, faction: 'Faction') -> None:
         self.register(faction)
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
@@ -39,11 +42,11 @@ class ResourceManager:
             res = terrain_map.get(tile["terrain"])
             if res:
                 counts[res] += 1
+        workers = min(faction.workers.assigned, faction.citizens.count)
         for res, count in counts.items():
-            workers = min(faction.workers.get(res, 0), faction.population)
             gather_amount = min(count, workers)
             resources[res] += gather_amount
 
-    def tick(self, factions: List[Faction]) -> None:
+    def tick(self, factions: List['Faction']) -> None:
         for faction in factions:
             self.gather_for_faction(faction)

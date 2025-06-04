@@ -4,6 +4,7 @@ from typing import List, Dict
 
 from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
+from .population import Citizen, Worker
 from . import settings
 from .world import World
 from .resources import ResourceManager
@@ -58,11 +59,11 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
 class Faction:
     name: str
     settlement: Settlement
-    population: int = 10
+    citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
     resources: Dict[str, int] = field(
         default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
     )
-    workers: Dict[str, int] = field(default_factory=lambda: {"food": 10, "wood": 0, "stone": 0})
+    workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
 
@@ -149,7 +150,7 @@ class Map:
                 ai = Faction(
                     name=f"AI #{spawned + 1}",
                     settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
-                    population=random.randint(8, 15),
+                    citizens=Citizen(count=random.randint(8, 15)),
                 )
                 self.add_faction(ai)
                 new_factions.append(ai)
@@ -248,10 +249,10 @@ class Game:
         """
         for faction in self.map.factions:
             # 1. Population growth
-            faction.population += 1
+            faction.citizens.count += 1
 
             # 2. Generate base food from population
-            food_gain = faction.population // 2
+            food_gain = faction.citizens.count // 2
             faction.resources["food"] = faction.resources.get("food", 0) + food_gain
 
             # 3. Building effects
@@ -264,10 +265,13 @@ class Game:
                 elif b_type == "quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
 
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
+
         # Debug output for the player faction
         if self.player_faction:
             res = self.player_faction.resources
-            pop = self.player_faction.population
+            pop = self.player_faction.citizens.count
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
