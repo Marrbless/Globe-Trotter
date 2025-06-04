@@ -67,6 +67,16 @@ class Faction:
             ResourceType.ORE: 0,
             ResourceType.METAL: 0,
             ResourceType.CLOTH: 0,
+            ResourceType.WHEAT: 0,
+            ResourceType.FLOUR: 0,
+            ResourceType.BREAD: 0,
+            ResourceType.WOOL: 0,
+            ResourceType.CLOTHES: 0,
+            ResourceType.PLANK: 0,
+            ResourceType.STONE_BLOCK: 0,
+            ResourceType.VEGETABLE: 0,
+            ResourceType.SOUP: 0,
+            ResourceType.WEAPON: 0,
         }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
@@ -224,11 +234,11 @@ class Game:
         initial_state = load_state()
         if initial_state.world:
             from world.world import WorldSettings, World
-            settings = WorldSettings(**initial_state.world.get("settings", {}))
+            settings_obj = WorldSettings(**initial_state.world.get("settings", {}))
             self.world = World(
-                width=settings.width,
-                height=settings.height,
-                settings=settings,
+                width=settings_obj.width,
+                height=settings_obj.height,
+                settings=settings_obj,
             )
             deserialize_world(initial_state.world, self.world)
 
@@ -357,8 +367,8 @@ class Game:
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (
-                    current + building.resource_bonus
-                )
+                        current + building.resource_bonus
+                    )
 
         # After all factions have been processed, update overall population and
         # ResourceManager data

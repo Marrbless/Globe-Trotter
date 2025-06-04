@@ -27,6 +27,16 @@ class ResourceManager:
                 ResourceType.ORE: 0,
                 ResourceType.METAL: 0,
                 ResourceType.CLOTH: 0,
+                ResourceType.WHEAT: 0,
+                ResourceType.FLOUR: 0,
+                ResourceType.BREAD: 0,
+                ResourceType.WOOL: 0,
+                ResourceType.CLOTHES: 0,
+                ResourceType.PLANK: 0,
+                ResourceType.STONE_BLOCK: 0,
+                ResourceType.VEGETABLE: 0,
+                ResourceType.SOUP: 0,
+                ResourceType.WEAPON: 0,
             }
 
     def adjacent_tiles(self, pos: "Position") -> List[Hex]:

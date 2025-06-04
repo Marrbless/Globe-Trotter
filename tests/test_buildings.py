@@ -5,7 +5,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
 from game.world import World, ResourceType
-from game.buildings import Farm, Smeltery
+from game.buildings import (
+    Farm,
+    Smeltery,
+    Mill,
+    Bakery,
+    Forge,
+)
 
 
 def make_world():
@@ -60,3 +66,28 @@ def test_processing_building_converts_resources():
     game.tick()
     assert faction.resources[ResourceType.ORE] == 3
     assert faction.resources[ResourceType.METAL] == 2
+
+
+def test_full_processing_chain_over_ticks():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    faction.resources = {
+        ResourceType.WHEAT: 4,
+        ResourceType.FLOUR: 0,
+        ResourceType.BREAD: 0,
+    }
+    mill = Mill()
+    bakery = Bakery()
+    faction.buildings.extend([mill, bakery])
+
+    game.tick()
+    assert faction.resources[ResourceType.WHEAT] == 2
+    assert faction.resources[ResourceType.FLOUR] == 0
+    assert faction.resources[ResourceType.BREAD] == 2
+
+    game.tick()
+    assert faction.resources[ResourceType.WHEAT] == 0
+    assert faction.resources[ResourceType.FLOUR] == 0
+    assert faction.resources[ResourceType.BREAD] == 4
