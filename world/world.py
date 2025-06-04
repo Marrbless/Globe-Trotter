@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
+from .generation import generate_elevation_map, terrain_from_elevation
+
 Coordinate = Tuple[int, int]
 
 
@@ -57,6 +59,9 @@ class WorldSettings:
     elevation: float = 0.5
     temperature: float = 0.5
     rainfall_intensity: float = 0.5
+    sea_level: float = 0.3
+    plate_activity: float = 0.5
+    base_height: float = 0.5
 
 
 @dataclass
@@ -145,15 +150,16 @@ class World:
         return self.settings.height
 
     def _generate_hexes(self) -> None:
+        elevation_map = generate_elevation_map(self.settings.width, self.settings.height, self.settings)
         for r in range(self.settings.height):
             row: List[Hex] = []
             for q in range(self.settings.width):
-                row.append(self._generate_hex(q, r))
+                elevation = elevation_map[r][q]
+                row.append(self._generate_hex(q, r, elevation))
             self.hexes.append(row)
 
-    def _generate_hex(self, q: int, r: int) -> Hex:
-        terrain = generate_terrain_type(self.rng, self.settings)
-        elevation = self.rng.random() * self.settings.elevation
+    def _generate_hex(self, q: int, r: int, elevation: float) -> Hex:
+        terrain = terrain_from_elevation(elevation, self.settings)
         moisture = self.rng.random() * self.settings.moisture
         temperature = self.rng.random() * self.settings.temperature
         resources = generate_resources(self.rng, terrain)
@@ -260,6 +266,9 @@ def adjust_settings(
     elevation: float | None = None,
     temperature: float | None = None,
     rainfall_intensity: float | None = None,
+    sea_level: float | None = None,
+    plate_activity: float | None = None,
+    base_height: float | None = None,
 ) -> None:
     """Adjust world sliders before final generation."""
     if moisture is not None:
@@ -270,6 +279,12 @@ def adjust_settings(
         settings.temperature = max(0.0, min(1.0, temperature))
     if rainfall_intensity is not None:
         settings.rainfall_intensity = max(0.0, min(1.0, rainfall_intensity))
+    if sea_level is not None:
+        settings.sea_level = max(0.0, min(1.0, sea_level))
+    if plate_activity is not None:
+        settings.plate_activity = max(0.0, min(1.0, plate_activity))
+    if base_height is not None:
+        settings.base_height = max(0.0, min(1.0, base_height))
 
 
 __all__ = [
