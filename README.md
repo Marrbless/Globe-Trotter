@@ -1,11 +1,20 @@
-# Projects
+# Python Strategy Game Prototypes
 
-This repository contains a minimal example of a simple game framework written in Python. It demonstrates spawning AI factions on a map after the player places the initial settlement and clicks "Begin".
+This repository contains modular prototypes for a turn-based strategy game. It includes:
 
-## Running the example
+- A **Faction Creation UI** to let players customize their faction
+- A **Procedural World Generator** using hex tiles
+- A **Game Runtime Module** that spawns AI factions after the player starts the game
 
-```
-python -m game.game
-```
+---
 
-The number of AI factions and map size are configurable in `game/settings.py`.
+## 1. Faction Creation UI
+
+A simple GUI that lets users configure their faction.
+
+**Location:** `ui/faction_creation.py`
+
+### How to Run
+
+```bash
+python ui/faction_creation.py
