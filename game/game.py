@@ -1,5 +1,5 @@
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import settings
 
@@ -17,6 +17,11 @@ class Settlement:
 class Faction:
     name: str
     settlement: Settlement
+    population: int = 10
+    resources: dict[str, int] = field(
+        default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
+    )
+    buildings: list[str] = field(default_factory=list)
 
 class Map:
     def __init__(self, width: int, height: int):
@@ -77,6 +82,30 @@ class Game:
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+
+    def tick(self):
+        """Advance the game state by one tick."""
+        for faction in self.map.factions:
+            # Basic population growth
+            faction.population += 1
+
+            # Generate resources based on population
+            faction.resources["food"] += faction.population // 2
+
+            # Building effects
+            for building in faction.buildings:
+                if building == "farm":
+                    faction.resources["food"] += 5
+                elif building == "lumber_mill":
+                    faction.resources["wood"] += 3
+                elif building == "quarry":
+                    faction.resources["stone"] += 2
+
+        # Debug output for the player faction
+        if self.player_faction:
+            print(
+                f"Resources: {self.player_faction.resources} | Population: {self.player_faction.population}"
+            )
 
 def main():
     game = Game()
