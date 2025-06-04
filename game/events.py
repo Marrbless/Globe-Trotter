@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from world.world import WorldSettings
+from world.world import WorldSettings, World
 
 
 @dataclass
@@ -15,6 +15,7 @@ class SettlementState:
     population: int = 100
     buildings: int = 10
     defenses: int = 0
+    location: Tuple[int, int] | None = None
 
 
 class Event:
@@ -22,42 +23,54 @@ class Event:
 
     name: str = "event"
 
-    def apply(self, state: SettlementState) -> None:
+    def apply(self, state: SettlementState, world: World) -> None:
         raise NotImplementedError
 
 
 class Flood(Event):
     name = "flood"
 
-    def apply(self, state: SettlementState) -> None:
+    def apply(self, state: SettlementState, world: World) -> None:
         # Damage buildings. Defenses mitigate some damage.
         loss = max(0, int(0.3 * state.buildings) - state.defenses)
         state.buildings = max(0, state.buildings - loss)
         # Resources lost proportional to building loss
         res_loss = min(state.resources, loss * 2)
         state.resources -= res_loss
+        if state.location:
+            hex_ = world.get(*state.location)
+            if hex_:
+                hex_.flooded = True
 
 
 class Drought(Event):
     name = "drought"
 
-    def apply(self, state: SettlementState) -> None:
+    def apply(self, state: SettlementState, world: World) -> None:
         res_loss = int(0.2 * state.resources)
         state.resources = max(0, state.resources - res_loss)
         pop_loss = int(0.1 * state.population)
         state.population = max(0, state.population - pop_loss)
+        if state.location:
+            hex_ = world.get(*state.location)
+            if hex_:
+                hex_.moisture = max(0.0, hex_.moisture - 0.1)
 
 
 class Raid(Event):
     name = "raid"
 
-    def apply(self, state: SettlementState) -> None:
+    def apply(self, state: SettlementState, world: World) -> None:
         # Defenses reduce impact
         effective = max(1, 5 - state.defenses)
         res_loss = min(state.resources, effective * 3)
         bld_loss = max(0, effective - 1)
         state.resources -= res_loss
         state.buildings = max(0, state.buildings - bld_loss)
+        if state.location:
+            hex_ = world.get(*state.location)
+            if hex_:
+                hex_.ruined = True
 
 
 ALL_EVENTS: List[type[Event]] = [Flood, Drought, Raid]
@@ -74,9 +87,9 @@ class EventSystem:
 
     def _schedule_next(self) -> int:
         # Time until next event influenced by weather randomness
-        base = self.rng.randint(2, 5)
-        weather_factor = 1.0 + self.settings.moisture - 0.5
-        delay = max(1, int(base * (1.0 + weather_factor)))
+        base = self.rng.randint(5, 10)
+        weather_factor = 1.0 + self.settings.moisture * 0.5
+        delay = max(2, int(base * weather_factor))
         return self.turn_counter + delay
 
     def _choose_event(self) -> Event:
@@ -87,13 +100,13 @@ class EventSystem:
         event_cls = self.rng.choices(ALL_EVENTS, weights=weights, k=1)[0]
         return event_cls()
 
-    def advance_turn(self, state: SettlementState) -> Optional[Event]:
+    def advance_turn(self, state: SettlementState, world: World) -> Optional[Event]:
         """Advance the internal clock and trigger events when scheduled."""
 
         self.turn_counter += 1
         if self.turn_counter >= self.next_event_turn:
             event = self._choose_event()
-            event.apply(state)
+            event.apply(state, world)
             self.next_event_turn = self._schedule_next()
             return event
         return None
