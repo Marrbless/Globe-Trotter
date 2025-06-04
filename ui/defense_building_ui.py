@@ -1,6 +1,6 @@
 import tkinter as tk
 from .faction_creation import FactionCreationUI  # for style consistency if needed
-from game.buildings import ALL_BUILDINGS, Building
+from game.buildings import ALL_DEFENSIVE_BUILDINGS, Building
 
 
 class DefenseBuildingUI(tk.Tk):
@@ -10,13 +10,13 @@ class DefenseBuildingUI(tk.Tk):
         super().__init__()
         self.title("Choose Defensive Structures")
         self.vars = {}
-        for i, b in enumerate(ALL_BUILDINGS):
+        for i, b in enumerate(ALL_DEFENSIVE_BUILDINGS):
             var = tk.BooleanVar(value=False)
             chk = tk.Checkbutton(self, text=b.name, variable=var)
             chk.grid(row=i, column=0, sticky="w", padx=5, pady=2)
             self.vars[b.name] = (var, b)
         tk.Button(self, text="Confirm", command=self.confirm).grid(
-            row=len(ALL_BUILDINGS), column=0, pady=5
+            row=len(ALL_DEFENSIVE_BUILDINGS), column=0, pady=5
         )
         self.selected: list[Building] = []
 

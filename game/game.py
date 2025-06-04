@@ -1,5 +1,4 @@
 import random
-from dataclasses import dataclass, field
 from typing import List, Dict
 
 from .persistence import GameState, load_state, save_state
@@ -7,34 +6,9 @@ from .buildings import Building, mitigate_building_damage, mitigate_population_l
 from . import settings
 from .world import World
 from .resources import ResourceManager
+from .models import Position, Settlement, Faction, GreatProject
 
 
-@dataclass
-class Position:
-    x: int
-    y: int
-
-
-@dataclass
-class Settlement:
-    name: str
-    position: Position
-
-
-@dataclass
-class GreatProject:
-    """High-cost project that requires multiple turns to complete."""
-    name: str
-    build_time: int
-    victory_points: int = 0
-    bonus: str = ""
-    progress: int = 0
-
-    def is_complete(self) -> bool:
-        return self.progress >= self.build_time
-
-    def advance(self, amount: int = 1) -> None:
-        self.progress = min(self.build_time, self.progress + amount)
 
 
 # Predefined templates for special high-cost projects
@@ -54,60 +28,6 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
 }
 
 
-@dataclass
-class Faction:
-    name: str
-    settlement: Settlement
-    population: int = 10
-    resources: Dict[str, int] = field(
-        default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
-    )
-    workers: Dict[str, int] = field(default_factory=lambda: {"food": 10, "wood": 0, "stone": 0})
-    buildings: List[Building] = field(default_factory=list)
-    projects: List[GreatProject] = field(default_factory=list)
-
-    def start_project(self, project: GreatProject) -> None:
-        """Begin constructing a great project."""
-        self.projects.append(project)
-
-    def progress_projects(self) -> None:
-        for proj in self.projects:
-            if not proj.is_complete():
-                proj.advance()
-
-    def completed_projects(self) -> List[GreatProject]:
-        return [p for p in self.projects if p.is_complete()]
-
-    def get_victory_points(self) -> int:
-        total = sum(b.victory_points for b in self.buildings)
-        total += sum(p.victory_points for p in self.completed_projects())
-        return total
-
-    def build_structure(self, building: Building) -> None:
-        """
-        Pay the required resources (assumed to be a dict mapping resource types to amounts)
-        and add the Building instance to this faction.
-        """
-        cost: Dict[str, int] = building.construction_cost  # e.g. {"wood": 20, "stone": 10}
-        for res_type, amt in cost.items():
-            if self.resources.get(res_type, 0) < amt:
-                raise ValueError(f"Not enough {res_type} to build {building.name}")
-        for res_type, amt in cost.items():
-            self.resources[res_type] -= amt
-        self.buildings.append(building)
-
-    def upgrade_structure(self, building: Building) -> None:
-        """
-        Pay the upgrade cost and then call the building's internal upgrade() method.
-        Assumes building.upgrade_cost() returns a dict like construction_cost.
-        """
-        cost: Dict[str, int] = building.upgrade_cost()
-        for res_type, amt in cost.items():
-            if self.resources.get(res_type, 0) < amt:
-                raise ValueError(f"Not enough {res_type} to upgrade {building.name}")
-        for res_type, amt in cost.items():
-            self.resources[res_type] -= amt
-        building.upgrade()
 
 
 class Map:
@@ -248,12 +168,14 @@ class Game:
             # 3. Building effects
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
-                if b_type == "farm":
+                if b_type == "Farm":
                     faction.resources["food"] = faction.resources.get("food", 0) + 5
-                elif b_type == "lumber_mill":
+                elif b_type == "LumberMill":
                     faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "quarry":
+                elif b_type == "Quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                elif b_type == "Mine":
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
         # Update ResourceManager data
         if isinstance(self.resources, ResourceManager):
