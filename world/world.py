@@ -8,12 +8,10 @@ from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
 from .generation import (
-    generate_biome_map,
     generate_elevation_map,
-    generate_rainfall,
     generate_temperature_map,
-    perlin_noise,
-    terrain_from_elevation,
+    generate_rainfall,
+    generate_biome_map,
 )
 
 Coordinate = Tuple[int, int]
@@ -153,6 +151,7 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
+
     return resources
 
 
@@ -209,19 +208,16 @@ class World:
             self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        """Generate a single hex tile based on precomputed maps."""
+        """Generate a single hex tile using precomputed climate maps."""
         rng = random.Random(hash((q, r, self.settings.seed)))
-        if 0 <= r < self.settings.height and 0 <= q < self.settings.width:
-            elevation = self.elevation_map[r][q]
-            terrain = self.biome_map[r][q]
-            moisture = self.rainfall_map[r][q]
-            temperature = self.temperature_map[r][q]
-        else:
-            elevation = perlin_noise(q, r, self.settings.seed)
-            terrain = terrain_from_elevation(elevation, self.settings)
-            moisture = rng.random() * self.settings.moisture
-            temperature = rng.random() * self.settings.temperature
+
+        elevation = self.elevation_map[r][q]
+        temperature = self.temperature_map[r][q]
+        moisture = self.rainfall_map[r][q]
+        terrain = self.biome_map[r][q]
+
         resources = generate_resources(rng, terrain)
+
         return Hex(
             coord=(q, r),
             terrain=terrain,
@@ -241,7 +237,10 @@ class World:
             for q_off in range(self.CHUNK_SIZE):
                 q = base_q + q_off
                 r = base_r + r_off
-                row.append(self._generate_hex(q, r))
+                if 0 <= q < self.width and 0 <= r < self.height:
+                    row.append(self._generate_hex(q, r))
+                else:
+                    row.append(Hex(coord=(q, r)))
             chunk.append(row)
         self.chunks[(cx, cy)] = chunk
 
