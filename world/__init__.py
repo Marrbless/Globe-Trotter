@@ -3,6 +3,7 @@ from .world import (
     WorldSettings,
     Hex,
     Road,
+    RiverSegment,
     World,
     adjust_settings,
 )
@@ -12,6 +13,7 @@ __all__ = [
     "WorldSettings",
     "Hex",
     "Road",
+    "RiverSegment",
     "World",
     "adjust_settings",
 ]

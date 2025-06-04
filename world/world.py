@@ -28,6 +28,13 @@ class Road:
     end: Coordinate
 
 
+@dataclass(frozen=True)
+class RiverSegment:
+    """A start/end pair describing a single river edge."""
+    start: Coordinate
+    end: Coordinate
+
+
 @dataclass
 class WorldSettings:
     """Configuration values for world generation."""
@@ -49,6 +56,7 @@ class WorldSettings:
     moisture: float = 0.5
     elevation: float = 0.5
     temperature: float = 0.5
+    rainfall_intensity: float = 0.5
 
 
 @dataclass
@@ -63,6 +71,8 @@ class Hex:
     resources: Dict[ResourceType, int] = field(default_factory=dict)
     flooded: bool = False
     ruined: bool = False
+    river: bool = False
+    lake: bool = False
 
     def __getitem__(self, key: str):
         return getattr(self, key)
@@ -120,8 +130,11 @@ class World:
         self.settings = settings or WorldSettings(seed=seed, width=width, height=height)
         self.hexes: List[List[Hex]] = []
         self.roads: List[Road] = []
+        self.rivers: List[RiverSegment] = []
+        self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
         self._generate_hexes()
+        self._generate_rivers()
 
     @property
     def width(self) -> int:
@@ -152,6 +165,55 @@ class World:
             temperature=temperature,
             resources=resources,
         )
+
+    def _neighbors(self, q: int, r: int) -> List[Coordinate]:
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
+        return [
+            (q + dq, r + dr)
+            for dq, dr in directions
+            if self.get(q + dq, r + dr) is not None
+        ]
+
+    def _downhill_neighbor(self, q: int, r: int) -> Optional[Coordinate]:
+        current = self.get(q, r)
+        if current is None:
+            return None
+        best: Optional[Coordinate] = None
+        best_elev = current.elevation
+        for nq, nr in self._neighbors(q, r):
+            neighbor = self.get(nq, nr)
+            if neighbor and neighbor.elevation < best_elev:
+                best_elev = neighbor.elevation
+                best = (nq, nr)
+        return best
+
+    def _generate_rivers(self) -> None:
+        """Create simple rivers flowing downhill based on elevation."""
+        density = max(0.0, min(1.0, self.settings.rainfall_intensity))
+        seeds = max(1, int(density * 5))
+        for _ in range(seeds):
+            # choose a random high elevation starting hex
+            for _ in range(100):
+                q = self.rng.randint(0, self.width - 1)
+                r = self.rng.randint(0, self.height - 1)
+                h = self.get(q, r)
+                if h and h.elevation > self.settings.elevation * 0.7:
+                    break
+            else:
+                continue
+
+            current = (q, r)
+            visited: set[Coordinate] = set()
+            while current and current not in visited:
+                visited.add(current)
+                nxt = self._downhill_neighbor(*current)
+                if not nxt or nxt == current:
+                    self.lakes.append(current)
+                    self.get(*current).lake = True
+                    break
+                self.rivers.append(RiverSegment(current, nxt))
+                self.get(*current).river = True
+                current = nxt
 
     def get(self, q: int, r: int) -> Optional[Hex]:
         if 0 <= q < self.settings.width and 0 <= r < self.settings.height:
@@ -197,6 +259,7 @@ def adjust_settings(
     moisture: float | None = None,
     elevation: float | None = None,
     temperature: float | None = None,
+    rainfall_intensity: float | None = None,
 ) -> None:
     """Adjust world sliders before final generation."""
     if moisture is not None:
@@ -205,6 +268,8 @@ def adjust_settings(
         settings.elevation = max(0.0, min(1.0, elevation))
     if temperature is not None:
         settings.temperature = max(0.0, min(1.0, temperature))
+    if rainfall_intensity is not None:
+        settings.rainfall_intensity = max(0.0, min(1.0, rainfall_intensity))
 
 
 __all__ = [
@@ -212,6 +277,7 @@ __all__ = [
     "WorldSettings",
     "Hex",
     "Road",
+    "RiverSegment",
     "World",
     "adjust_settings",
 ]

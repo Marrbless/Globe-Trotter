@@ -152,14 +152,23 @@ class MapView:
             x2, y2 = self.camera.apply((x2, y2))
             dpg.draw_line((x1, y1), (x2, y2), color=(139, 69, 19, 255), thickness=4, parent=self.canvas)
 
+    def draw_rivers(self):
+        for seg in getattr(self.world, "rivers", []):
+            x1, y1 = hex_to_pixel(*seg.start)
+            x2, y2 = hex_to_pixel(*seg.end)
+            x1, y1 = self.camera.apply((x1, y1))
+            x2, y2 = self.camera.apply((x2, y2))
+            dpg.draw_line((x1, y1), (x2, y2), color=(65, 105, 225, 255), thickness=3, parent=self.canvas)
+
     def draw_map(self):
         dpg.delete_item(self.canvas, children_only=True)
         for r in range(self.world.height):
             for q in range(self.world.width):
                 hex_data = self.world.hexes[r][q]
-                color = terrain_color(hex_data.terrain)
+                color = terrain_color("water" if hex_data.lake else hex_data.terrain)
                 self.draw_hex(q, r, color, 0)
         self.draw_roads()
+        self.draw_rivers()
         if self.selected:
             q, r = self.selected
             self.draw_hex(q, r, (255, 255, 0, 255), 3)
