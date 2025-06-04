@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict
 
 from .persistence import GameState, load_state, save_state
-from .buildings import Building
+from .buildings import Building, mitigate_building_damage, mitigate_population_loss
 from . import settings
 from .world import World
 from .resources import ResourceManager
@@ -165,6 +165,7 @@ class Game:
 
         # Load or create state
         self.state = state or load_state()
+
         # If state has stored resources, use them; otherwise create ResourceManager
         self.resources: ResourceManager | Dict[str, int]
         if isinstance(self.state.resources, ResourceManager):
@@ -179,6 +180,7 @@ class Game:
 
         self.population = self.state.population
         self.player_faction: Faction | None = None
+        self.player_buildings: List[Building] = []
         self.turn = 0
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
@@ -191,6 +193,10 @@ class Game:
         # Register resources for the new faction
         if isinstance(self.resources, ResourceManager):
             self.resources.register(self.player_faction)
+
+    def add_building(self, building: Building):
+        """Add a defensive building to the player's settlement."""
+        self.player_buildings.append(building)
 
     def begin(self):
         if not self.player_faction:
@@ -205,8 +211,23 @@ class Game:
             pos = faction.settlement.position
             print(f"- {faction.name} at ({pos.x}, {pos.y})")
 
+        # Show initial resource and population state
         print(f"Resources: {self.state.resources}")
         print(f"Population: {self.state.population}")
+
+        # Simulate a sample event demonstrating defensive buildings
+        self.simulate_events()
+
+    def simulate_events(self):
+        """Run sample attack and disaster to show defensive buildings."""
+        if not self.player_faction:
+            return
+        base_pop_loss = 100
+        base_damage = 50
+        pop_loss = mitigate_population_loss(self.player_buildings, base_pop_loss)
+        damage = mitigate_building_damage(self.player_buildings, base_damage)
+        print(f"Population loss mitigated from {base_pop_loss} to {pop_loss}")
+        print(f"Building damage mitigated from {base_damage} to {damage}")
 
     def build_for_player(self, building: Building) -> None:
         if not self.player_faction:
@@ -223,7 +244,7 @@ class Game:
         Advance the game state by one tick. This includes:
           1. Population growth
           2. Basic resource generation (food from population)
-          3. Building‐based resource bonuses
+          3. Building-based resource bonuses
         """
         for faction in self.map.factions:
             # 1. Population growth

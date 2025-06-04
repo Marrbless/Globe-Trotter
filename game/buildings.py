@@ -1,9 +1,48 @@
 from dataclasses import dataclass
+from typing import List
+
+# Categories for defensive structures
+FACTION_DEFENSE = "faction"
+WORLD_DEFENSE = "world"
+
+@dataclass
+class DefensiveBuilding:
+    """Building that provides defense."""
+    name: str
+    category: str
+    defense_value: float = 0.0
+
+# Pre-defined defensive buildings
+WALLS = DefensiveBuilding("Walls", FACTION_DEFENSE, defense_value=0.2)
+FORT = DefensiveBuilding("Fort", FACTION_DEFENSE, defense_value=0.4)
+FLOOD_BARRIER = DefensiveBuilding("Flood Barrier", WORLD_DEFENSE, defense_value=0.3)
+FIREBREAK = DefensiveBuilding("Firebreak", WORLD_DEFENSE, defense_value=0.3)
+
+# Convenience list
+ALL_DEFENSIVE_BUILDINGS = [WALLS, FORT, FLOOD_BARRIER, FIREBREAK]
+
+
+def mitigate_population_loss(buildings: List[DefensiveBuilding], loss: int) -> int:
+    """Reduce population loss from attacks using faction defense structures."""
+    factor = 1.0
+    for b in buildings:
+        if b.category == FACTION_DEFENSE:
+            factor *= 1 - b.defense_value
+    return max(0, int(loss * factor))
+
+
+def mitigate_building_damage(buildings: List[DefensiveBuilding], damage: int) -> int:
+    """Reduce building damage from disasters using world defense structures."""
+    factor = 1.0
+    for b in buildings:
+        if b.category == WORLD_DEFENSE:
+            factor *= 1 - b.defense_value
+    return max(0, int(damage * factor))
+
 
 @dataclass
 class Building:
     """Base class for all buildings."""
-
     name: str
     construction_cost: int
     upkeep: int
