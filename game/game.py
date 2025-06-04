@@ -397,6 +397,7 @@ class Game:
         """Persist the current game state to disk.
         Persist resources and recompute population from all factions.
         """
+        # Ensure population reflects all factions before persisting
         self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population

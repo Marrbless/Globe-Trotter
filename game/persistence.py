@@ -164,7 +164,8 @@ def load_state(
             mgr.tick(factions)
             for fac in factions:
                 fac.citizens.count += 1
-            state.population += 1
+            # Offline population gain should account for all factions
+            state.population += len(factions)
         state.resources = mgr.data
 
     state.timestamp = now
