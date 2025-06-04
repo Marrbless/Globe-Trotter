@@ -20,6 +20,7 @@ class GameState:
     timestamp: float
     resources: Dict[str, Dict[ResourceType, int]]
     population: int
+    claimed_projects: List[str]
 
 
 def serialize_resources(data: Dict[str, Dict[ResourceType, int]]) -> dict:
@@ -53,9 +54,10 @@ def load_state(
             timestamp=data.get("timestamp", now),
             resources=resources,
             population=data.get("population", 0),
+            claimed_projects=data.get("claimed_projects", []),
         )
     else:
-        state = GameState(timestamp=now, resources={}, population=0)
+        state = GameState(timestamp=now, resources={}, population=0, claimed_projects=[])
 
     elapsed = int((now - state.timestamp) // TICK_DURATION)
 
@@ -80,5 +82,6 @@ def save_state(state: GameState) -> None:
             "timestamp": state.timestamp,
             "resources": serialize_resources(state.resources),
             "population": state.population,
+            "claimed_projects": list(state.claimed_projects),
         }
         json.dump(data, f)

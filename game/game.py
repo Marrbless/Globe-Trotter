@@ -76,8 +76,12 @@ class Faction:
     def population(self, value: int) -> None:
         self.citizens.count = value
 
-    def start_project(self, project: GreatProject) -> None:
-        """Begin constructing a great project."""
+    def start_project(self, project: GreatProject, claimed_projects: set[str] | None = None) -> None:
+        """Begin constructing a great project if not already claimed."""
+        if claimed_projects is not None:
+            if project.name in claimed_projects:
+                raise ValueError(f"{project.name} already claimed")
+            claimed_projects.add(project.name)
         self.projects.append(project)
 
     def progress_projects(self) -> None:
@@ -181,13 +185,14 @@ class Game:
 
         # Prepare state container; actual saved data will be loaded in begin()
         self.state = state or GameState(
-            timestamp=time.time(), resources={}, population=0
+            timestamp=time.time(), resources={}, population=0, claimed_projects=[]
         )
 
         # Initialize resource manager with whatever data we have so far
         self.resources = ResourceManager(self.world, self.state.resources)
 
         self.population = self.state.population
+        self.claimed_projects: set[str] = set(self.state.claimed_projects)
         self.player_faction: Faction | None = None
         self.player_buildings: List[Building] = []
         self.turn = 0
@@ -216,6 +221,7 @@ class Game:
         # Load saved state now that all factions exist
         self.state = load_state(world=self.world, factions=self.map.factions)
         self.resources = ResourceManager(self.world, self.state.resources)
+        self.claimed_projects = set(self.state.claimed_projects)
 
         for faction in self.map.factions:
             self.resources.register(faction)
@@ -299,9 +305,9 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
+        self.state.claimed_projects = list(self.claimed_projects)
         save_state(self.state)
 
     def advance_turn(self) -> None:
