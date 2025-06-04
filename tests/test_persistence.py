@@ -57,3 +57,31 @@ def test_offline_gains(tmp_path, monkeypatch):
 
     assert loaded.population == 5
     assert loaded.resources[player][ResourceType.ORE] == 30
+
+
+def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    player = game.player_faction.name
+
+    # Prepare some saved data
+    game.player_faction.resources[ResourceType.FOOD] = 10
+    game.player_faction.citizens.count = 12
+    game.resources.data[player][ResourceType.FOOD] = 10
+    game.state.resources = game.resources.data
+    game.state.population = game.player_faction.citizens.count
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    persistence.save_state(game.state)
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    new_game = Game(world=world)
+    new_game.place_initial_settlement(1, 1)
+    new_game.begin()
+
+    assert new_game.player_faction.resources[ResourceType.FOOD] == 10
+    assert new_game.player_faction.citizens.count == 12
