@@ -135,8 +135,8 @@ class Quarry(Building):
 @dataclass
 class ProcessingBuilding(Building):
     """Building that converts one resource into another each tick."""
-    input_resource: str = ""
-    output_resource: str = ""
+    input_resource: ResourceType = ResourceType.ORE
+    output_resource: ResourceType = ResourceType.METAL
     conversion_rate: int = 1
 
     def process(self, faction: Faction) -> None:
@@ -154,8 +154,8 @@ class Smeltery(ProcessingBuilding):
     name: str = "Smeltery"
     construction_cost: int = 200
     upkeep: int = 20
-    input_resource: str = "ore"
-    output_resource: str = "metal"
+    input_resource: ResourceType = ResourceType.ORE
+    output_resource: ResourceType = ResourceType.METAL
     conversion_rate: int = 2
 
 
@@ -164,6 +164,6 @@ class TextileMill(ProcessingBuilding):
     name: str = "TextileMill"
     construction_cost: int = 160
     upkeep: int = 15
-    input_resource: str = "wood"
-    output_resource: str = "cloth"
+    input_resource: ResourceType = ResourceType.WOOD
+    output_resource: ResourceType = ResourceType.CLOTH
     conversion_rate: int = 1

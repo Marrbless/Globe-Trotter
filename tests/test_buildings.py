@@ -5,7 +5,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
 from game.world import World, ResourceType
-from game.buildings import Farm
+from game.buildings import Farm, Smeltery
 
 
 def make_world():
@@ -43,3 +43,20 @@ def test_tick_applies_building_bonus():
     game.tick()
     expected_food = (initial_population + 1) // 2 + farm.resource_bonus
     assert faction.resources[ResourceType.FOOD] == expected_food
+
+
+def test_processing_building_converts_resources():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    faction.resources = {
+        ResourceType.ORE: 5,
+        ResourceType.METAL: 0,
+        ResourceType.FOOD: 0,
+    }
+    smeltery = Smeltery()
+    faction.buildings.append(smeltery)
+    game.tick()
+    assert faction.resources[ResourceType.ORE] == 3
+    assert faction.resources[ResourceType.METAL] == 2
