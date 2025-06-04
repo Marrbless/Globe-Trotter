@@ -1,21 +1,20 @@
-# Projects
+# Python Strategy Game Prototypes
 
-This repository contains modules for procedural world generation.
+This repository contains modular prototypes for a turn-based strategy game. It includes:
 
-## World Generation Module
+- A **Faction Creation UI** to let players customize their faction
+- A **Procedural World Generator** using hex tiles
+- A **Game Runtime Module** that spawns AI factions after the player starts the game
 
-The `world/generation.py` module provides utilities to create a hex based
-world with configurable settings.
+---
 
-```
-from world.generation import WorldSettings, adjust_settings, generate_hexes
+## 1. Faction Creation UI
 
-settings = WorldSettings(seed=42, width=10, height=10)
-adjust_settings(settings, moisture=0.7, elevation=0.3)
-world = generate_hexes(settings)
-hex_tile = world.get_hex(0, 0)
-```
+A simple GUI that lets users configure their faction.
 
-`WorldSettings` exposes sliders such as moisture, elevation and temperature to
-influence the generated terrain.
+**Location:** `ui/faction_creation.py`
 
+### How to Run
+
+```bash
+python ui/faction_creation.py
