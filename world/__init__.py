@@ -6,6 +6,7 @@ from .world import (
     World,
     adjust_settings,
 )
+from .generation import generate_elevation_map, terrain_from_elevation
 
 __all__ = [
     "ResourceType",
@@ -14,4 +15,6 @@ __all__ = [
     "Road",
     "World",
     "adjust_settings",
+    "generate_elevation_map",
+    "terrain_from_elevation",
 ]
