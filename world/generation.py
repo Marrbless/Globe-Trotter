@@ -1,11 +1,20 @@
 """Procedural hex map generation utilities."""
 
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Dict, Tuple
 import random
 
 # Type alias for coordinates in the hex grid
 Coordinate = Tuple[int, int]
+
+
+class ResourceType(Enum):
+    """Supported resource types found on hexes."""
+
+    WOOD = "wood"
+    STONE = "stone"
+    ORE = "ore"
 
 
 @dataclass
@@ -40,6 +49,7 @@ class Hex:
     elevation: float = 0.0
     moisture: float = 0.0
     temperature: float = 0.0
+    resources: Dict[ResourceType, int] = field(default_factory=dict)
 
 
 @dataclass
@@ -51,6 +61,17 @@ class World:
 
     def get_hex(self, x: int, y: int) -> Hex:
         return self.hexes.get((x, y))
+
+    def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
+        """Return total resources within a square radius of the coordinate."""
+        totals: Dict[ResourceType, int] = {r: 0 for r in ResourceType}
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                hex_ = self.get_hex(x + dx, y + dy)
+                if hex_:
+                    for rtype, amt in hex_.resources.items():
+                        totals[rtype] += amt
+        return {r: amt for r, amt in totals.items() if amt > 0}
 
 
 def initialize_random(settings: WorldSettings) -> random.Random:
@@ -65,6 +86,29 @@ def generate_terrain_type(rng: random.Random, settings: WorldSettings) -> str:
     return rng.choices(biomes, weights=weights, k=1)[0]
 
 
+def generate_resources(rng: random.Random, biome: str) -> Dict[ResourceType, int]:
+    """Generate resources for a hex based on its biome."""
+    resources: Dict[ResourceType, int] = {}
+
+    if biome == "forest":
+        resources[ResourceType.WOOD] = rng.randint(5, 15)
+        if rng.random() < 0.3:
+            resources[ResourceType.STONE] = rng.randint(1, 4)
+    elif biome == "mountain":
+        resources[ResourceType.STONE] = rng.randint(5, 15)
+        if rng.random() < 0.7:
+            resources[ResourceType.ORE] = rng.randint(1, 5)
+    elif biome == "plains":
+        if rng.random() < 0.5:
+            resources[ResourceType.WOOD] = rng.randint(1, 5)
+        if rng.random() < 0.4:
+            resources[ResourceType.STONE] = rng.randint(1, 4)
+    elif biome == "desert":
+        if rng.random() < 0.2:
+            resources[ResourceType.STONE] = rng.randint(1, 3)
+    return resources
+
+
 def generate_hexes(settings: WorldSettings) -> World:
     """Generate all hexes for the world according to settings."""
     rng = initialize_random(settings)
@@ -76,12 +120,14 @@ def generate_hexes(settings: WorldSettings) -> World:
             elevation = rng.random() * settings.elevation
             moisture = rng.random() * settings.moisture
             temperature = rng.random() * settings.temperature
+            resources = generate_resources(rng, biome)
             world.hexes[(x, y)] = Hex(
                 coord=(x, y),
                 biome=biome,
                 elevation=elevation,
                 moisture=moisture,
                 temperature=temperature,
+                resources=resources,
             )
     return world
 
@@ -103,6 +149,7 @@ def adjust_settings(
 
 
 __all__ = [
+    "ResourceType",
     "WorldSettings",
     "Hex",
     "World",

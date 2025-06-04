@@ -3,6 +3,8 @@ from dataclasses import dataclass, field
 from typing import Dict
 
 from . import settings
+from .world import World
+from .resources import ResourceManager
 
 @dataclass
 class Position:
@@ -25,7 +27,7 @@ class Map:
     def __init__(self, width: int, height: int):
         self.width = width
         self.height = height
-        self.factions = []
+        self.factions: list[Faction] = []
 
     def is_occupied(self, position: Position) -> bool:
         for faction in self.factions:
@@ -42,10 +44,11 @@ class Map:
         else:
             raise ValueError("Position is already occupied")
 
-    def spawn_ai_factions(self, player_settlement: Settlement):
+    def spawn_ai_factions(self, player_settlement: Settlement) -> list[Faction]:
         count = settings.AI_FACTION_COUNT
         spawned = 0
         attempts = 0
+        factions: list[Faction] = []
         while spawned < count and attempts < count * 10:
             attempts += 1
             x = random.randint(0, self.width - 1)
@@ -56,13 +59,15 @@ class Map:
                 and self.distance(pos, player_settlement.position)
                 >= settings.MIN_DISTANCE_FROM_PLAYER
             ):
-                ai = Faction(name=f"AI #{spawned + 1}", settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos))
+                ai = Faction(
+                    name=f"AI #{spawned + 1}",
+                    settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
+                    population=random.randint(8, 15),
+                )
                 self.add_faction(ai)
+                factions.append(ai)
                 spawned += 1
-
-from .world import World
-from .resources import ResourceManager
-
+        return factions
 
 class Game:
     def __init__(self, world: World | None = None):
@@ -83,7 +88,7 @@ class Game:
     def begin(self):
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
-        self.map.spawn_ai_factions(self.player_faction.settlement)
+        ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
         for faction in self.map.factions:
             self.resources.register(faction)
         print("Game started with factions:")
