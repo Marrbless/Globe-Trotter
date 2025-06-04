@@ -39,6 +39,12 @@ def test_offline_gains(tmp_path, monkeypatch):
     monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
 
     world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.ORE: 1}
+
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
@@ -50,4 +56,4 @@ def test_offline_gains(tmp_path, monkeypatch):
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
 
     assert loaded.population == 5
-    assert loaded.resources[player][ResourceType.FOOD] == 30
+    assert loaded.resources[player][ResourceType.ORE] == 30

@@ -65,10 +65,16 @@ def test_quarry_increases_stone():
 
 def test_resource_manager_updates_once():
     world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.ORE: 1}
+
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
-    before = game.resources.data[player][ResourceType.FOOD]
+    before = game.resources.data[player][ResourceType.ORE]
     game.tick()
-    after = game.resources.data[player][ResourceType.FOOD]
+    after = game.resources.data[player][ResourceType.ORE]
     assert after - before == 6
