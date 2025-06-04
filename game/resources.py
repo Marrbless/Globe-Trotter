@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
-from .world import World, Hex
+from world.world import World, Hex
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -20,7 +20,14 @@ class ResourceManager:
     def register(self, faction: 'Faction') -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
-            self.data[faction.name] = {"food": 0, "wood": 0, "stone": 0}
+            self.data[faction.name] = {
+                "food": 0,
+                "wood": 0,
+                "stone": 0,
+                "ore": 0,
+                "metal": 0,
+                "cloth": 0,
+            }
 
     def adjacent_tiles(self, pos: Position) -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
@@ -41,7 +48,7 @@ class ResourceManager:
             "forest": "wood",
             "mountains": "stone",
         }
-        counts = {"food": 0, "wood": 0, "stone": 0}
+        counts = {"food": 0, "wood": 0, "stone": 0, "ore": 0}
 
         for tile in tiles:
             res = terrain_map.get(tile.terrain)

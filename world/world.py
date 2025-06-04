@@ -16,6 +16,9 @@ class ResourceType(Enum):
     WOOD = "wood"
     STONE = "stone"
     ORE = "ore"
+    METAL = "metal"
+    FOOD = "food"
+    CLOTH = "cloth"
 
 
 @dataclass(frozen=True)
@@ -57,6 +60,12 @@ class Hex:
     moisture: float = 0.0
     temperature: float = 0.0
     resources: Dict[ResourceType, int] = field(default_factory=dict)
+
+    def __getitem__(self, key: str):
+        return getattr(self, key)
+
+    def __setitem__(self, key: str, value) -> None:
+        setattr(self, key, value)
 
 
 def initialize_random(settings: WorldSettings) -> random.Random:

@@ -3,7 +3,12 @@ from typing import List, Dict
 from dataclasses import dataclass, field
 
 from .persistence import GameState, load_state, save_state
-from .buildings import Building, mitigate_building_damage, mitigate_population_loss
+from .buildings import (
+    Building,
+    ProcessingBuilding,
+    mitigate_building_damage,
+    mitigate_population_loss,
+)
 from .population import Citizen, Worker
 from . import settings
 from world.world import World
@@ -27,6 +32,19 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
     ),
 }
 
+# Mapping of project names to new actions unlocked upon completion
+PROJECT_UNLOCKS = {
+    "Grand Cathedral": "celebrate_festival",
+    "Sky Fortress": "air_strike",
+}
+
+
+def apply_project_bonus(faction: "Faction", project: GreatProject) -> None:
+    """Grant faction bonuses when a project is finished."""
+    action = PROJECT_UNLOCKS.get(project.name)
+    if action and action not in faction.unlocked_actions:
+        faction.unlocked_actions.append(action)
+
 
 @dataclass
 class Faction:
@@ -34,11 +52,27 @@ class Faction:
     settlement: Settlement
     citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
     resources: Dict[str, int] = field(
-        default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
+        default_factory=lambda: {
+            "food": 100,
+            "wood": 50,
+            "stone": 30,
+            "ore": 0,
+            "metal": 0,
+            "cloth": 0,
+        }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
+    unlocked_actions: List[str] = field(default_factory=list)
+
+    @property
+    def population(self) -> int:
+        return self.citizens.count
+
+    @population.setter
+    def population(self, value: int) -> None:
+        self.citizens.count = value
 
     def start_project(self, project: GreatProject) -> None:
         """Begin constructing a great project."""
@@ -48,6 +82,9 @@ class Faction:
         for proj in self.projects:
             if not proj.is_complete():
                 proj.advance()
+            if proj.is_complete() and not getattr(proj, "bonus_applied", False):
+                apply_project_bonus(self, proj)
+                proj.bonus_applied = True
 
     def completed_projects(self) -> List[GreatProject]:
         return [p for p in self.projects if p.is_complete()]
@@ -225,15 +262,18 @@ class Game:
 
             # 3. Building effects (explicit mapping by building name)
             for building in faction.buildings:
+                if isinstance(building, ProcessingBuilding):
+                    building.process(faction)
+                    continue
                 b_type = getattr(building, "name", None)
                 if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
+                    faction.resources["food"] = faction.resources.get("food", 0) + building.resource_bonus
                 elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + building.resource_bonus
                 elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
                 elif b_type == "Mine":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
+                    faction.resources["ore"] = faction.resources.get("ore", 0) + building.resource_bonus
 
         # After all factions have been processed, update ResourceManager data
         self.resources.tick(self.map.factions)
