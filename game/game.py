@@ -257,12 +257,14 @@ class Game:
             # 3. Building effects
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
-                if b_type == "farm":
+                if b_type == "Farm":
                     faction.resources["food"] = faction.resources.get("food", 0) + 5
-                elif b_type == "lumber_mill":
+                elif b_type == "LumberMill":
                     faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "quarry":
+                elif b_type == "Quarry":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 2
+                elif b_type == "Mine":
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
         # Debug output for the player faction
         if self.player_faction:

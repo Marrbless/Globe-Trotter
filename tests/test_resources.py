@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
 from game.world import World
+from game.buildings import Farm, LumberMill, Quarry, Mine
 
 
 def make_world():
@@ -22,9 +23,41 @@ def test_resources_increase_without_buildings():
     world = make_world()
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
-    manager = game.resources
-    initial = manager.data[game.player_faction.name]["food"]
+    initial = game.player_faction.resources["food"]
     for _ in range(5):
         game.tick()
-    after = manager.data[game.player_faction.name]["food"]
+    after = game.player_faction.resources["food"]
     assert after > initial
+
+
+def test_farm_increases_food():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    game.player_faction.buildings.append(Farm())
+    initial = game.player_faction.resources["food"]
+    game.tick()
+    after = game.player_faction.resources["food"]
+    assert after - initial >= 10  # base + farm bonus
+
+
+def test_lumbermill_increases_wood():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    game.player_faction.buildings.append(LumberMill())
+    initial = game.player_faction.resources["wood"]
+    game.tick()
+    after = game.player_faction.resources["wood"]
+    assert after - initial >= 3
+
+
+def test_quarry_increases_stone():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    game.player_faction.buildings.append(Quarry())
+    initial = game.player_faction.resources["stone"]
+    game.tick()
+    after = game.player_faction.resources["stone"]
+    assert after - initial >= 2
