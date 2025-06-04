@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from world.world import ResourceType
+
+if TYPE_CHECKING:
+    from .game import Faction
 
 # Categories for defensive structures
 FACTION_DEFENSE = "faction"
@@ -127,3 +130,40 @@ class Quarry(Building):
     upkeep: int = 14
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.STONE
+
+
+@dataclass
+class ProcessingBuilding(Building):
+    """Building that converts one resource into another each tick."""
+    input_resource: str = ""
+    output_resource: str = ""
+    conversion_rate: int = 1
+
+    def process(self, faction: Faction) -> None:
+        available = faction.resources.get(self.input_resource, 0)
+        to_convert = min(self.conversion_rate, available)
+        if to_convert > 0:
+            faction.resources[self.input_resource] -= to_convert
+            faction.resources[self.output_resource] = faction.resources.get(
+                self.output_resource, 0
+            ) + to_convert
+
+
+@dataclass
+class Smeltery(ProcessingBuilding):
+    name: str = "Smeltery"
+    construction_cost: int = 200
+    upkeep: int = 20
+    input_resource: str = "ore"
+    output_resource: str = "metal"
+    conversion_rate: int = 2
+
+
+@dataclass
+class TextileMill(ProcessingBuilding):
+    name: str = "TextileMill"
+    construction_cost: int = 160
+    upkeep: int = 15
+    input_resource: str = "wood"
+    output_resource: str = "cloth"
+    conversion_rate: int = 1

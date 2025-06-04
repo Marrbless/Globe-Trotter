@@ -3,7 +3,12 @@ from typing import List, Dict
 from dataclasses import dataclass, field
 
 from .persistence import GameState, load_state, save_state
-from .buildings import Building, mitigate_building_damage, mitigate_population_loss
+from .buildings import (
+    Building,
+    ProcessingBuilding,
+    mitigate_building_damage,
+    mitigate_population_loss,
+)
 from .population import Citizen, Worker
 from . import settings
 from world.world import World, ResourceType
@@ -27,6 +32,19 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
     ),
 }
 
+# Mapping of project names to new actions unlocked upon completion
+PROJECT_UNLOCKS = {
+    "Grand Cathedral": "celebrate_festival",
+    "Sky Fortress": "air_strike",
+}
+
+
+def apply_project_bonus(faction: "Faction", project: GreatProject) -> None:
+    """Grant faction bonuses when a project is finished."""
+    action = PROJECT_UNLOCKS.get(project.name)
+    if action and action not in faction.unlocked_actions:
+        faction.unlocked_actions.append(action)
+
 
 @dataclass
 class Faction:
@@ -38,11 +56,15 @@ class Faction:
             ResourceType.FOOD: 100,
             ResourceType.WOOD: 50,
             ResourceType.STONE: 30,
+            ResourceType.ORE: 0,
+            ResourceType.METAL: 0,
+            ResourceType.CLOTH: 0,
         }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
+    unlocked_actions: List[str] = field(default_factory=list)
 
     @property
     def population(self) -> int:
@@ -61,6 +83,9 @@ class Faction:
         for proj in self.projects:
             if not proj.is_complete():
                 proj.advance()
+            if proj.is_complete() and not getattr(proj, "bonus_applied", False):
+                apply_project_bonus(self, proj)
+                proj.bonus_applied = True
 
     def completed_projects(self) -> List[GreatProject]:
         return [p for p in self.projects if p.is_complete()]
@@ -237,6 +262,9 @@ class Game:
 
             # 3. Building effects
             for building in faction.buildings:
+                if isinstance(building, ProcessingBuilding):
+                    building.process(faction)
+                    continue
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (

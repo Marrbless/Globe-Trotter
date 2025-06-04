@@ -25,6 +25,7 @@ class GreatProject:
     victory_points: int = 0
     bonus: str = ""
     progress: int = 0
+    bonus_applied: bool = False
 
     def is_complete(self) -> bool:
         return self.progress >= self.build_time

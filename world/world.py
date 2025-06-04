@@ -12,11 +12,12 @@ Coordinate = Tuple[int, int]
 
 class ResourceType(Enum):
     """Supported resource types found on hexes."""
-
     FOOD = "food"
     WOOD = "wood"
     STONE = "stone"
     ORE = "ore"
+    METAL = "metal"
+    CLOTH = "cloth"
     GOLD = "gold"
     IRON = "iron"
 
@@ -62,12 +63,6 @@ class Hex:
     resources: Dict[ResourceType, int] = field(default_factory=dict)
     flooded: bool = False
     ruined: bool = False
-
-    def __getitem__(self, key: str):
-        return getattr(self, key)
-
-    def __setitem__(self, key: str, value) -> None:
-        setattr(self, key, value)
 
     def __getitem__(self, key: str):
         return getattr(self, key)
