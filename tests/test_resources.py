@@ -80,11 +80,33 @@ def test_resource_manager_updates_once():
     assert after - before == 6
 
 
+def test_auto_assignment_gathers_resources():
+    """Idle citizens should automatically become workers and gather."""
+    world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.WOOD: 1}
+
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    # Remove all assigned workers to simulate idle population
+    game.player_faction.workers.assigned = 0
+    player = game.player_faction.name
+    before = game.resources.data[player][ResourceType.WOOD]
+    game.tick()
+    after = game.resources.data[player][ResourceType.WOOD]
+    assert after - before == 6
+
+
 def test_richer_tiles_yield_more_resources():
     world = make_world()
     center = (1, 1)
     amounts = [5, 1, 1, 1, 1, 1]
-    for (dq, dr), amt in zip([(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)], amounts):
+    for (dq, dr), amt in zip(
+        [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)], amounts
+    ):
         tile = world.get(center[0] + dq, center[1] + dr)
         if tile:
             tile.resources = {ResourceType.ORE: amt}
