@@ -1,5 +1,5 @@
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import settings
 
@@ -13,10 +13,71 @@ class Settlement:
     name: str
     position: Position
 
+
+@dataclass
+class Building:
+    """Simple constructed building worth victory points."""
+
+    name: str
+    victory_points: int = 0
+
+
+@dataclass
+class GreatProject:
+    """High-cost project that requires multiple turns to complete."""
+
+    name: str
+    build_time: int
+    victory_points: int = 0
+    bonus: str = ""
+    progress: int = 0
+
+    def is_complete(self) -> bool:
+        return self.progress >= self.build_time
+
+    def advance(self, amount: int = 1) -> None:
+        self.progress = min(self.build_time, self.progress + amount)
+
+
+# Predefined templates for special high-cost projects
+GREAT_PROJECT_TEMPLATES = {
+    "Grand Cathedral": GreatProject(
+        name="Grand Cathedral",
+        build_time=5,
+        victory_points=10,
+        bonus="Increases faith across the realm",
+    ),
+    "Sky Fortress": GreatProject(
+        name="Sky Fortress",
+        build_time=8,
+        victory_points=15,
+        bonus="Provides unmatched military power",
+    ),
+}
+
 @dataclass
 class Faction:
     name: str
     settlement: Settlement
+    buildings: list[Building] = field(default_factory=list)
+    projects: list[GreatProject] = field(default_factory=list)
+
+    def start_project(self, project: GreatProject) -> None:
+        """Begin constructing a great project."""
+        self.projects.append(project)
+
+    def progress_projects(self) -> None:
+        for proj in self.projects:
+            if not proj.is_complete():
+                proj.advance()
+
+    def completed_projects(self) -> list[GreatProject]:
+        return [p for p in self.projects if p.is_complete()]
+
+    def get_victory_points(self) -> int:
+        total = sum(b.victory_points for b in self.buildings)
+        total += sum(p.victory_points for p in self.completed_projects())
+        return total
 
 class Map:
     def __init__(self, width: int, height: int):
@@ -61,6 +122,7 @@ class Game:
     def __init__(self):
         self.map = Map(*settings.MAP_SIZE)
         self.player_faction: Faction | None = None
+        self.turn = 0
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -77,6 +139,16 @@ class Game:
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+
+    def advance_turn(self) -> None:
+        """Progress construction on all ongoing projects."""
+        self.turn += 1
+        for faction in self.map.factions:
+            faction.progress_projects()
+
+    def calculate_scores(self) -> dict[str, int]:
+        """Return victory points for all factions."""
+        return {f.name: f.get_victory_points() for f in self.map.factions}
 
 def main():
     game = Game()
