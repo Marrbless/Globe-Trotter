@@ -215,7 +215,6 @@ class World:
         temperature = self.temperature_map[r][q]
         moisture = self.rainfall_map[r][q]
         terrain = self.biome_map[r][q]
-
         resources = generate_resources(rng, terrain)
 
         return Hex(
@@ -232,9 +231,11 @@ class World:
         chunk: List[List[Hex]] = []
         base_q = cx * self.CHUNK_SIZE
         base_r = cy * self.CHUNK_SIZE
-        for r_off in range(self.CHUNK_SIZE):
+        y_limit = min(self.CHUNK_SIZE, self.height - base_r)
+        x_limit = min(self.CHUNK_SIZE, self.width - base_q)
+        for r_off in range(y_limit):
             row: List[Hex] = []
-            for q_off in range(self.CHUNK_SIZE):
+            for q_off in range(x_limit):
                 q = base_q + q_off
                 r = base_r + r_off
                 if 0 <= q < self.width and 0 <= r < self.height:
@@ -266,7 +267,7 @@ class World:
         return best
 
     def _generate_rivers(self) -> None:
-        """Create simple rivers flowing downhill based on perlin-derived elevation."""
+        """Create simple rivers flowing downhill based on precomputed elevation."""
         density = max(0.0, min(1.0, self.settings.rainfall_intensity))
         seeds = max(1, int(density * 5))
         for _ in range(seeds):

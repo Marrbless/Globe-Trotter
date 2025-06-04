@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
 from world.world import ResourceType
 from .resources import ResourceManager
+from .population import FactionManager
 
 if TYPE_CHECKING:
     from .game import Faction
@@ -159,14 +160,13 @@ def load_state(
     elapsed = int((now - state.timestamp) // TICK_DURATION)
 
     if elapsed > 0 and world is not None and factions is not None:
-        mgr = ResourceManager(world, state.resources)
+        res_mgr = ResourceManager(world, state.resources)
+        pop_mgr = FactionManager(factions)
         for _ in range(elapsed):
-            mgr.tick(factions)
-            for fac in factions:
-                fac.citizens.count += 1
-            # Offline population gain should account for all factions
-            state.population += len(factions)
-        state.resources = mgr.data
+            pop_mgr.tick()
+            res_mgr.tick(factions)
+        state.resources = res_mgr.data
+        state.population = sum(f.citizens.count for f in factions)
 
     state.timestamp = now
     return state
