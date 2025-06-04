@@ -15,13 +15,23 @@ Coordinate = Tuple[int, int]
 class ResourceType(Enum):
     """Supported resource types found on hexes."""
     FOOD = "food"
+    WHEAT = "wheat"
+    FLOUR = "flour"
+    BREAD = "bread"
     WOOD = "wood"
     STONE = "stone"
     ORE = "ore"
     METAL = "metal"
     CLOTH = "cloth"
+    WOOL = "wool"
+    CLOTHES = "clothes"
+    PLANK = "plank"
+    STONE_BLOCK = "stone_block"
+    VEGETABLE = "vegetable"
+    SOUP = "soup"
     GOLD = "gold"
     IRON = "iron"
+    WEAPON = "weapon"
 
 
 @dataclass(frozen=True)
