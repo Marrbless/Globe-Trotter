@@ -12,7 +12,6 @@ from .generation import (
     generate_temperature_map,
     generate_rainfall,
     generate_biome_map,
-    determine_biome,
 )
 
 Coordinate = Tuple[int, int]
@@ -152,6 +151,7 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
+
     return resources
 
 
@@ -176,10 +176,14 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
-        # Precompute world maps for consistent terrain generation
-        self.elevation_map = generate_elevation_map(width, height, self.settings)
+        # Precompute world data maps
+        self.elevation_map = generate_elevation_map(
+            self.settings.width, self.settings.height, self.settings
+        )
         self.temperature_map = generate_temperature_map(self.settings, self.rng)
-        self.rainfall_map = generate_rainfall(self.elevation_map, self.settings, self.rng)
+        self.rainfall_map = generate_rainfall(
+            self.elevation_map, self.settings, self.rng
+        )
         self.biome_map = generate_biome_map(
             self.elevation_map, self.temperature_map, self.rainfall_map
         )
@@ -204,20 +208,14 @@ class World:
             self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        """Generate a single hex tile using precomputed world maps."""
+        """Generate a single hex tile using precomputed climate maps."""
         rng = random.Random(hash((q, r, self.settings.seed)))
 
-        max_r = len(self.elevation_map) - 1
-        max_q = len(self.elevation_map[0]) - 1 if self.elevation_map else 0
-        r_idx = min(r, max_r)
-        q_idx = min(q, max_q)
+        elevation = self.elevation_map[r][q]
+        temperature = self.temperature_map[r][q]
+        moisture = self.rainfall_map[r][q]
+        terrain = self.biome_map[r][q]
 
-        elevation = self.elevation_map[r_idx][q_idx]
-        temperature = self.temperature_map[r_idx][q_idx]
-        rainfall = self.rainfall_map[r_idx][q_idx]
-        terrain = determine_biome(elevation, temperature, rainfall)
-
-        moisture = rainfall
         resources = generate_resources(rng, terrain)
 
         return Hex(
@@ -239,7 +237,10 @@ class World:
             for q_off in range(self.CHUNK_SIZE):
                 q = base_q + q_off
                 r = base_r + r_off
-                row.append(self._generate_hex(q, r))
+                if 0 <= q < self.width and 0 <= r < self.height:
+                    row.append(self._generate_hex(q, r))
+                else:
+                    row.append(Hex(coord=(q, r)))
             chunk.append(row)
         self.chunks[(cx, cy)] = chunk
 
@@ -284,7 +285,11 @@ class World:
             while current and current not in visited:
                 visited.add(current)
                 nxt = self._downhill_neighbor(*current)
-                if not nxt or nxt == current or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height):
+                if (
+                    not nxt
+                    or nxt == current
+                    or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height)
+                ):
                     self.lakes.append(current)
                     self.get(*current).lake = True
                     break
