@@ -226,6 +226,8 @@ class Game:
         self.map.add_faction(self.player_faction)
         # Register resources for the new faction
         self.resources.register(self.player_faction)
+        # Track initial population for save/load logic
+        self.population = self.player_faction.citizens.count
 
     def add_building(self, building: Building):
         """Add a defensive building to the player's settlement."""
