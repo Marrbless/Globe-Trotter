@@ -20,6 +20,7 @@ class GameState:
     timestamp: float
     resources: Dict[str, Dict[ResourceType, int]]
     population: int
+    claimed_projects: List[str] = field(default_factory=list)
     world: Dict[str, Any] = field(default_factory=dict)
     factions: Dict[str, Any] = field(default_factory=dict)
     turn: int = 0
@@ -129,17 +130,31 @@ def load_state(
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
+
         resources = deserialize_resources(data.get("resources", {}))
         state = GameState(
             timestamp=data.get("timestamp", now),
             resources=resources,
             population=data.get("population", 0),
+            claimed_projects=data.get("claimed_projects", []),
             world=data.get("world", {}),
             factions=deserialize_factions(data.get("factions", {})),
             turn=int(data.get("turn", 0)),
         )
+
+        # If a World instance was passed, apply saved world data into it
+        if world is not None:
+            deserialize_world(state.world, world)
     else:
-        state = GameState(timestamp=now, resources={}, population=0, world={}, factions={}, turn=0)
+        state = GameState(
+            timestamp=now,
+            resources={},
+            population=0,
+            claimed_projects=[],
+            world={},
+            factions={},
+            turn=0,
+        )
 
     elapsed = int((now - state.timestamp) // TICK_DURATION)
 
@@ -164,6 +179,7 @@ def save_state(state: GameState) -> None:
             "timestamp": state.timestamp,
             "resources": serialize_resources(state.resources),
             "population": state.population,
+            "claimed_projects": list(state.claimed_projects),
             "world": state.world,
             "factions": state.factions,
             "turn": state.turn,
