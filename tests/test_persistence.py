@@ -32,3 +32,22 @@ def test_save_and_load(tmp_path, monkeypatch):
 
     loaded = persistence.load_state()
     assert loaded.resources[player][ResourceType.FOOD] == 7
+
+
+def test_offline_gains(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    player = game.player_faction.name
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
+    loaded = persistence.load_state(world=world, factions=[game.player_faction])
+
+    assert loaded.population == 5
+    assert loaded.resources[player][ResourceType.FOOD] == 30
