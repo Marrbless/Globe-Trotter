@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
-from .world import World, Hex
+from world.world import World, Hex
 
 if TYPE_CHECKING:
     from .game import Position, Faction
