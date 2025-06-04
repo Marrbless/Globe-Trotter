@@ -91,3 +91,17 @@ def test_full_processing_chain_over_ticks():
     assert faction.resources[ResourceType.WHEAT] == 0
     assert faction.resources[ResourceType.FLOUR] == 0
     assert faction.resources[ResourceType.BREAD] == 4
+
+
+def test_build_structure_deducts_resources():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    farm = Farm()
+    faction.resources[ResourceType.WOOD] = 200
+    starting = faction.resources[ResourceType.WOOD]
+    cost = farm.construction_cost[ResourceType.WOOD]
+    faction.build_structure(farm)
+    assert faction.resources[ResourceType.WOOD] == starting - cost
+    assert farm in faction.buildings
