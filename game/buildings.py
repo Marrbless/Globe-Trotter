@@ -167,3 +167,87 @@ class TextileMill(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.CLOTH
     conversion_rate: int = 1
+
+
+@dataclass
+class Mill(ProcessingBuilding):
+    """Grinds wheat into flour."""
+
+    name: str = "Mill"
+    construction_cost: int = 120
+    upkeep: int = 10
+    input_resource: ResourceType = ResourceType.WHEAT
+    output_resource: ResourceType = ResourceType.FLOUR
+    conversion_rate: int = 2
+
+
+@dataclass
+class Bakery(ProcessingBuilding):
+    """Bakes flour into bread."""
+
+    name: str = "Bakery"
+    construction_cost: int = 150
+    upkeep: int = 12
+    input_resource: ResourceType = ResourceType.FLOUR
+    output_resource: ResourceType = ResourceType.BREAD
+    conversion_rate: int = 2
+
+
+@dataclass
+class Forge(ProcessingBuilding):
+    """Forges iron into weapons."""
+
+    name: str = "Forge"
+    construction_cost: int = 220
+    upkeep: int = 20
+    input_resource: ResourceType = ResourceType.IRON
+    output_resource: ResourceType = ResourceType.WEAPON
+    conversion_rate: int = 1
+
+
+@dataclass
+class Tailor(ProcessingBuilding):
+    """Turns wool into clothes."""
+
+    name: str = "Tailor"
+    construction_cost: int = 160
+    upkeep: int = 15
+    input_resource: ResourceType = ResourceType.WOOL
+    output_resource: ResourceType = ResourceType.CLOTHES
+    conversion_rate: int = 1
+
+
+@dataclass
+class Sawmill(ProcessingBuilding):
+    """Cuts wood into planks."""
+
+    name: str = "Sawmill"
+    construction_cost: int = 140
+    upkeep: int = 12
+    input_resource: ResourceType = ResourceType.WOOD
+    output_resource: ResourceType = ResourceType.PLANK
+    conversion_rate: int = 2
+
+
+@dataclass
+class Mason(ProcessingBuilding):
+    """Cuts stone into blocks."""
+
+    name: str = "Mason"
+    construction_cost: int = 160
+    upkeep: int = 14
+    input_resource: ResourceType = ResourceType.STONE
+    output_resource: ResourceType = ResourceType.STONE_BLOCK
+    conversion_rate: int = 2
+
+
+@dataclass
+class SoupKitchen(ProcessingBuilding):
+    """Turns vegetables into soup."""
+
+    name: str = "SoupKitchen"
+    construction_cost: int = 110
+    upkeep: int = 8
+    input_resource: ResourceType = ResourceType.VEGETABLE
+    output_resource: ResourceType = ResourceType.SOUP
+    conversion_rate: int = 2
