@@ -1,14 +1,14 @@
 import random
 from typing import List, Dict
+from dataclasses import dataclass, field
 
 from .persistence import GameState, load_state, save_state
 from .buildings import Building, mitigate_building_damage, mitigate_population_loss
+from .population import Citizen, Worker
 from . import settings
 from .world import World
 from .resources import ResourceManager
-from .models import Position, Settlement, Faction, GreatProject
-
-
+from .models import Position, Settlement, GreatProject
 
 
 # Predefined templates for special high-cost projects
@@ -28,6 +28,60 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
 }
 
 
+@dataclass
+class Faction:
+    name: str
+    settlement: Settlement
+    citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
+    resources: Dict[str, int] = field(
+        default_factory=lambda: {"food": 100, "wood": 50, "stone": 30}
+    )
+    workers: Worker = field(default_factory=lambda: Worker(assigned=10))
+    buildings: List[Building] = field(default_factory=list)
+    projects: List[GreatProject] = field(default_factory=list)
+
+    def start_project(self, project: GreatProject) -> None:
+        """Begin constructing a great project."""
+        self.projects.append(project)
+
+    def progress_projects(self) -> None:
+        for proj in self.projects:
+            if not proj.is_complete():
+                proj.advance()
+
+    def completed_projects(self) -> List[GreatProject]:
+        return [p for p in self.projects if p.is_complete()]
+
+    def get_victory_points(self) -> int:
+        total = sum(b.victory_points for b in self.buildings)
+        total += sum(p.victory_points for p in self.completed_projects())
+        return total
+
+    def build_structure(self, building: Building) -> None:
+        """
+        Pay the required resources (assumed to be a dict mapping resource types to amounts)
+        and add the Building instance to this faction.
+        """
+        cost: Dict[str, int] = building.construction_cost  # e.g. {"wood": 20, "stone": 10}
+        for res_type, amt in cost.items():
+            if self.resources.get(res_type, 0) < amt:
+                raise ValueError(f"Not enough {res_type} to build {building.name}")
+        for res_type, amt in cost.items():
+            self.resources[res_type] -= amt
+        self.buildings.append(building)
+
+    def upgrade_structure(self, building: Building) -> None:
+        """
+        Pay the upgrade cost and then call the building's internal upgrade() method.
+        Assumes building.upgrade_cost() returns a dict like construction_cost.
+        """
+        cost: Dict[str, int] = building.upgrade_cost()
+        for res_type, amt in cost.items():
+            if self.resources.get(res_type, 0) < amt:
+                raise ValueError(f"Not enough {res_type} to upgrade {building.name}")
+        for res_type, amt in cost.items():
+            self.resources[res_type] -= amt
+        building.upgrade()
 
 
 class Map:
@@ -69,7 +123,7 @@ class Map:
                 ai = Faction(
                     name=f"AI #{spawned + 1}",
                     settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
-                    population=random.randint(8, 15),
+                    citizens=Citizen(count=random.randint(8, 15)),
                 )
                 self.add_faction(ai)
                 new_factions.append(ai)
@@ -159,10 +213,10 @@ class Game:
         """
         for faction in self.map.factions:
             # 1. Population growth
-            faction.population += 1
+            faction.citizens.count += 1
 
             # 2. Generate base food from population
-            food_gain = faction.population // 2
+            food_gain = faction.citizens.count // 2
             faction.resources["food"] = faction.resources.get("food", 0) + food_gain
 
             # 3. Building effects
@@ -184,7 +238,7 @@ class Game:
         # Debug output for the player faction
         if self.player_faction:
             res = self.player_faction.resources
-            pop = self.player_faction.population
+            pop = self.player_faction.citizens.count
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
