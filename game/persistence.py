@@ -2,7 +2,14 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
+
+from .resources import ResourceManager
+
+if TYPE_CHECKING:
+    from .resources import ResourceManager
+    from .game import Faction
+    from world.world import World
 
 
 SAVE_FILE = Path("save.json")
@@ -32,8 +39,12 @@ def deserialize_resources(data: Any) -> Dict[str, Dict[str, int]]:
     return result
 
 
-def load_state() -> GameState:
-    """Load the saved game state and grant offline gains."""
+def load_state(
+    *,
+    world: Optional["World"] = None,
+    factions: Optional[List["Faction"]] = None,
+) -> GameState:
+    """Load the saved game state and optionally apply offline gains."""
     now = time.time()
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
@@ -46,6 +57,19 @@ def load_state() -> GameState:
         )
     else:
         state = GameState(timestamp=now, resources={}, population=0)
+
+    elapsed = int((now - state.timestamp) // TICK_DURATION)
+
+    if elapsed > 0 and world is not None and factions is not None:
+        mgr = ResourceManager(world, state.resources)
+        for _ in range(elapsed):
+            mgr.tick(factions)
+            for fac in factions:
+                fac.citizens.count += 1
+            state.population += 1
+        state.resources = mgr.data
+
+    state.timestamp = now
     return state
 
 

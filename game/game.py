@@ -223,17 +223,16 @@ class Game:
             food_gain = faction.citizens.count // 2
             faction.resources["food"] = faction.resources.get("food", 0) + food_gain
 
-            # 3. Building effects (explicit mapping by building name)
+            # 3. Building effects use each building's bonuses
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
+                bonus = getattr(building, "resource_bonus", 0)
                 if b_type == "Farm":
-                    faction.resources["food"] = faction.resources.get("food", 0) + 5
+                    faction.resources["food"] = faction.resources.get("food", 0) + bonus
                 elif b_type == "LumberMill":
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + 3
-                elif b_type == "Quarry":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 2
-                elif b_type == "Mine":
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + 4
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + bonus
+                elif b_type in {"Quarry", "Mine"}:
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + bonus
 
         # After all factions have been processed, update ResourceManager data
         self.resources.tick(self.map.factions)
