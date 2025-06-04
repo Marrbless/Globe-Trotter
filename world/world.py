@@ -7,7 +7,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
-from .generation import generate_elevation_map, terrain_from_elevation
+from .generation import (
+    generate_elevation_map,
+    generate_temperature_map,
+    generate_rainfall,
+    generate_biome_map,
+)
 
 Coordinate = Tuple[int, int]
 
@@ -135,6 +140,15 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
     elif terrain == "desert":
         if rng.random() < 0.2:
             resources[ResourceType.STONE] = rng.randint(1, 3)
+    elif terrain == "tundra":
+        if rng.random() < 0.3:
+            resources[ResourceType.STONE] = rng.randint(1, 4)
+        if rng.random() < 0.2:
+            resources[ResourceType.WOOD] = rng.randint(1, 3)
+    elif terrain == "rainforest":
+        resources[ResourceType.WOOD] = rng.randint(8, 20)
+        if rng.random() < 0.3:
+            resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
     return resources
@@ -156,6 +170,10 @@ class World:
         self.roads: List[Road] = []
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
+        self.elevation_map: List[List[float]] = []
+        self.temperature_map: List[List[float]] = []
+        self.rainfall_map: List[List[float]] = []
+        self.biome_map: List[List[str]] = []
         self.rng = initialize_random(self.settings)
         self._generate_hexes()
         self._generate_rivers()
@@ -169,18 +187,38 @@ class World:
         return self.settings.height
 
     def _generate_hexes(self) -> None:
-        elevation_map = generate_elevation_map(self.settings.width, self.settings.height, self.settings)
+        self.elevation_map = generate_elevation_map(
+            self.settings.width, self.settings.height, self.settings
+        )
+        self.temperature_map = generate_temperature_map(self.settings, self.rng)
+        self.rainfall_map = generate_rainfall(
+            self.elevation_map, self.settings, self.rng
+        )
+        self.biome_map = generate_biome_map(
+            self.elevation_map, self.temperature_map, self.rainfall_map
+        )
+
         for r in range(self.settings.height):
             row: List[Hex] = []
             for q in range(self.settings.width):
-                elevation = elevation_map[r][q]
-                row.append(self._generate_hex(q, r, elevation))
+                elevation = self.elevation_map[r][q]
+                temperature = self.temperature_map[r][q]
+                rainfall = self.rainfall_map[r][q]
+                biome = self.biome_map[r][q]
+                row.append(
+                    self._generate_hex(q, r, elevation, temperature, rainfall, biome)
+                )
             self.hexes.append(row)
 
-    def _generate_hex(self, q: int, r: int, elevation: float) -> Hex:
-        terrain = terrain_from_elevation(elevation, self.settings)
-        moisture = self.rng.random() * self.settings.moisture
-        temperature = self.rng.random() * self.settings.temperature
+    def _generate_hex(
+        self,
+        q: int,
+        r: int,
+        elevation: float,
+        temperature: float,
+        moisture: float,
+        terrain: str,
+    ) -> Hex:
         resources = generate_resources(self.rng, terrain)
         return Hex(
             coord=(q, r),
