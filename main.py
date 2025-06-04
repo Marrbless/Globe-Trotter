@@ -1,19 +1,17 @@
-from game.world import World
-from ui.map_view import MapView
+import time
+from game.game import Game
 
 
 def main():
-    world = World(width=20, height=20)
-    view = MapView(world)
-    settlement = view.run()
-    if settlement:
-        q, r = settlement
-        hex_data = world.get(q, r)
-        print(
-            f"Settlement chosen at ({q}, {r}) with terrain {hex_data['terrain']}"
-        )
-    else:
-        print("No settlement chosen. Exiting.")
+    game = Game()
+    # Player settlement placed at (0,0)
+    game.place_initial_settlement(0, 0)
+    game.begin()
+
+    # Main loop calling tick every second
+    while True:
+        game.tick()
+        time.sleep(1)
 
 
 if __name__ == "__main__":
