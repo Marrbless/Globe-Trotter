@@ -86,17 +86,8 @@ class Game:
         # Load or create state
         self.state = state or load_state()
 
-        # If state has stored resources, use them; otherwise create ResourceManager
-        self.resources: ResourceManager | Dict[str, int]
-        if isinstance(self.state.resources, ResourceManager):
-            self.resources = self.state.resources
-        else:
-            self.resources = ResourceManager(self.world)
-            # Overwrite with persisted dictionary if necessary
-            for faction in self.map.factions:
-                self.resources.register(faction)
-            # In a freshly loaded state, the resources dict should map faction names to resource states
-            # If needed, user should handle registration elsewhere
+        # Initialize resource manager with persisted data
+        self.resources = ResourceManager(self.world, self.state.resources)
 
         self.population = self.state.population
         self.player_faction: Faction | None = None
@@ -186,6 +177,10 @@ class Game:
                 elif b_type == "Mine":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
+        # Update ResourceManager data
+        if isinstance(self.resources, ResourceManager):
+            self.resources.tick(self.map.factions)
+
         # Debug output for the player faction
         if self.player_faction:
             res = self.player_faction.resources
@@ -193,7 +188,7 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
-        self.state.resources = self.resources
+        self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
 

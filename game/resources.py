@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 
 from .world import World
-from .models import Position, Faction
+
+if TYPE_CHECKING:
+    from .models import Position, Faction
 
 
 @dataclass
