@@ -41,7 +41,8 @@ class FactionManager:
             self.assign_strategy = self._default_assign_strategy
 
     def add_faction(self, faction: Faction) -> None:
-        self.factions.append(faction)
+        if faction not in self.factions:
+            self.factions.append(faction)
 
     def assign_workers(self, faction: Faction, number: int) -> int:
         """Assign available citizens as workers."""

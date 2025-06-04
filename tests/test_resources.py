@@ -63,7 +63,7 @@ def test_quarry_increases_stone():
     assert after - initial >= 2
 
 
-def test_resource_manager_updates_once():
+def test_resource_manager_updates_once(monkeypatch):
     world = make_world()
     center = (1, 1)
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
@@ -74,13 +74,17 @@ def test_resource_manager_updates_once():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
+
+    values = [0, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+
     before = game.resources.data[player][ResourceType.ORE]
     game.tick()
     after = game.resources.data[player][ResourceType.ORE]
     assert after - before == 6
 
 
-def test_auto_assignment_gathers_resources():
+def test_auto_assignment_gathers_resources(monkeypatch):
     """Idle citizens should automatically become workers and gather."""
     world = make_world()
     center = (1, 1)
@@ -94,13 +98,17 @@ def test_auto_assignment_gathers_resources():
     # Remove all assigned workers to simulate idle population
     game.player_faction.workers.assigned = 0
     player = game.player_faction.name
+
+    values = [0, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+
     before = game.resources.data[player][ResourceType.WOOD]
     game.tick()
     after = game.resources.data[player][ResourceType.WOOD]
     assert after - before == 6
 
 
-def test_richer_tiles_yield_more_resources():
+def test_richer_tiles_yield_more_resources(monkeypatch):
     world = make_world()
     center = (1, 1)
     amounts = [5, 1, 1, 1, 1, 1]
@@ -114,7 +122,37 @@ def test_richer_tiles_yield_more_resources():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
+
+    values = [0, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+
     before = game.resources.data[player][ResourceType.ORE]
     game.tick()
     after = game.resources.data[player][ResourceType.ORE]
     assert after - before == sum(amounts)
+
+
+def test_resource_manager_tick_updates_faction_store():
+    world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.WOOD: 1}
+
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+    player = faction.name
+
+    before_store = game.resources.data[player][ResourceType.WOOD]
+    before_faction = faction.resources[ResourceType.WOOD]
+
+    game.resources.tick([faction])
+
+    after_store = game.resources.data[player][ResourceType.WOOD]
+    after_faction = faction.resources[ResourceType.WOOD]
+
+    assert after_store - before_store == 6
+    assert after_faction - before_faction == 6

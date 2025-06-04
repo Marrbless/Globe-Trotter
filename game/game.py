@@ -17,7 +17,7 @@ from .buildings import (
     mitigate_building_damage,
     mitigate_population_loss,
 )
-from .population import Citizen, Worker
+from .population import Citizen, Worker, FactionManager
 from . import settings
 from world.world import World, ResourceType
 from .resources import ResourceManager
@@ -208,8 +208,9 @@ class Game:
             timestamp=time.time(), resources={}, population=0, claimed_projects=[]
         )
 
-        # Initialize resource manager with whatever data we have so far
+        # Initialize managers for resources and populations
         self.resources = ResourceManager(self.world, self.state.resources)
+        self.faction_manager = FactionManager()
 
         self.population = self.state.population
         self.claimed_projects: set[str] = set(self.state.claimed_projects)
@@ -224,9 +225,9 @@ class Game:
         settlement = Settlement(name="Home", position=pos)
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
-        # Register resources for the new faction
+        # Register resources and population management for the new faction
         self.resources.register(self.player_faction)
-        # Track initial population for persistence
+        self.faction_manager.add_faction(self.player_faction)
         self.population = self.player_faction.citizens.count
 
     def add_building(self, building: Building):
@@ -239,11 +240,12 @@ class Game:
         ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
         for faction in self.map.factions:
             self.resources.register(faction)
+            self.faction_manager.add_faction(faction)
 
         # Peek saved state to rebuild world and faction data
         initial_state = load_state()
         if initial_state.world:
-            from world.world import WorldSettings, World
+            from world.world import WorldSettings
 
             settings_obj = WorldSettings(**initial_state.world.get("settings", {}))
             self.world = World(
@@ -295,7 +297,6 @@ class Game:
 
         def restore_projects(faction: Faction, data: List[Dict[str, Any]]):
             from copy import deepcopy
-            from .game import GREAT_PROJECT_TEMPLATES
 
             faction.projects.clear()
             for p in data:
@@ -310,12 +311,11 @@ class Game:
             saved = self.state.resources.get(faction.name)
             if saved is not None:
                 faction.resources.update(saved)
-            fdata = self.state.factions.get(faction.name)
-            if fdata:
-                faction.citizens.count = fdata.get("citizens", faction.citizens.count)
-                faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
-                restore_buildings(faction, fdata.get("buildings", []))
-                restore_projects(faction, fdata.get("projects", []))
+            fdata = self.state.factions.get(faction.name, {})
+            faction.citizens.count = fdata.get("citizens", faction.citizens.count)
+            faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
+            restore_buildings(faction, fdata.get("buildings", []))
+            restore_projects(faction, fdata.get("projects", []))
 
         self.turn = self.state.turn
         if self.player_faction:
@@ -357,15 +357,15 @@ class Game:
     def tick(self) -> None:
         """
         Advance the game state by one tick. This includes:
-          1. Population growth
+          1. Population growth via `FactionManager`
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
-        for faction in self.map.factions:
-            # 1. Population growth
-            faction.citizens.count += 1
+        # Update population for all factions
+        self.faction_manager.tick()
 
-            # 2. Generate base food from population
+        for faction in self.map.factions:
+            # 1. Generate base food from population
             food_gain = faction.citizens.count // 2
             faction.resources[ResourceType.FOOD] = (
                 faction.resources.get(ResourceType.FOOD, 0) + food_gain
@@ -395,9 +395,9 @@ class Game:
 
     def save(self) -> None:
         """Persist the current game state to disk.
-        Persist resources and whatever population value has been tracked.
-        self.population may be updated elsewhere (e.g., during ticks); saving does not recompute it so tests can control the value directly.
+        Persist resources and recompute population from all factions.
         """
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         self.state.claimed_projects = list(self.claimed_projects)
@@ -405,7 +405,6 @@ class Game:
         self.state.factions = serialize_factions(self.map.factions)
         self.state.turn = self.turn
         save_state(self.state)
-
 
     def advance_turn(self) -> None:
         """Progress construction on all ongoing projects."""
