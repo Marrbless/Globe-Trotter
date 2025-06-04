@@ -14,7 +14,7 @@ def make_world():
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
         tile = w.get(center[0] + dq, center[1] + dr)
         if tile:
-            tile["terrain"] = "plains"
+            tile.terrain = "plains"
     return w
 
 
@@ -39,7 +39,7 @@ def test_tick_applies_building_bonus():
     farm = Farm()
     farm.upgrade()
     faction.buildings.append(farm)
-    initial_population = faction.population
+    initial_population = faction.citizens.count
     game.tick()
     expected_food = (initial_population + 1) // 2 + farm.resource_bonus
     assert faction.resources[ResourceType.FOOD] == expected_food

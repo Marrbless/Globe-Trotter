@@ -6,7 +6,7 @@ import tempfile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World, ResourceType
+from world.world import World, ResourceType
 import game.persistence as persistence
 
 
@@ -16,7 +16,7 @@ def make_world():
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
         tile = w.get(center[0] + dq, center[1] + dr)
         if tile:
-            tile["terrain"] = "plains"
+            tile.terrain = "plains"
     return w
 
 
@@ -32,4 +32,3 @@ def test_save_and_load(tmp_path, monkeypatch):
 
     loaded = persistence.load_state()
     assert loaded.resources[player][ResourceType.FOOD] == 7
-

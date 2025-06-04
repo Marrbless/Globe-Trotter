@@ -17,7 +17,7 @@ class ResourceManager:
     world: World
     data: Dict[str, Dict[ResourceType, int]] = field(default_factory=dict)
 
-    def register(self, faction: 'Faction') -> None:
+    def register(self, faction: "Faction") -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
             self.data[faction.name] = {
@@ -26,7 +26,7 @@ class ResourceManager:
                 ResourceType.STONE: 0,
             }
 
-    def adjacent_tiles(self, pos: Position) -> List[Hex]:
+    def adjacent_tiles(self, pos: "Position") -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
         tiles: List[Hex] = []
         for dq, dr in directions:
@@ -35,32 +35,37 @@ class ResourceManager:
                 tiles.append(tile)
         return tiles
 
-    def gather_for_faction(self, faction: 'Faction') -> None:
+    def gather_for_faction(self, faction: "Faction") -> None:
         self.register(faction)
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
-        terrain_map = {
+
+        terrain_map: Dict[str, ResourceType] = {
             "plains": ResourceType.FOOD,
             "hills": ResourceType.FOOD,
             "forest": ResourceType.WOOD,
             "mountains": ResourceType.STONE,
         }
+
+        # Count how many tiles of each resource type are adjacent
         counts: Dict[ResourceType, int] = {
             ResourceType.FOOD: 0,
             ResourceType.WOOD: 0,
             ResourceType.STONE: 0,
         }
-
         for tile in tiles:
             res = terrain_map.get(tile.terrain)
-            if res:
+            if res is not None:
                 counts[res] += 1
 
-        workers = min(faction.workers.assigned, faction.citizens.count)
-        for res, count in counts.items():
-            gather_amount = min(count, workers)
-            resources[res] += gather_amount
+        # Determine how many workers can gather (limited by assigned workers and available citizens)
+        workers_available = min(faction.workers.assigned, faction.citizens.count)
 
-    def tick(self, factions: List['Faction']) -> None:
+        # Gather from each resource type up to the number of available workers
+        for res_type, tile_count in counts.items():
+            gathered = min(tile_count, workers_available)
+            resources[res_type] += gathered
+
+    def tick(self, factions: List["Faction"]) -> None:
         for faction in factions:
             self.gather_for_faction(faction)

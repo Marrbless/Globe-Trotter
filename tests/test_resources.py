@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World, ResourceType
+from world.world import World, ResourceType
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
 
@@ -61,3 +61,14 @@ def test_quarry_increases_stone():
     game.tick()
     after = game.player_faction.resources[ResourceType.STONE]
     assert after - initial >= 2
+
+
+def test_resource_manager_updates_once():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    player = game.player_faction.name
+    before = game.resources.data[player][ResourceType.FOOD]
+    game.tick()
+    after = game.resources.data[player][ResourceType.FOOD]
+    assert after - before == 6
