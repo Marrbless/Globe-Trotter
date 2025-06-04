@@ -20,24 +20,7 @@ class ResourceManager:
     def register(self, faction: "Faction") -> None:
         """Add a faction to be tracked."""
         if faction.name not in self.data:
-            self.data[faction.name] = {
-                ResourceType.FOOD: 0,
-                ResourceType.WOOD: 0,
-                ResourceType.STONE: 0,
-                ResourceType.ORE: 0,
-                ResourceType.METAL: 0,
-                ResourceType.CLOTH: 0,
-                ResourceType.WHEAT: 0,
-                ResourceType.FLOUR: 0,
-                ResourceType.BREAD: 0,
-                ResourceType.WOOL: 0,
-                ResourceType.CLOTHES: 0,
-                ResourceType.PLANK: 0,
-                ResourceType.STONE_BLOCK: 0,
-                ResourceType.VEGETABLE: 0,
-                ResourceType.SOUP: 0,
-                ResourceType.WEAPON: 0,
-            }
+            self.data[faction.name] = faction.resources.copy()
 
     def adjacent_tiles(self, pos: "Position") -> List[Hex]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
@@ -67,15 +50,17 @@ class ResourceManager:
 
         # Determine how many workers can gather (limited by assigned workers and available citizens)
         workers_available = min(faction.workers.assigned, faction.citizens.count)
+        workers_remaining = workers_available
 
-        # Gather from each resource type up to the number of available workers and building bonuses
+        # Gather from each resource type while tracking remaining workers
         for res_type, amount in counts.items():
             bonus = sum(
                 b.resource_bonus
                 for b in getattr(faction, "buildings", [])
                 if getattr(b, "resource_type", None) == res_type
             )
-            gathered = min(amount, workers_available + bonus)
+            # Limit gathered amount by remaining workers plus any building bonus
+            gathered = min(amount, workers_remaining + bonus)
             if res_type not in resources:
                 resources[res_type] = 0
             resources[res_type] += gathered
@@ -83,6 +68,10 @@ class ResourceManager:
             if res_type not in faction.resources:
                 faction.resources[res_type] = 0
             faction.resources[res_type] += gathered
+
+            # Reduce workers remaining based on how many were used for this resource
+            workers_used = max(0, gathered - bonus)
+            workers_remaining = max(workers_remaining - workers_used, 0)
 
     def tick(self, factions: List["Faction"]) -> None:
         for faction in factions:

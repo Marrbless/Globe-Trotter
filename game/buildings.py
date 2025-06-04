@@ -55,6 +55,7 @@ class Building:
     upkeep: int
     resource_bonus: int = 0
     population_bonus: int = 0
+    victory_points: int = 0
     resource_type: Optional[ResourceType] = None
     level: int = 1
 

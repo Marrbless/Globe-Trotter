@@ -10,11 +10,11 @@ from typing import Dict, List, Tuple, Optional
 from .generation import (
     perlin_noise,
     terrain_from_elevation,
+    determine_biome,
     generate_elevation_map,
     generate_temperature_map,
     generate_rainfall,
     generate_biome_map,
-    determine_biome,
 )
 
 Coordinate = Tuple[int, int]
@@ -154,6 +154,7 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
     elif terrain == "water":
         pass
+
     return resources
 
 
@@ -178,7 +179,7 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
-        # Precompute climate and biome maps for tests that access them
+        # Precompute world data maps
         self.elevation_map = generate_elevation_map(
             self.settings.width, self.settings.height, self.settings
         )
@@ -210,13 +211,15 @@ class World:
             self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        """Generate a single hex tile using Perlin noise for elevation."""
+        """Generate a single hex tile using precomputed climate maps."""
         rng = random.Random(hash((q, r, self.settings.seed)))
+
         elevation = self.elevation_map[r][q]
         temperature = self.temperature_map[r][q]
         moisture = self.rainfall_map[r][q]
         terrain = determine_biome(elevation, temperature, moisture)
         resources = generate_resources(rng, terrain)
+
         return Hex(
             coord=(q, r),
             terrain=terrain,
@@ -231,12 +234,17 @@ class World:
         chunk: List[List[Hex]] = []
         base_q = cx * self.CHUNK_SIZE
         base_r = cy * self.CHUNK_SIZE
-        for r_off in range(min(self.CHUNK_SIZE, self.height - base_r)):
+        y_limit = min(self.CHUNK_SIZE, self.height - base_r)
+        x_limit = min(self.CHUNK_SIZE, self.width - base_q)
+        for r_off in range(y_limit):
             row: List[Hex] = []
-            for q_off in range(min(self.CHUNK_SIZE, self.width - base_q)):
+            for q_off in range(x_limit):
                 q = base_q + q_off
                 r = base_r + r_off
-                row.append(self._generate_hex(q, r))
+                if 0 <= q < self.width and 0 <= r < self.height:
+                    row.append(self._generate_hex(q, r))
+                else:
+                    row.append(Hex(coord=(q, r)))
             chunk.append(row)
         self.chunks[(cx, cy)] = chunk
 
@@ -262,7 +270,7 @@ class World:
         return best
 
     def _generate_rivers(self) -> None:
-        """Create simple rivers flowing downhill based on perlin-derived elevation."""
+        """Create simple rivers flowing downhill based on precomputed elevation."""
         density = max(0.0, min(1.0, self.settings.rainfall_intensity))
         seeds = max(1, int(density * 5))
         for _ in range(seeds):
@@ -281,7 +289,11 @@ class World:
             while current and current not in visited:
                 visited.add(current)
                 nxt = self._downhill_neighbor(*current)
-                if not nxt or nxt == current or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height):
+                if (
+                    not nxt
+                    or nxt == current
+                    or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height)
+                ):
                     self.lakes.append(current)
                     self.get(*current).lake = True
                     break

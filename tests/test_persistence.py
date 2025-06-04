@@ -54,9 +54,11 @@ def test_offline_gains(tmp_path, monkeypatch):
     game.save()
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
-    loaded = persistence.load_state(world=world, factions=[game.player_faction])
     ticks = int((1005.0 - 1000.0) // persistence.TICK_DURATION)
-    assert loaded.population == initial_pop + len([game.player_faction]) * ticks
+    values = [1, 0, 0] * ticks
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+    loaded = persistence.load_state(world=world, factions=[game.player_faction])
+    assert loaded.population == initial_pop + ticks
     assert loaded.resources[player][ResourceType.ORE] == 30
 
 
