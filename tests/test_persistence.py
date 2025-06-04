@@ -6,7 +6,7 @@ import tempfile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from world import World
+from world.world import World, ResourceType
 import game.persistence as persistence
 
 
@@ -27,11 +27,11 @@ def test_save_and_load(tmp_path, monkeypatch):
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
-    game.resources.data[player]["food"] = 7
+    game.resources.data[player][ResourceType.FOOD] = 7
     game.save()
 
     loaded = persistence.load_state()
-    assert loaded.resources[player]["food"] == 7
+    assert loaded.resources[player][ResourceType.FOOD] == 7
 
 
 def test_offline_gains(tmp_path, monkeypatch):
@@ -50,5 +50,4 @@ def test_offline_gains(tmp_path, monkeypatch):
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
 
     assert loaded.population == 5
-    assert loaded.resources[player]["food"] == 30
-
+    assert loaded.resources[player][ResourceType.FOOD] == 30

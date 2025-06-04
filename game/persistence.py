@@ -4,13 +4,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 
+from world.world import ResourceType
 from .resources import ResourceManager
 
 if TYPE_CHECKING:
-    from .resources import ResourceManager
     from .game import Faction
     from world.world import World
-
 
 SAVE_FILE = Path("save.json")
 TICK_DURATION = 1  # seconds per tick
@@ -19,23 +18,23 @@ TICK_DURATION = 1  # seconds per tick
 @dataclass
 class GameState:
     timestamp: float
-    resources: Dict[str, Dict[str, int]]
+    resources: Dict[str, Dict[ResourceType, int]]
     population: int
 
 
-def serialize_resources(data: Dict[str, Dict[str, int]]) -> dict:
+def serialize_resources(data: Dict[str, Dict[ResourceType, int]]) -> dict:
     """Prepare nested resource data for JSON serialization."""
-    return {f: dict(res) for f, res in data.items()}
+    return {f: {k.value: v for k, v in res.items()} for f, res in data.items()}
 
 
-def deserialize_resources(data: Any) -> Dict[str, Dict[str, int]]:
+def deserialize_resources(data: Any) -> Dict[str, Dict[ResourceType, int]]:
     """Convert JSON resource mapping back into proper types."""
     if not isinstance(data, dict):
         return {}
-    result: Dict[str, Dict[str, int]] = {}
+    result: Dict[str, Dict[ResourceType, int]] = {}
     for faction, res in data.items():
         if isinstance(res, dict):
-            result[faction] = {k: int(v) for k, v in res.items()}
+            result[faction] = {ResourceType(k): int(v) for k, v in res.items()}
     return result
 
 
