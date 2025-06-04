@@ -1,7 +1,8 @@
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from . import settings
+from .population import Citizen, Worker, FactionManager
 
 @dataclass
 class Position:
@@ -17,6 +18,8 @@ class Settlement:
 class Faction:
     name: str
     settlement: Settlement
+    citizens: Citizen = field(default_factory=lambda: Citizen(10))
+    workers: Worker = field(default_factory=Worker)
 
 class Map:
     def __init__(self, width: int, height: int):
@@ -39,10 +42,11 @@ class Map:
         else:
             raise ValueError("Position is already occupied")
 
-    def spawn_ai_factions(self, player_settlement: Settlement):
+    def spawn_ai_factions(self, player_settlement: Settlement) -> list[Faction]:
         count = settings.AI_FACTION_COUNT
         spawned = 0
         attempts = 0
+        factions: list[Faction] = []
         while spawned < count and attempts < count * 10:
             attempts += 1
             x = random.randint(0, self.width - 1)
@@ -53,14 +57,21 @@ class Map:
                 and self.distance(pos, player_settlement.position)
                 >= settings.MIN_DISTANCE_FROM_PLAYER
             ):
-                ai = Faction(name=f"AI #{spawned + 1}", settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos))
+                ai = Faction(
+                    name=f"AI #{spawned + 1}",
+                    settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
+                    citizens=Citizen(random.randint(8, 15)),
+                )
                 self.add_faction(ai)
+                factions.append(ai)
                 spawned += 1
+        return factions
 
 class Game:
     def __init__(self):
         self.map = Map(*settings.MAP_SIZE)
         self.player_faction: Faction | None = None
+        self.faction_manager = FactionManager()
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -69,14 +80,21 @@ class Game:
         settlement = Settlement(name="Home", position=pos)
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
+        self.faction_manager.add_faction(self.player_faction)
 
     def begin(self):
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
-        self.map.spawn_ai_factions(self.player_faction.settlement)
+        ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
+        for faction in ai_factions:
+            self.faction_manager.add_faction(faction)
         print("Game started with factions:")
         for faction in self.map.factions:
             print(f"- {faction.name} at {faction.settlement.position}")
+
+    def tick(self) -> None:
+        """Advance the game state by one tick."""
+        self.faction_manager.tick()
 
 def main():
     game = Game()
