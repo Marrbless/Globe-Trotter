@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from world.world import WorldSettings, World
+from world.generation import perlin_noise
 
 
 @dataclass
@@ -23,6 +24,14 @@ class Event:
 
     name: str = "event"
 
+    def severity(self, state: SettlementState, world: World) -> float:
+        """Return a location-based severity multiplier between 0.5 and 1.5."""
+        if not state.location:
+            return 1.0
+        x, y = state.location
+        n = perlin_noise(x, y, world.settings.seed, scale=0.1)
+        return max(0.5, min(1.5, 1 + (n - 0.5) * 2))
+
     def apply(self, state: SettlementState, world: World) -> None:
         raise NotImplementedError
 
@@ -31,38 +40,46 @@ class Flood(Event):
     name = "flood"
 
     def apply(self, state: SettlementState, world: World) -> None:
+        sev = self.severity(state, world)
         # Damage buildings. Defenses mitigate some damage.
-        loss = max(0, int(0.3 * state.buildings) - state.defenses)
+        loss = max(0, int(0.3 * state.buildings * sev) - state.defenses)
         state.buildings = max(0, state.buildings - loss)
         # Resources lost proportional to building loss
-        res_loss = min(state.resources, loss * 2)
+        res_loss = min(state.resources, int(loss * 2 * sev))
         state.resources -= res_loss
         if state.location:
             hex_ = world.get(*state.location)
             if hex_:
                 hex_.flooded = True
+                if sev > 1.3:
+                    hex_.terrain = "water"
+                    hex_.lake = True
 
 
 class Drought(Event):
     name = "drought"
 
     def apply(self, state: SettlementState, world: World) -> None:
-        res_loss = int(0.2 * state.resources)
+        sev = self.severity(state, world)
+        res_loss = int(0.2 * state.resources * sev)
         state.resources = max(0, state.resources - res_loss)
-        pop_loss = int(0.1 * state.population)
+        pop_loss = int(0.1 * state.population * sev)
         state.population = max(0, state.population - pop_loss)
         if state.location:
             hex_ = world.get(*state.location)
             if hex_:
-                hex_.moisture = max(0.0, hex_.moisture - 0.1)
+                hex_.moisture = max(0.0, hex_.moisture - 0.1 * sev)
+                if sev > 1.3:
+                    hex_.terrain = "desert"
 
 
 class Raid(Event):
     name = "raid"
 
     def apply(self, state: SettlementState, world: World) -> None:
+        sev = self.severity(state, world)
         # Defenses reduce impact
-        effective = max(1, 5 - state.defenses)
+        effective = max(1, int((5 - state.defenses) * sev))
         res_loss = min(state.resources, effective * 3)
         bld_loss = max(0, effective - 1)
         state.resources -= res_loss
@@ -71,6 +88,8 @@ class Raid(Event):
             hex_ = world.get(*state.location)
             if hex_:
                 hex_.ruined = True
+                if sev > 1.3:
+                    state.buildings = 0
 
 
 ALL_EVENTS: List[type[Event]] = [Flood, Drought, Raid]

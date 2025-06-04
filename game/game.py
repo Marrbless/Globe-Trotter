@@ -404,6 +404,7 @@ class Game:
         self.state.turn = self.turn
         save_state(self.state)
 
+
     def advance_turn(self) -> None:
         """Progress construction on all ongoing projects."""
         self.turn += 1
