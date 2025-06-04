@@ -1,15 +1,18 @@
 # Projects
 
-This repository contains small prototype scripts. The `ui` folder holds a simple
-"Faction Creation" window for experimenting with UI components.
+This repository contains prototype modules for two systems:
+- A **Faction Creation UI**
+- A **Procedural World Generation Module**
 
-## Usage
+---
+
+## Faction Creation UI
+
+Located in the `ui` folder, this module provides a simple GUI for experimenting with UI components.
+
+### Usage
 
 Run the script to open the faction creation window:
 
 ```bash
 python ui/faction_creation.py
-```
-
-Select a name, choose a color, pick a race and press **Confirm** to print the
-chosen values to the console.
