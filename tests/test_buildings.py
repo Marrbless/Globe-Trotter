@@ -35,7 +35,7 @@ def test_tick_applies_building_bonus():
     farm = Farm()
     farm.upgrade()
     faction.buildings.append(farm)
-    initial_population = faction.population
+    initial_population = faction.citizens.count
     game.tick()
     expected_food = (initial_population + 1) // 2 + farm.resource_bonus
     assert faction.resources["food"] == expected_food

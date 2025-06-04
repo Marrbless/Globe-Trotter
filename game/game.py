@@ -217,9 +217,6 @@ class Game:
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
-        # First, let the ResourceManager update if needed
-        self.resources.tick(self.map.factions)
-
         for faction in self.map.factions:
             # 1. Population growth
             faction.citizens.count += 1
