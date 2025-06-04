@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-"""Procedural world generation helpers."""
+"""Procedural world generation helpers including climate and biome classification."""
 
-from typing import List, TYPE_CHECKING
 import random
 import math
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .world import WorldSettings
@@ -25,6 +25,13 @@ def _grad(ix: int, iy: int, seed: int) -> tuple[float, float]:
     rnd = random.Random(hash((ix, iy, seed)))
     angle = rnd.random() * 2 * math.pi
     return math.cos(angle), math.sin(angle)
+
+
+def _dot_grid_gradient(ix: int, iy: int, x: float, y: float, seed: int) -> float:
+    gx, gy = _grad(ix, iy, seed)
+    dx = x - ix
+    dy = y - iy
+    return gx * dx + gy * dy
 
 
 def _perlin(x: float, y: float, seed: int) -> float:
@@ -48,52 +55,66 @@ def _perlin(x: float, y: float, seed: int) -> float:
     return (value + 1) / 2
 
 
-def _dot_grid_gradient(ix: int, iy: int, x: float, y: float, seed: int) -> float:
-    gx, gy = _grad(ix, iy, seed)
-    dx = x - ix
-    dy = y - iy
-    return gx * dx + gy * dy
-
-
-def perlin_noise(x: float, y: float, seed: int, octaves: int = 4, persistence: float = 0.5, lacunarity: float = 2.0, scale: float = 0.05) -> float:
+def perlin_noise(
+    x: float,
+    y: float,
+    seed: int,
+    octaves: int = 4,
+    persistence: float = 0.5,
+    lacunarity: float = 2.0,
+    scale: float = 0.05,
+) -> float:
     """Generate fractal Perlin noise value for given coordinates."""
     value = 0.0
     amplitude = 1.0
     frequency = scale
     max_amp = 0.0
+
     for i in range(octaves):
         value += _perlin(x * frequency, y * frequency, seed + i) * amplitude
         max_amp += amplitude
         amplitude *= persistence
         frequency *= lacunarity
+
     return value / max_amp
 
 
 # -- Elevation map generation ------------------------------------------------
 
-def generate_elevation_map(width: int, height: int, settings: WorldSettings) -> List[List[float]]:
+def generate_elevation_map(
+    width: int,
+    height: int,
+    settings: WorldSettings,
+) -> List[List[float]]:
     """Return a 2D list of elevation values in range [0, 1]."""
     elev: List[List[float]] = []
+
     for y in range(height):
-        row = []
+        row: List[float] = []
         for x in range(width):
             n = perlin_noise(x, y, settings.seed)
             row.append(n)
         elev.append(row)
+
     apply_tectonic_plates(elev, settings)
     return elev
 
 
-def apply_tectonic_plates(elev: List[List[float]], settings: WorldSettings) -> None:
+def apply_tectonic_plates(
+    elev: List[List[float]],
+    settings: WorldSettings,
+) -> None:
     """Modify elevation map in place to create continents and mountains."""
     width = len(elev[0])
     height = len(elev)
     rng = random.Random(settings.seed)
+
     plates = max(2, int(3 + settings.plate_activity * 5))
     centers = [
         (rng.randint(0, width - 1), rng.randint(0, height - 1), rng.random())
         for _ in range(plates)
     ]
+
     for y in range(height):
         for x in range(width):
             dists = sorted(
@@ -111,7 +132,10 @@ def apply_tectonic_plates(elev: List[List[float]], settings: WorldSettings) -> N
             elev[y][x] = min(1.0, max(0.0, (elev[y][x] + plate_height) / 2))
 
 
-def terrain_from_elevation(value: float, settings: WorldSettings) -> str:
+def terrain_from_elevation(
+    value: float,
+    settings: WorldSettings,
+) -> str:
     """Convert elevation value to a terrain type."""
     if value < settings.sea_level:
         return "water"
@@ -122,9 +146,117 @@ def terrain_from_elevation(value: float, settings: WorldSettings) -> str:
     return "mountain"
 
 
+# -- Climate and biome utilities ------------------------------------------------
+
+def _latitude(row: int, height: int) -> float:
+    """Return normalized latitude (0 south pole -> 1 north pole)."""
+    if height <= 1:
+        return 0.5
+    return row / float(height - 1)
+
+
+def compute_temperature(
+    row: int,
+    settings: WorldSettings,
+    rng: random.Random,
+) -> float:
+    """Compute temperature influenced by latitude and random climate variation."""
+    lat = _latitude(row, settings.height)
+    # Base temp peaks at equator (lat=0.5) and drops towards poles
+    base = 1.0 - abs(lat - 0.5) * 2
+    variation = rng.uniform(-0.1, 0.1) * settings.temperature
+    return max(0.0, min(1.0, base + variation))
+
+
+def generate_temperature_map(
+    settings: WorldSettings,
+    rng: random.Random,
+) -> List[List[float]]:
+    """Generate a temperature value for each hex row."""
+    temps: List[List[float]] = []
+    for r in range(settings.height):
+        row = [compute_temperature(r, settings, rng) for _ in range(settings.width)]
+        temps.append(row)
+    return temps
+
+
+def generate_rainfall(
+    elevation_map: List[List[float]],
+    settings: WorldSettings,
+    rng: random.Random,
+) -> List[List[float]]:
+    """Create rainfall map using simple west-to-east moisture transport."""
+    rain: List[List[float]] = [
+        [0.0 for _ in range(settings.width)] for _ in range(settings.height)
+    ]
+
+    for r in range(settings.height):
+        # initial moisture with slight randomness per row
+        moisture = settings.moisture + rng.uniform(-0.1, 0.1)
+        for q in range(settings.width):
+            elev = elevation_map[r][q]
+            precip = max(0.0, moisture * (1.0 - elev))
+            rain[r][q] = precip
+            # moisture lost proportional to rainfall and elevation blocking
+            moisture = max(0.0, moisture - precip * 0.5 - elev * 0.1)
+
+    return rain
+
+
+def determine_biome(
+    elevation: float,
+    temperature: float,
+    rainfall: float,
+) -> str:
+    """Classify biome from elevation, temperature, and rainfall values."""
+    if elevation > 0.8:
+        return "mountains"
+    if elevation > 0.6:
+        return "hills"
+    if temperature < 0.25:
+        return "tundra"
+    if rainfall < 0.2 and temperature > 0.5:
+        return "desert"
+    if rainfall > 0.7 and temperature > 0.5:
+        return "rainforest"
+    if rainfall > 0.4:
+        return "forest"
+    return "plains"
+
+
+def generate_biome_map(
+    elevation_map: List[List[float]],
+    temperature_map: List[List[float]],
+    rainfall_map: List[List[float]],
+) -> List[List[str]]:
+    """Return biome classification for each hex."""
+    height = len(elevation_map)
+    width = len(elevation_map[0]) if height else 0
+    biomes: List[List[str]] = []
+
+    for r in range(height):
+        row: List[str] = []
+        for q in range(width):
+            row.append(
+                determine_biome(
+                    elevation_map[r][q],
+                    temperature_map[r][q],
+                    rainfall_map[r][q],
+                )
+            )
+        biomes.append(row)
+
+    return biomes
+
+
 __all__ = [
     "generate_elevation_map",
     "apply_tectonic_plates",
     "terrain_from_elevation",
     "perlin_noise",
+    "compute_temperature",
+    "generate_temperature_map",
+    "generate_rainfall",
+    "determine_biome",
+    "generate_biome_map",
 ]
