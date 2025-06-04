@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
-from world.world import World, Hex
+from .world import World, Hex
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -47,6 +47,7 @@ class ResourceManager:
             res = terrain_map.get(tile.terrain)
             if res:
                 counts[res] += 1
+
         workers = min(faction.workers.assigned, faction.citizens.count)
         for res, count in counts.items():
             gather_amount = min(count, workers)

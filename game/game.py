@@ -134,9 +134,6 @@ class Map:
         return new_factions
 
 
-from .resources import ResourceManager
-
-
 class Game:
     def __init__(self, state: GameState | None = None, world: World | None = None):
         # Initialize map and world
@@ -162,8 +159,7 @@ class Game:
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
         # Register resources for the new faction
-        if isinstance(self.resources, ResourceManager):
-            self.resources.register(self.player_faction)
+        self.resources.register(self.player_faction)
 
     def add_building(self, building: Building):
         """Add a defensive building to the player's settlement."""
@@ -173,9 +169,8 @@ class Game:
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
         ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
-        if isinstance(self.resources, ResourceManager):
-            for faction in self.map.factions:
-                self.resources.register(faction)
+        for faction in self.map.factions:
+            self.resources.register(faction)
 
         print("Game started with factions:")
         for faction in self.map.factions:
@@ -217,6 +212,9 @@ class Game:
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
+        # First, let the ResourceManager update if needed
+        self.resources.tick(self.map.factions)
+
         for faction in self.map.factions:
             # 1. Population growth
             faction.citizens.count += 1
@@ -225,7 +223,7 @@ class Game:
             food_gain = faction.citizens.count // 2
             faction.resources["food"] = faction.resources.get("food", 0) + food_gain
 
-            # 3. Building effects
+            # 3. Building effects (explicit mapping by building name)
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
                 if b_type == "Farm":
@@ -237,15 +235,8 @@ class Game:
                 elif b_type == "Mine":
                     faction.resources["stone"] = faction.resources.get("stone", 0) + 4
 
-        # Update ResourceManager data
-        if isinstance(self.resources, ResourceManager):
-            self.resources.tick(self.map.factions)
-
-        if isinstance(self.resources, ResourceManager):
-            self.resources.tick(self.map.factions)
-
-        if isinstance(self.resources, ResourceManager):
-            self.resources.tick(self.map.factions)
+        # After all factions have been processed, update ResourceManager data
+        self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
         if self.player_faction:
