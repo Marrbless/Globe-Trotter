@@ -1,7 +1,8 @@
 import json
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, Any
 
 
 SAVE_FILE = Path("save.json")
@@ -11,8 +12,24 @@ TICK_DURATION = 1  # seconds per tick
 @dataclass
 class GameState:
     timestamp: float
-    resources: int
+    resources: Dict[str, Dict[str, int]]
     population: int
+
+
+def serialize_resources(data: Dict[str, Dict[str, int]]) -> dict:
+    """Prepare nested resource data for JSON serialization."""
+    return {f: dict(res) for f, res in data.items()}
+
+
+def deserialize_resources(data: Any) -> Dict[str, Dict[str, int]]:
+    """Convert JSON resource mapping back into proper types."""
+    if not isinstance(data, dict):
+        return {}
+    result: Dict[str, Dict[str, int]] = {}
+    for faction, res in data.items():
+        if isinstance(res, dict):
+            result[faction] = {k: int(v) for k, v in res.items()}
+    return result
 
 
 def load_state() -> GameState:
@@ -21,14 +38,14 @@ def load_state() -> GameState:
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
-        state = GameState(**data)
-        elapsed = now - state.timestamp
-        ticks = int(elapsed // TICK_DURATION)
-        if ticks > 0:
-            state.resources += state.population * ticks
-            state.timestamp = now
+        resources = deserialize_resources(data.get("resources", {}))
+        state = GameState(
+            timestamp=data.get("timestamp", now),
+            resources=resources,
+            population=data.get("population", 0),
+        )
     else:
-        state = GameState(timestamp=now, resources=0, population=0)
+        state = GameState(timestamp=now, resources={}, population=0)
     return state
 
 
@@ -36,4 +53,9 @@ def save_state(state: GameState) -> None:
     """Persist the current game state to disk."""
     state.timestamp = time.time()
     with open(SAVE_FILE, "w", encoding="utf-8") as f:
-        json.dump(asdict(state), f)
+        data = {
+            "timestamp": state.timestamp,
+            "resources": serialize_resources(state.resources),
+            "population": state.population,
+        }
+        json.dump(data, f)
