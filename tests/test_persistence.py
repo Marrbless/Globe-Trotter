@@ -48,14 +48,15 @@ def test_offline_gains(tmp_path, monkeypatch):
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
+    initial_pop = game.player_faction.citizens.count
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
     game.save()
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
-
-    assert loaded.population == 15
+    ticks = int((1005.0 - 1000.0) // persistence.TICK_DURATION)
+    assert loaded.population == initial_pop + len([game.player_faction]) * ticks
     assert loaded.resources[player][ResourceType.ORE] == 30
 
 
