@@ -6,6 +6,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
 from world.world import World, ResourceType
+from game.resources import ResourceManager
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
 
@@ -156,3 +157,19 @@ def test_resource_manager_tick_updates_faction_store():
 
     assert after_store - before_store == 6
     assert after_faction - before_faction == 6
+
+
+def test_register_uses_faction_resources():
+    """ResourceManager should start with faction's initial amounts."""
+    world = World(width=3, height=3)
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+
+    # Food has a non-zero default value on a new faction
+    expected_food = faction.resources[ResourceType.FOOD]
+    manager = ResourceManager(world)
+    manager.register(faction)
+
+    assert manager.data[faction.name][ResourceType.FOOD] == expected_food
