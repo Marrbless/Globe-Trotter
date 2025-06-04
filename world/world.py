@@ -49,6 +49,7 @@ class WorldSettings:
     moisture: float = 0.5
     elevation: float = 0.5
     temperature: float = 0.5
+    tectonic_activity: float = 0.5
 
 
 @dataclass
@@ -197,6 +198,7 @@ def adjust_settings(
     moisture: float | None = None,
     elevation: float | None = None,
     temperature: float | None = None,
+    tectonic_activity: float | None = None,
 ) -> None:
     """Adjust world sliders before final generation."""
     if moisture is not None:
@@ -205,6 +207,8 @@ def adjust_settings(
         settings.elevation = max(0.0, min(1.0, elevation))
     if temperature is not None:
         settings.temperature = max(0.0, min(1.0, temperature))
+    if tectonic_activity is not None:
+        settings.tectonic_activity = max(0.0, min(1.0, tectonic_activity))
 
 
 __all__ = [
