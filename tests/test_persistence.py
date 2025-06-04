@@ -49,5 +49,23 @@ def test_offline_gains(tmp_path, monkeypatch):
     monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
     loaded = persistence.load_state(world=world, factions=[game.player_faction])
 
-    assert loaded.population == 5
+    assert loaded.population == 15
     assert loaded.resources[player][ResourceType.FOOD] == 30
+
+
+def test_save_updates_population(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+
+    # Run one tick to trigger population growth and recalculation
+    game.tick()
+    game.save()
+
+    with open(tmp_file, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert data["population"] == 11

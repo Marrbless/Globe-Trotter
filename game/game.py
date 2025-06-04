@@ -268,10 +268,12 @@ class Game:
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (
-                        current + building.resource_bonus
-                    )
+                    current + building.resource_bonus
+                )
 
-        # After all factions have been processed, update ResourceManager data
+        # After all factions have been processed, update overall population and
+        # ResourceManager data
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
@@ -281,6 +283,7 @@ class Game:
             print(f"Resources: {res} | Population: {pop}")
 
     def save(self) -> None:
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         save_state(self.state)
