@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World
+from world.world import World
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
 

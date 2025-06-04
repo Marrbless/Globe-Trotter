@@ -6,7 +6,7 @@ import tempfile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.world import World
+from world.world import World
 import game.persistence as persistence
 
 

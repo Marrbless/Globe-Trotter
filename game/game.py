@@ -40,6 +40,11 @@ class Faction:
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
 
+    @property
+    def population(self) -> int:
+        """Return total citizens for backward compatibility."""
+        return self.citizens.count
+
     def start_project(self, project: GreatProject) -> None:
         """Begin constructing a great project."""
         self.projects.append(project)
@@ -212,9 +217,6 @@ class Game:
           2. Basic resource generation (food from population)
           3. Building-based resource bonuses
         """
-        # First, let the ResourceManager update if needed
-        self.resources.tick(self.map.factions)
-
         for faction in self.map.factions:
             # 1. Population growth
             faction.citizens.count += 1
@@ -227,17 +229,16 @@ class Game:
             for building in faction.buildings:
                 b_type = getattr(building, "name", None)
                 if b_type == "Farm":
-                    bonus = getattr(building, "resource_bonus", 5)
-                    faction.resources["food"] = faction.resources.get("food", 0) + bonus
+                    faction.resources["food"] = faction.resources.get("food", 0) + building.resource_bonus
                 elif b_type == "LumberMill":
-                    bonus = getattr(building, "resource_bonus", 3)
-                    faction.resources["wood"] = faction.resources.get("wood", 0) + bonus
+                    faction.resources["wood"] = faction.resources.get("wood", 0) + building.resource_bonus
                 elif b_type == "Quarry":
-                    bonus = getattr(building, "resource_bonus", 2)
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + bonus
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
                 elif b_type == "Mine":
-                    bonus = getattr(building, "resource_bonus", 4)
-                    faction.resources["stone"] = faction.resources.get("stone", 0) + bonus
+                    faction.resources["stone"] = faction.resources.get("stone", 0) + building.resource_bonus
+
+        # After all factions have been processed, update ResourceManager data
+        self.resources.tick(self.map.factions)
 
         # Debug output for the player faction
         if self.player_faction:
