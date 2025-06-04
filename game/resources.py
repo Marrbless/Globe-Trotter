@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
 
 from .world import World
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -36,8 +35,14 @@ class ResourceManager:
         self.register(faction)
         resources = self.data[faction.name]
         tiles = self.adjacent_tiles(faction.settlement.position)
-        terrain_map = {"plains": "food", "hills": "food", "forest": "wood", "mountains": "stone"}
+        terrain_map = {
+            "plains": "food",
+            "hills": "food",
+            "forest": "wood",
+            "mountains": "stone",
+        }
         counts = {"food": 0, "wood": 0, "stone": 0}
+
         for tile in tiles:
             res = terrain_map.get(tile["terrain"])
             if res:
