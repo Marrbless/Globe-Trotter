@@ -79,6 +79,10 @@ class ResourceManager:
             if res_type not in resources:
                 resources[res_type] = 0
             resources[res_type] += gathered
+            # Keep faction's personal resource store in sync
+            if res_type not in faction.resources:
+                faction.resources[res_type] = 0
+            faction.resources[res_type] += gathered
 
     def tick(self, factions: List["Faction"]) -> None:
         for faction in factions:

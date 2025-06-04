@@ -227,7 +227,7 @@ class Game:
         self.map.add_faction(self.player_faction)
         # Register resources and population management for the new faction
         self.resources.register(self.player_faction)
-        # Register faction with faction manager to handle population ticks and saving
+        # Register faction with faction manager to handle population ticks and saving (and track initial population for save/load logic)
         self.faction_manager.add_faction(self.player_faction)
         self.population = self.player_faction.citizens.count
 
