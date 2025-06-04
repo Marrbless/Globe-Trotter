@@ -1,18 +1,18 @@
 import math
-import pygame
+import dearpygui.dearpygui as dpg
 
 HEX_SIZE = 30
 
 
 def hex_to_pixel(q, r, size=HEX_SIZE):
-    x = size * 3/2 * q
+    x = size * 3 / 2 * q
     y = size * math.sqrt(3) * (r + q / 2)
     return x, y
 
 
 def pixel_to_hex(x, y, size=HEX_SIZE):
-    q = (2/3 * x) / size
-    r = (-1/3 * x + math.sqrt(3)/3 * y) / size
+    q = (2 / 3 * x) / size
+    r = (-1 / 3 * x + math.sqrt(3) / 3 * y) / size
     return hex_round(q, r)
 
 
@@ -85,20 +85,64 @@ class Camera:
 
 class MapView:
     def __init__(self, world, size=(800, 600)):
-        pygame.init()
         self.world = world
         self.size = size
-        self.screen = pygame.display.set_mode(size)
         self.camera = Camera(*size)
-        self.clock = pygame.time.Clock()
         self.road_mode = False
         self.road_start = None
+        self.selected = None
+        self.result = None
+
+        dpg.create_context()
+        dpg.create_viewport(title="Map View", width=size[0], height=size[1])
+        with dpg.window(tag="_map_window", width=size[0], height=size[1], no_move=True, no_resize=True, no_title_bar=True):
+            self.canvas = dpg.add_drawlist(width=size[0], height=size[1], tag="_canvas")
+        dpg.set_primary_window("_map_window", True)
+        with dpg.handler_registry():
+            dpg.add_mouse_click_handler(callback=self._on_click)
+            dpg.add_mouse_drag_handler(button=dpg.mvMouseButton_Middle, callback=self._on_drag)
+            dpg.add_mouse_wheel_handler(callback=self._on_scroll)
+            dpg.add_key_press_handler(callback=self._on_key)
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
+
+    # event callbacks
+    def _on_click(self, sender, app_data):
+        if app_data == dpg.mvMouseButton_Left:
+            mx, my = dpg.get_mouse_pos()
+            hex_data = self.hex_at_pos((mx, my))
+            if hex_data:
+                coords = hex_data.coord
+                if self.road_mode:
+                    if self.road_start is None:
+                        self.road_start = coords
+                    else:
+                        self.world.add_road(self.road_start, coords)
+                        self.road_start = None
+                else:
+                    self.selected = coords
+
+    def _on_drag(self, sender, app_data):
+        dx, dy = app_data[1], app_data[2]
+        self.camera.pan(dx, dy)
+
+    def _on_scroll(self, sender, app_data):
+        pos = dpg.get_mouse_pos()
+        self.camera.change_zoom(app_data * 0.1, pos)
+
+    def _on_key(self, sender, app_data):
+        if app_data == dpg.mvKey_Return and self.selected:
+            self.result = self.selected
+            dpg.stop_dearpygui()
+        elif app_data == dpg.mvKey_R:
+            self.road_mode = not self.road_mode
+            self.road_start = None
 
     def draw_hex(self, q, r, color, width=0):
         x, y = hex_to_pixel(q, r)
         x, y = self.camera.apply((x, y))
         corners = hex_corners(x, y)
-        pygame.draw.polygon(self.screen, color, corners, width)
+        dpg.draw_polygon(corners, color=(0, 0, 0, 255), fill=color, thickness=width or 1, parent=self.canvas)
 
     def draw_roads(self):
         for road in getattr(self.world, "roads", []):
@@ -106,22 +150,22 @@ class MapView:
             x2, y2 = hex_to_pixel(*road.end)
             x1, y1 = self.camera.apply((x1, y1))
             x2, y2 = self.camera.apply((x2, y2))
-            pygame.draw.line(self.screen, (139, 69, 19), (x1, y1), (x2, y2), 4)
+            dpg.draw_line((x1, y1), (x2, y2), color=(139, 69, 19, 255), thickness=4, parent=self.canvas)
 
-    def draw_map(self, selected=None):
+    def draw_map(self):
+        dpg.delete_item(self.canvas, children_only=True)
         for r in range(self.world.height):
             for q in range(self.world.width):
                 hex_data = self.world.hexes[r][q]
-                terrain = hex_data.terrain
-                color = terrain_color(terrain)
-                self.draw_hex(q, r, color)
+                color = terrain_color(hex_data.terrain)
+                self.draw_hex(q, r, color, 0)
         self.draw_roads()
-        if selected:
-            q, r = selected
-            self.draw_hex(q, r, (255, 255, 0), 3)
+        if self.selected:
+            q, r = self.selected
+            self.draw_hex(q, r, (255, 255, 0, 255), 3)
         if self.road_start:
             q, r = self.road_start
-            self.draw_hex(q, r, (255, 165, 0), 3)
+            self.draw_hex(q, r, (255, 165, 0, 255), 3)
 
     def hex_at_pos(self, pos):
         x, y = self.camera.reverse(pos)
@@ -129,59 +173,19 @@ class MapView:
         return self.world.get(q, r)
 
     def run(self):
-        running = True
-        selected = None
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        hex_data = self.hex_at_pos(event.pos)
-                        if hex_data:
-                            coords = hex_data.coord
-                            if self.road_mode:
-                                if self.road_start is None:
-                                    self.road_start = coords
-                                else:
-                                    self.world.add_road(self.road_start, coords)
-                                    self.road_start = None
-                            else:
-                                selected = coords
-                    elif event.button == 4:
-                        self.camera.change_zoom(0.1, event.pos)
-                    elif event.button == 5:
-                        self.camera.change_zoom(-0.1, event.pos)
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN and selected:
-                        return selected
-                    elif event.key == pygame.K_r:
-                        self.road_mode = not self.road_mode
-                        self.road_start = None
-            keys = pygame.key.get_pressed()
-            pan_speed = 10
-            if keys[pygame.K_LEFT]:
-                self.camera.pan(pan_speed, 0)
-            if keys[pygame.K_RIGHT]:
-                self.camera.pan(-pan_speed, 0)
-            if keys[pygame.K_UP]:
-                self.camera.pan(0, pan_speed)
-            if keys[pygame.K_DOWN]:
-                self.camera.pan(0, -pan_speed)
-
-            self.screen.fill((0, 0, 0))
-            self.draw_map(selected)
-            pygame.display.flip()
-            self.clock.tick(60)
-        return None
+        while dpg.is_dearpygui_running():
+            self.draw_map()
+            dpg.render_dearpygui_frame()
+        dpg.destroy_context()
+        return self.result
 
 
 def terrain_color(name):
     mapping = {
-        "plains": (110, 205, 88),
-        "forest": (34, 139, 34),
-        "mountains": (139, 137, 137),
-        "hills": (107, 142, 35),
-        "water": (65, 105, 225),
+        "plains": (110, 205, 88, 255),
+        "forest": (34, 139, 34, 255),
+        "mountains": (139, 137, 137, 255),
+        "hills": (107, 142, 35, 255),
+        "water": (65, 105, 225, 255),
     }
-    return mapping.get(name, (200, 200, 200))
+    return mapping.get(name, (200, 200, 200, 255))

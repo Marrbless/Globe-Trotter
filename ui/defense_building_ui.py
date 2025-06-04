@@ -1,28 +1,32 @@
-import tkinter as tk
-from .faction_creation import FactionCreationUI  # for style consistency if needed
+import dearpygui.dearpygui as dpg
 from game.buildings import ALL_DEFENSIVE_BUILDINGS, Building
 
+class DefenseBuildingUI:
+    """Selection window for defensive structures using DearPyGui."""
 
-class DefenseBuildingUI(tk.Tk):
-    """UI for selecting defensive structures."""
-
-    def __init__(self):
-        super().__init__()
-        self.title("Choose Defensive Structures")
-        self.vars = {}
-        for i, b in enumerate(ALL_DEFENSIVE_BUILDINGS):
-            var = tk.BooleanVar(value=False)
-            chk = tk.Checkbutton(self, text=b.name, variable=var)
-            chk.grid(row=i, column=0, sticky="w", padx=5, pady=2)
-            self.vars[b.name] = (var, b)
-        tk.Button(self, text="Confirm", command=self.confirm).grid(
-            row=len(ALL_DEFENSIVE_BUILDINGS), column=0, pady=5
-        )
+    def __init__(self) -> None:
+        dpg.create_context()
+        dpg.create_viewport(title="Choose Defensive Structures", width=250, height=200)
+        with dpg.window(label="Choose Defensive Structures", width=250, height=200, no_resize=True, no_move=True):
+            self._checks = {}
+            for b in ALL_DEFENSIVE_BUILDINGS:
+                self._checks[b.name] = dpg.add_checkbox(label=b.name, default_value=False)
+            dpg.add_button(label="Confirm", callback=self._confirm)
+        dpg.set_primary_window(dpg.last_container(), True)
+        dpg.setup_dearpygui()
+        dpg.show_viewport()
         self.selected: list[Building] = []
 
-    def confirm(self):
-        self.selected = [b for name, (v, b) in self.vars.items() if v.get()]
-        self.destroy()
+    def _confirm(self, sender, app_data):
+        for b in ALL_DEFENSIVE_BUILDINGS:
+            if dpg.get_value(self._checks[b.name]):
+                self.selected.append(b)
+        dpg.stop_dearpygui()
+
+    def mainloop(self) -> None:
+        while dpg.is_dearpygui_running():
+            dpg.render_dearpygui_frame()
+        dpg.destroy_context()
 
 
 def choose_defenses() -> list[Building]:

@@ -49,6 +49,10 @@ class Faction:
         """Return total citizens for backward compatibility."""
         return self.citizens.count
 
+    @population.setter
+    def population(self, value: int) -> None:
+        self.citizens.count = value
+
     def start_project(self, project: GreatProject) -> None:
         """Begin constructing a great project."""
         self.projects.append(project)
@@ -68,10 +72,10 @@ class Faction:
 
     def build_structure(self, building: Building) -> None:
         """
-        Pay the required resources (assumed to be a dict mapping resource types to amounts)
+        Pay the required resources (assumed to be a dict mapping ResourceType to amounts)
         and add the Building instance to this faction.
         """
-        cost: Dict[ResourceType, int] = building.construction_cost  # e.g. {ResourceType.WOOD: 20}
+        cost: Dict[ResourceType, int] = building.construction_cost
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
                 raise ValueError(f"Not enough {res_type} to build {building.name}")
@@ -82,7 +86,7 @@ class Faction:
     def upgrade_structure(self, building: Building) -> None:
         """
         Pay the upgrade cost and then call the building's internal upgrade() method.
-        Assumes building.upgrade_cost() returns a dict like construction_cost.
+        Assumes building.upgrade_cost() returns a dict keyed by ResourceType.
         """
         cost: Dict[ResourceType, int] = building.upgrade_cost()
         for res_type, amt in cost.items():
