@@ -395,9 +395,9 @@ class Game:
 
     def save(self) -> None:
         """Persist the current game state to disk.
-        Persist resources and whatever population value has been tracked.
-        self.population may be updated elsewhere (e.g., during ticks); saving does not recompute it so tests can control the value directly.
+        Persist resources and recompute population from all factions.
         """
+        self.population = sum(f.citizens.count for f in self.map.factions)
         self.state.resources = self.resources.data
         self.state.population = self.population
         self.state.claimed_projects = list(self.claimed_projects)
