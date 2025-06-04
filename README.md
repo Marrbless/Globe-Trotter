@@ -31,7 +31,7 @@ world generator, allowing different worlds to feel unique.
 Example usage:
 
 ```python
-from world.generation import WorldSettings
+from world.world import WorldSettings
 from game.events import EventSystem, SettlementState
 
 settings = WorldSettings()
