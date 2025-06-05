@@ -22,6 +22,27 @@ class GodPowersUI:
         self.buttons: Dict[str, int] = {}
 
     def _refresh(self) -> None:
+        for power in self.game.god_powers.values():
+            label = f"{power.name}"
+            if power.name not in self.buttons:
+                dpg.push_container_stack(self.container)
+                self.buttons[power.name] = dpg.add_button(
+                    label=label,
+                    callback=self._make_callback(power),
+                )
+                dpg.add_tooltip(self.buttons[power.name], label=power.description)
+                dpg.pop_container_stack()
+            # update enabled state
+            enabled = (
+                power in self.game.available_powers()
+                and self.game.power_cooldowns.get(power.name, 0) <= 0
+            )
+            dpg.configure_item(self.buttons[power.name], enabled=enabled)
+            if enabled:
+                dpg.set_item_label(
+                    self.buttons[power.name],
+                    f"{power.name} ({power.cooldown}t cd)"
+                )
         for power in self.game.available_powers():
             if power.name not in self.buttons:
                 dpg.push_container_stack(self.container)

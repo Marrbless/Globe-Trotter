@@ -1,10 +1,13 @@
 import copy
 import os
 import sys
+import time
 import pytest
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game, Faction, Settlement, Position, GREAT_PROJECT_TEMPLATES
+import game.persistence as persistence
+from game.persistence import GameState, load_state
 from world.world import World, ResourceType
 
 
@@ -68,3 +71,27 @@ def test_power_fails_without_requirements():
 
     with pytest.raises(ValueError):
         game.use_power("Summon Harvest")
+
+
+def test_power_cooldown_and_persistence(tmp_path, monkeypatch):
+    world = make_world()
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    game = Game(world=world, state=GameState(timestamp=time.time(), resources={}, population=0))
+    game.place_initial_settlement(1, 1)
+    fac = game.player_faction
+    fac.resources[ResourceType.WOOD] = 700
+    fac.resources[ResourceType.STONE] = 700
+
+    game.use_power("Summon Harvest")
+    assert game.power_cooldowns["Summon Harvest"] == 3
+    game.tick()
+    assert game.power_cooldowns["Summon Harvest"] == 2
+    game.save()
+
+    # Load new game from saved state
+    new_state, _ = load_state()
+    new_game = Game(state=new_state, world=world)
+    new_game.place_initial_settlement(1, 1)
+    new_game.begin()
+    assert new_game.power_cooldowns["Summon Harvest"] <= 2

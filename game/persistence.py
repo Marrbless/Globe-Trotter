@@ -28,6 +28,7 @@ class GameState:
     world: Dict[str, Any] = field(default_factory=dict)
     factions: Dict[str, Any] = field(default_factory=dict)
     turn: int = 0
+    cooldowns: Dict[str, int] = field(default_factory=dict)
     roads: List[Any] = field(default_factory=list)
     event_turn_counters: Dict[str, int] = field(default_factory=dict)
     tech_levels: Dict[str, int] = field(default_factory=dict)
@@ -179,6 +180,7 @@ def simulate_tick(
     factions: List["Faction"],
     pop_mgr: FactionManager,
     res_mgr: ResourceManager,
+    cooldowns: Dict[str, int] | None = None,
 ) -> None:
     """Advance one tick for offline gains."""
     pop_mgr.tick()
@@ -191,6 +193,10 @@ def simulate_tick(
         else:
             res_mgr.data[fac.name] = fac.resources.copy()
     res_mgr.tick(factions)
+    if cooldowns is not None:
+        for name in list(cooldowns.keys()):
+            if cooldowns[name] > 0:
+                cooldowns[name] -= 1
 
 
 def apply_offline_gains(
@@ -210,7 +216,7 @@ def apply_offline_gains(
         res_mgr = ResourceManager(world, state.resources)
         pop_mgr = FactionManager(factions)
         for _ in range(elapsed):
-            simulate_tick(factions, pop_mgr, res_mgr)
+            simulate_tick(factions, pop_mgr, res_mgr, state.cooldowns)
             for fac in factions:
                 fac.progress_projects()
 
@@ -246,6 +252,11 @@ def load_state(
             data = json.load(f)
 
         resources = deserialize_resources(data.get("resources", {}))
+        elapsed = int((now - data.get("timestamp", now)) // TICK_DURATION)
+        cooldowns_raw = data.get("cooldowns", {})
+        cooldowns = {
+            str(k): max(0, int(v) - elapsed) for k, v in cooldowns_raw.items()
+        }
         state = GameState(
             timestamp=data.get("timestamp", now),
             resources=resources,
@@ -254,6 +265,7 @@ def load_state(
             world=data.get("world", {}),
             factions=deserialize_factions(data.get("factions", {})),
             turn=int(data.get("turn", 0)),
+            cooldowns=cooldowns,
             roads=data.get("roads", []),
             event_turn_counters={k: int(v) for k, v in data.get("event_turn_counters", {}).items()},
             tech_levels={k: int(v) for k, v in data.get("tech_levels", {}).items()},
@@ -294,6 +306,7 @@ def save_state(state: GameState) -> None:
             "world": state.world,
             "factions": state.factions,
             "turn": state.turn,
+            "cooldowns": {k: int(v) for k, v in state.cooldowns.items()},
             "roads": state.roads,
             "event_turn_counters": state.event_turn_counters,
             "tech_levels": state.tech_levels,

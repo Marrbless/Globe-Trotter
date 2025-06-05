@@ -20,6 +20,7 @@ class GodPower:
     description: str
     apply_effect: Callable[[Game], None]
     unlock_condition: Callable[[Faction, set[str]], bool]
+    cooldown: int = 0
 
     def is_unlocked(self, faction: Faction, completed: set[str]) -> bool:
         return self.unlock_condition(faction, completed)
@@ -64,6 +65,7 @@ SUMMON_HARVEST = GodPower(
     description="Conjure abundant crops, granting 500 food.",
     apply_effect=_summon_harvest_effect,
     unlock_condition=_summon_harvest_unlock,
+    cooldown=3,
 )
 
 
@@ -89,6 +91,7 @@ QUELL_DISASTER = GodPower(
     description="Stabilize the realm, restoring people and supplies.",
     apply_effect=_quell_disaster_effect,
     unlock_condition=_quell_disaster_unlock,
+    cooldown=5,
 )
 
 
