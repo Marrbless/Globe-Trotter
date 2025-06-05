@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import time
 from dataclasses import dataclass, field, asdict
@@ -10,7 +12,7 @@ from .population import FactionManager
 from .buildings import ProcessingBuilding
 
 if TYPE_CHECKING:
-    from .game import Faction
+    from .models import Faction
     from world.world import World
 
 SAVE_FILE = Path("save.json")
@@ -155,6 +157,42 @@ def simulate_tick(
     res_mgr.tick(factions)
 
 
+def apply_offline_gains(
+    state: GameState,
+    world: "World" | None,
+    factions: List["Faction"] | None,
+) -> Dict[str, Dict[str, int]]:
+    """Apply offline gains to the given state using provided world and factions."""
+    population_updates: Dict[str, Dict[str, int]] = {}
+    if world is None or factions is None:
+        return population_updates
+
+    now = time.time()
+    elapsed = int((now - state.timestamp) // TICK_DURATION)
+
+    if elapsed > 0:
+        res_mgr = ResourceManager(world, state.resources)
+        pop_mgr = FactionManager(factions)
+        for _ in range(elapsed):
+            simulate_tick(factions, pop_mgr, res_mgr)
+            for fac in factions:
+                fac.progress_projects()
+
+        state.resources = res_mgr.data
+        state.population = sum(f.citizens.count for f in factions)
+
+        for fac in factions:
+            population_updates[fac.name] = {
+                "citizens": fac.citizens.count,
+                "workers": fac.workers.assigned,
+            }
+
+        state.factions = serialize_factions(factions)
+
+    state.timestamp = now
+    return population_updates
+
+
 def load_state(
     *,
     world: Optional["World"] = None,
@@ -167,7 +205,6 @@ def load_state(
     provided the second element will be an empty dictionary.
     """
     now = time.time()
-    population_updates: Dict[str, Dict[str, int]] = {}
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -197,28 +234,7 @@ def load_state(
             turn=0,
         )
 
-    elapsed = int((now - state.timestamp) // TICK_DURATION)
-
-    if elapsed > 0 and world is not None and factions is not None:
-        res_mgr = ResourceManager(world, state.resources)
-        pop_mgr = FactionManager(factions)
-        for _ in range(elapsed):
-            simulate_tick(factions, pop_mgr, res_mgr)
-            for fac in factions:
-                fac.progress_projects()
-
-        state.resources = res_mgr.data
-        state.population = sum(f.citizens.count for f in factions)
-
-        for fac in factions:
-            population_updates[fac.name] = {
-                "citizens": fac.citizens.count,
-                "workers": fac.workers.assigned,
-            }
-
-        state.factions = serialize_factions(factions)
-
-    state.timestamp = now
+    population_updates = apply_offline_gains(state, world, factions)
     return LoadResult(state=state, updates=population_updates)
 
 

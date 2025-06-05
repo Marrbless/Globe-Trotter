@@ -8,7 +8,7 @@ from typing import Dict, Tuple, TYPE_CHECKING
 from world.world import ResourceType
 
 if TYPE_CHECKING:
-    from .game import Faction
+    from .models import Faction
 
 
 @dataclass
