@@ -392,9 +392,11 @@ def register_biome_color(name: str, color: Tuple[int, int, int, int]) -> None:
 
 @dataclass(frozen=True)
 class RiverSegment:
-    """A start→end pair describing a single river edge."""
+    """A start→end pair describing a single river edge with a flow strength."""
+
     start: Coordinate
     end: Coordinate
+    strength: float = 0.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -488,6 +490,9 @@ class World:
 
         # Mark water features for initial generation
         self._dirty_rivers = True
+
+        if not self.settings.infinite:
+            self._generate_rivers()
 
     # ─────────────────────────────────────────────────────────────────────────
     # == PROPERTIES & SETTINGS MANAGEMENT ==
@@ -1005,6 +1010,7 @@ class World:
             if h:
                 h.river = False
                 h.lake = False
+                h.water_flow = 0.0
 
     def _identify_and_flag_rivers_lakes(
         self,
@@ -1036,7 +1042,8 @@ class World:
 
             if d:
                 if fval >= river_thresh:
-                    new_rivers.append(RiverSegment(c, d))
+                    strength = min(fval, flow_map.get(d, fval))
+                    new_rivers.append(RiverSegment(c, d, strength))
                     h_c.river = True
                     h_d = self.get(*d)
                     if h_d:
@@ -1070,7 +1077,8 @@ class World:
                 h_lake = self.get(q0, r0)
                 h_out = self.get(*lowest_neighbor)
                 if h_lake and h_out:
-                    self.rivers.append(RiverSegment(lake_coord, lowest_neighbor))
+                    strength = self.get(*lake_coord).water_flow if self.get(*lake_coord) else 0.0
+                    self.rivers.append(RiverSegment(lake_coord, lowest_neighbor, strength))
                     h_lake.river = True
                     h_out.river = True
 
@@ -1102,6 +1110,11 @@ class World:
         river_thresh, lake_thresh = self._determine_thresholds(flow_map.values())
         all_coords = flow_map.keys()
 
+        for (q, r), fval in flow_map.items():
+            h = self.get(q, r)
+            if h:
+                h.water_flow = fval
+
         self._clear_old_water_flags(all_coords)
         new_rivers, new_lakes = self._identify_and_flag_rivers_lakes(
             flow_map, downhill_map, river_thresh, lake_thresh
@@ -1111,6 +1124,19 @@ class World:
         self._lake_outflow(new_lakes)
 
         self._dirty_rivers = False
+
+    def _generate_rivers(self) -> None:
+        """Compatibility wrapper that generates water features for the whole map."""
+        if self.settings.infinite:
+            # Only operate on currently loaded tiles in infinite mode
+            self.generate_water_features()
+            return
+
+        # Ensure all tiles are generated so flags can be set
+        for coord in self.iter_all_coords():
+            _ = self.get(*coord)
+
+        self.generate_water_features()
 
     # ─────────────────────────────────────────────────────────────────────────
     # == RESOURCES & ROADS ==

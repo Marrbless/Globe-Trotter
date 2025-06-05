@@ -1,12 +1,46 @@
 from __future__ import annotations
 
-"""Helper generation utilities for terrain features."""
+"""Simplified world generation helpers with Perlin noise, orographic moisture, and biome determination."""
 
 import math
 import random
-from typing import Dict
+from typing import Dict, List, Tuple
 
 from .settings import WorldSettings
+
+# Type aliases
+Coordinate = Tuple[int, int]
+ElevationCache = Dict[Coordinate, float]
+
+# Predefined colors for visualizing biomes (RGBA)
+BIOME_COLORS: Dict[str, Tuple[int, int, int, int]] = {
+    "plains": (110, 205, 88, 255),
+    "forest": (34, 139, 34, 255),
+    "mountains": (139, 137, 137, 255),
+    "hills": (107, 142, 35, 255),
+    "desert": (237, 201, 175, 255),
+    "tundra": (220, 220, 220, 255),
+    "rainforest": (0, 100, 0, 255),
+    "water": (65, 105, 225, 255),
+    "floating_island": (186, 85, 211, 255),
+    "crystal_forest": (0, 255, 255, 255),
+}
+
+
+def _stable_hash(*args: int) -> int:
+    """
+    Deterministic 64-bit hash used for RNG seeding.
+    Combines integer inputs into a reproducible 64-bit result.
+    """
+    x = 0x345678ABCDEF1234
+    for a in args:
+        a &= 0xFFFFFFFFFFFFFFFF
+        a ^= a >> 33
+        a = (a * 0xFF51AFD7ED558CCD) & 0xFFFFFFFFFFFFFFFF
+        a ^= a >> 33
+        x ^= a
+        x = (x * 0xC4CEB9FE1A85EC53) & 0xFFFFFFFFFFFFFFFF
+    return x
 
 
 def _compute_moisture_orographic(
@@ -14,31 +48,324 @@ def _compute_moisture_orographic(
     q: int,
     r: int,
     elevation: float,
-    elevation_cache: Dict[tuple[int, int], float],
+    elevation_cache: ElevationCache,
     width: int,
     height: int,
     seed: int,
     moisture_setting: float,
     wind_strength: float,
     seasonal_amplitude: float,
-    season: float = 0.0,
-    settings: WorldSettings | None = None,
+    season: float,
+    settings: WorldSettings,
 ) -> float:
-    """Return a simple moisture value influenced by elevation and wind."""
-    lat = float(r) / float(height - 1) if height > 1 else 0.5
-    moist = 1.0 - abs(lat - 0.5) * 2.0
+    """
+    Approximate rainfall using a simple west-to-east orographic model.
 
-    rng = random.Random((q * 73856093) ^ (r * 19349663) ^ seed ^ 0xBADC0DE)
-    moist += (rng.random() - 0.5) * 0.2
-    moist *= moisture_setting
+    Starts with a base moisture (with random jitter and seasonal offset),
+    then simulates moisture loss as air rises over elevation from west (x=0) toward current tile (x=q).
+    """
+    rng = random.Random(_stable_hash(r, seed, 0xCAFE))
+    # Base moisture with random jitter
+    base = moisture_setting + rng.uniform(-0.1, 0.1)
+    # Add seasonal fluctuation
+    base += math.sin(2.0 * math.pi * season) * seasonal_amplitude * 0.5
+    moisture = max(0.0, min(1.0, base))
 
-    wind_dir = 1 if wind_strength >= 0 else -1
-    neighbor = (q - wind_dir, r)
-    neigh_elev = elevation_cache.get(neighbor, elevation)
-    moist += (neigh_elev - elevation) * 0.3 * abs(wind_strength)
+    precip = 0.0
+    for x in range(q + 1):
+        # Look up cached elevation for column x in the same row r
+        elev = elevation_cache.get((x, r))
+        if elev is None:
+            elev = elevation if x == q else 0.0
+        # Precipitation at this column
+        precip = max(0.0, moisture * (1.0 - elev))
+        if x == q:
+            break
+        # Moisture loss depends on precipitation and elevation, modulated by wind
+        loss = (precip * 0.5 + elev * 0.1) * (1.0 - wind_strength)
+        moisture = max(0.0, moisture - loss)
 
-    moist += math.sin(2.0 * math.pi * season) * seasonal_amplitude * 0.3
-    return max(0.0, min(1.0, moist))
+    return max(0.0, min(1.0, precip))
 
 
-__all__ = ["_compute_moisture_orographic"]
+def _fade(t: float) -> float:
+    """Fade function for Perlin noise interpolation."""
+    return t * t * t * (t * (t * 6 - 15) + 10)
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    """Linear interpolation between a and b by t."""
+    return a + t * (b - a)
+
+
+def _grad(ix: int, iy: int, seed: int) -> Tuple[float, float]:
+    """
+    Generate a pseudorandom gradient vector for integer grid point (ix, iy) using a stable hash.
+    """
+    rng = random.Random(_stable_hash(ix, iy, seed))
+    angle = rng.random() * 2.0 * math.pi
+    return math.cos(angle), math.sin(angle)
+
+
+def _dot_grid_gradient(ix: int, iy: int, x: float, y: float, seed: int) -> float:
+    """
+    Compute the dot product between the gradient vector at the integer grid point (ix, iy)
+    and the distance vector from that grid point to (x, y).
+    """
+    gx, gy = _grad(ix, iy, seed)
+    dx = x - ix
+    dy = y - iy
+    return gx * dx + gy * dy
+
+
+def _perlin(x: float, y: float, seed: int) -> float:
+    """
+    Single-octave Perlin noise at coordinates (x, y) with given seed.
+    Returns a value in [-1, 1], which is shifted to [0, 1] by the caller.
+    """
+    x0 = math.floor(x)
+    y0 = math.floor(y)
+    x1 = x0 + 1
+    y1 = y0 + 1
+
+    sx = _fade(x - x0)
+    sy = _fade(y - y0)
+
+    n00 = _dot_grid_gradient(x0, y0, x, y, seed)
+    n10 = _dot_grid_gradient(x1, y0, x, y, seed)
+    n01 = _dot_grid_gradient(x0, y1, x, y, seed)
+    n11 = _dot_grid_gradient(x1, y1, x, y, seed)
+
+    ix0 = _lerp(n00, n10, sx)
+    ix1 = _lerp(n01, n11, sx)
+    value = _lerp(ix0, ix1, sy)
+    # Shift from [-1,1] to [0,1]
+    return (value + 1.0) / 2.0
+
+
+def perlin_noise(
+    x: float,
+    y: float,
+    seed: int,
+    octaves: int = 4,
+    persistence: float = 0.5,
+    lacunarity: float = 2.0,
+    scale: float = 0.05,
+) -> float:
+    """
+    Generate fractal Perlin noise at (x, y) using multiple octaves.
+    Returns a normalized value in [0, 1].
+    """
+    value = 0.0
+    amplitude = 1.0
+    frequency = scale
+    max_amp = 0.0
+
+    for i in range(octaves):
+        value += _perlin(x * frequency, y * frequency, seed + i) * amplitude
+        max_amp += amplitude
+        amplitude *= persistence
+        frequency *= lacunarity
+
+    return value / max_amp if max_amp > 0 else 0.0
+
+
+def generate_elevation_map(width: int, height: int, settings: WorldSettings) -> List[List[float]]:
+    """
+    Create a 2D elevation map using Perlin noise, then apply a simple tectonic plates overlay.
+    Each value is in [0, 1], where 0 is deepest water and 1 is highest mountain.
+    """
+    elev: List[List[float]] = []
+    for y in range(height):
+        row: List[float] = []
+        for x in range(width):
+            n = perlin_noise(x, y, settings.seed)
+            amp = 0.5 + settings.elevation / 2.0
+            offset = settings.elevation - 0.5
+            val = max(0.0, min(1.0, n * amp + offset))
+            row.append(val)
+        elev.append(row)
+
+    _apply_tectonic_plates(elev, settings)
+    return elev
+
+
+def _apply_tectonic_plates(elev: List[List[float]], settings: WorldSettings) -> None:
+    """
+    Modify the elevation map in-place to simulate tectonic plate boundaries.
+    Creates random plate centers, then adjusts height based on distance to nearest plates.
+    """
+    width = len(elev[0])
+    height = len(elev)
+    rng = random.Random(settings.seed)
+    plates = max(2, int(3 + settings.plate_activity * 5))
+    # Each plate: (center_x, center_y, base_height)
+    centers = [
+        (rng.randint(0, width - 1), rng.randint(0, height - 1), rng.random())
+        for _ in range(plates)
+    ]
+
+    for y in range(height):
+        for x in range(width):
+            # Compute squared distances to all plate centers
+            dists = sorted(
+                ((cx - x) ** 2 + (cy - y) ** 2, base) for cx, cy, base in centers
+            )
+            dist0, base = dists[0]
+            dist1 = dists[1][0] if len(dists) > 1 else dist0
+            ratio = dist0 / (dist0 + dist1) if dist1 > 0 else 0.0
+            boundary = 1.0 - abs(0.5 - ratio) * 2.0
+            plate_height = base * settings.base_height + boundary * settings.plate_activity
+            # Blend existing elevation with plate-influenced height
+            elev[y][x] = min(1.0, max(0.0, (elev[y][x] + plate_height) / 2.0))
+
+
+def terrain_from_elevation(value: float, settings: WorldSettings) -> str:
+    """
+    Classify a tile as 'water', 'plains', 'hills', or 'mountains' solely based on elevation.
+    """
+    if value < settings.sea_level:
+        return "water"
+    if value < settings.sea_level + 0.2:
+        return "plains"
+    if value < settings.sea_level + 0.4:
+        return "hills"
+    return "mountains"
+
+
+def _latitude(row: int, height: int) -> float:
+    """
+    Compute a normalized latitude (0 at top edge, 1 at bottom edge) for row index.
+    """
+    return row / float(height - 1) if height > 1 else 0.5
+
+
+def compute_temperature(
+    row: int,
+    col: int,
+    elevation: float,
+    settings: WorldSettings,
+    rng: random.Random,
+    *,
+    season: float = 0.0,
+) -> float:
+    """
+    Compute a normalized temperature [0,1] at grid position (row, col).
+    Accounts for latitude, elevation penalty, random variation, wind effect, and seasonal shift.
+    """
+    lat_norm = _latitude(row, settings.height)
+    base = 1.0 - abs(lat_norm - 0.5) * 2.0       # Equator is warmest (0.5)
+    base -= elevation * 0.3                     # Higher elevation is colder
+
+    variation = rng.uniform(-0.1, 0.1) * settings.temperature
+    wind_effect = 0.0
+    if settings.width > 1:
+        wind_effect = ((col / float(settings.width - 1)) - 0.5) * settings.wind_strength * 0.2
+
+    seasonal = math.sin(2.0 * math.pi * season) * settings.seasonal_amplitude * 0.5
+    temp = base + variation + wind_effect + seasonal
+    return max(0.0, min(1.0, temp))
+
+
+def generate_temperature_map(
+    elevation_map: List[List[float]],
+    settings: WorldSettings,
+    rng: random.Random,
+    *,
+    season: float = 0.0,
+) -> List[List[float]]:
+    """
+    Build a 2D temperature map matching the layout of the elevation map.
+    """
+    temps: List[List[float]] = []
+    for r in range(settings.height):
+        row: List[float] = []
+        for q in range(settings.width):
+            elev = elevation_map[r][q]
+            row.append(compute_temperature(r, q, elev, settings, rng, season=season))
+        temps.append(row)
+    return temps
+
+
+def generate_rainfall(
+    elevation_map: List[List[float]],
+    settings: WorldSettings,
+    rng: random.Random,
+    *,
+    season: float = 0.0,
+) -> List[List[float]]:
+    """
+    Generate a simple rainfall map by scanning each latitude row from west to east,
+    decreasing moisture as elevation increases and wind removes moisture.
+    This version is less detailed than orographic but still accounts for elevation.
+    """
+    rain: List[List[float]] = [
+        [0.0 for _ in range(settings.width)] for _ in range(settings.height)
+    ]
+    for r in range(settings.height):
+        base = settings.moisture + rng.uniform(-0.1, 0.1)
+        base += math.sin(2.0 * math.pi * season) * settings.seasonal_amplitude * 0.5
+        moisture = max(0.0, min(1.0, base))
+        for q in range(settings.width):
+            elev = elevation_map[r][q]
+            precip = max(0.0, moisture * (1.0 - elev))
+            rain[r][q] = precip
+            loss = (precip * 0.5 + elev * 0.1) * (1.0 - settings.wind_strength)
+            moisture = max(0.0, moisture - loss)
+    return rain
+
+
+def determine_biome(
+    elevation: float,
+    temperature: float,
+    rainfall: float,
+    *,
+    mountain_elev: float = 0.8,
+    hill_elev: float = 0.6,
+    tundra_temp: float = 0.25,
+    desert_rain: float = 0.2,
+) -> str:
+    """
+    Determine a biome string from elevation, temperature, and rainfall thresholds.
+    Order of checks:
+      1. High elevation → mountains
+      2. Moderate elevation → hills
+      3. Low temperature → tundra
+      4. Low rainfall + warm → desert
+      5. High rainfall + warm → rainforest
+      6. Moderate rainfall → forest
+      7. Otherwise → plains
+    """
+    if elevation > mountain_elev:
+        return "mountains"
+    if elevation > hill_elev:
+        return "hills"
+    if temperature < tundra_temp:
+        return "tundra"
+    if rainfall < desert_rain and temperature > 0.5:
+        return "desert"
+    if rainfall > 0.7 and temperature > 0.5:
+        return "rainforest"
+    if rainfall > 0.4:
+        return "forest"
+    return "plains"
+
+
+__all__ = [
+    "_stable_hash",
+    "_compute_moisture_orographic",
+    "_fade",
+    "_lerp",
+    "_grad",
+    "_dot_grid_gradient",
+    "_perlin",
+    "perlin_noise",
+    "generate_elevation_map",
+    "_apply_tectonic_plates",
+    "terrain_from_elevation",
+    "compute_temperature",
+    "generate_temperature_map",
+    "generate_rainfall",
+    "determine_biome",
+    "BIOME_COLORS",
+]
