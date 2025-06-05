@@ -1,7 +1,7 @@
 import math
 import time
 import dearpygui.dearpygui as dpg
-from world.generation import BIOME_COLORS
+from world.world import BIOME_COLORS
 from game import settings
 
 HEX_SIZE = 30
@@ -260,3 +260,13 @@ def terrain_color(name):
 def grayscale_color(value: float) -> tuple[int, int, int, int]:
     level = int(max(0.0, min(1.0, value)) * 255)
     return (level, level, level, 255)
+
+
+if __name__ == "__main__":
+    from world.world import World
+
+    world = World(width=40, height=30)
+    view = MapView(world)
+    choice = view.run()
+    if choice:
+        print("Selected hex:", choice)

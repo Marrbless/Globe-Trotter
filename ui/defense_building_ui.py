@@ -33,3 +33,9 @@ def choose_defenses() -> list[Building]:
     ui = DefenseBuildingUI()
     ui.mainloop()
     return ui.selected
+
+
+if __name__ == "__main__":
+    buildings = choose_defenses()
+    if buildings:
+        print("Selected:", ", ".join(b.name for b in buildings))

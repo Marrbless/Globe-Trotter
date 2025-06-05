@@ -47,7 +47,3 @@ __all__ = [
     "TechLevel",
 ]
 
-# Expose the world package as a submodule to allow `import game.world`
-import sys as _sys
-import world as _world
-_sys.modules[__name__ + ".world"] = _world

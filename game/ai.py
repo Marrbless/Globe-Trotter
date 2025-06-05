@@ -14,6 +14,20 @@ if TYPE_CHECKING:
 from world.world import ResourceType
 
 
+def _resource_shortages(faction: "Faction") -> set[ResourceType]:
+    """Return resources that the faction has very little of (<5)."""
+    return {
+        r for r, amt in faction.resources.items() if amt < 5
+    }
+
+
+def _resource_surpluses(faction: "Faction") -> set[ResourceType]:
+    """Return resources that the faction has plenty of (>50)."""
+    return {
+        r for r, amt in faction.resources.items() if amt > 50
+    }
+
+
 def evaluate_relations(game: "Game") -> None:
     """Evaluate diplomacy actions for all AI factions."""
     factions = [f for f in game.map.factions if f is not game.player_faction]
@@ -35,16 +49,42 @@ def _consider_trade(game: "Game", a: Faction, b: Faction) -> None:
     if game.is_at_war(a, b) or game.is_allied(a, b):
         return
     for deal in game.trade_deals:
-        if {deal.faction_a, deal.faction_b} == {a, b}:
+        if (deal.faction_a is a and deal.faction_b is b) or (
+            deal.faction_a is b and deal.faction_b is a
+        ):
             return
-    if random.random() < 0.2:
-        game.form_trade_deal(a, b, {ResourceType.FOOD: 1}, {ResourceType.WOOD: 1})
+
+    shortages_a = _resource_shortages(a)
+    surpluses_a = _resource_surpluses(a)
+    shortages_b = _resource_shortages(b)
+    surpluses_b = _resource_surpluses(b)
+
+    # If A needs something B has plenty of
+    common_ab = shortages_a & surpluses_b
+    if common_ab and random.random() < 0.4:
+        res = next(iter(common_ab))
+        game.form_trade_deal(a, b, {}, {res: 1})
+        return
+
+    # If B needs something A has plenty of
+    common_ba = shortages_b & surpluses_a
+    if common_ba and random.random() < 0.4:
+        res = next(iter(common_ba))
+        game.form_trade_deal(a, b, {res: 1}, {})
 
 
 def _consider_alliance(game: "Game", a: Faction, b: Faction) -> None:
     if game.is_at_war(a, b) or game.is_allied(a, b) or game.is_under_truce(a, b):
         return
-    if random.random() < 0.05:
+
+    shortages_a = _resource_shortages(a)
+    shortages_b = _resource_shortages(b)
+    surpluses_a = _resource_surpluses(a)
+    surpluses_b = _resource_surpluses(b)
+
+    complementary = (shortages_a & surpluses_b) and (shortages_b & surpluses_a)
+
+    if complementary and random.random() < 0.1:
         game.form_alliance(a, b)
 
 
@@ -60,7 +100,17 @@ def _consider_break_truce(game: "Game", a: Faction, b: Faction) -> None:
 def _consider_betrayal(game: "Game", a: Faction, b: Faction) -> None:
     if not game.is_allied(a, b):
         return
-    stronger = a.citizens.count > b.citizens.count + 5
-    if stronger and random.random() < 0.05:
+    strength_a = a.citizens.count + getattr(a, "army_size", 0)
+    strength_b = b.citizens.count + getattr(b, "army_size", 0)
+    if strength_b == 0:
+        strength_b = 1
+    ratio = strength_a / strength_b
+    if ratio > 1.5 and random.random() < 0.2:
         game.break_alliance(a, b)
+        # cancel any trade deals between the factions
+        game.trade_deals = [
+            d
+            for d in game.trade_deals
+            if not ((d.faction_a is a and d.faction_b is b) or (d.faction_a is b and d.faction_b is a))
+        ]
         game.declare_war(a, b)
