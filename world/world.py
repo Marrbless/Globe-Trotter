@@ -200,48 +200,48 @@ class World:
         return best
 
     def _generate_rivers(self) -> None:
-        seeds = max(1, int(self.settings.rainfall_intensity * 5))
-        total = 0.0
+        rainfall: Dict[Coordinate, float] = {}
+        flow: Dict[Coordinate, float] = {}
+        downhill: Dict[Coordinate, Optional[Coordinate]] = {}
+
         for r in range(self.height):
             for q in range(self.width):
-                total += self._elevation(q, r)
-        avg_elev = total / (self.width * self.height)
-        threshold = max(self.settings.sea_level, avg_elev)
+                hex_ = self.get(q, r)
+                rain = hex_.moisture * self.settings.rainfall_intensity
+                rainfall[(q, r)] = rain
+                flow[(q, r)] = rain
+                dn = self._downhill_neighbor(q, r)
+                if dn and self.get(*dn).elevation < hex_.elevation:
+                    downhill[(q, r)] = dn
+                else:
+                    downhill[(q, r)] = None
 
-        for _ in range(seeds):
-            for _ in range(100):
-                q, r = self.rng.randint(0, self.width - 1), self.rng.randint(0, self.height - 1)
-                h = self.get(q, r)
-                if h and h.elevation > threshold:
-                    break
+        coords = sorted(flow.keys(), key=lambda c: self.get(*c).elevation, reverse=True)
+        for c in coords:
+            d = downhill[c]
+            if d:
+                flow[d] += flow[c]
+
+        for c, f in flow.items():
+            self.get(*c).water_flow = f
+
+        avg_flow = sum(flow.values()) / len(flow) if flow else 0.0
+        river_threshold = max(0.05 * self.settings.rainfall_intensity, avg_flow * 2)
+        lake_threshold = max(0.1 * self.settings.rainfall_intensity, avg_flow * 4)
+
+        for c in coords:
+            d = downhill[c]
+            hex_c = self.get(*c)
+            if d:
+                if flow[c] >= river_threshold:
+                    self.rivers.append(RiverSegment(c, d))
+                    hex_c.river = True
+                    self.get(*d).river = True
             else:
-                continue
-            current = (q, r)
-            visited = set()
-            while current and current not in visited:
-                visited.add(current)
-                nxt = self._downhill_neighbor(*current)
-                if not nxt or nxt == current:
-                    cur_hex = self.get(*current)
-                    if not cur_hex:
-                        break
-                    merged = False
-                    for n in self._neighbors(*current):
-                        nh = self.get(*n)
-                        if nh and (nh.lake or nh.elevation <= self.settings.sea_level):
-                            self.rivers.append(RiverSegment(current, n))
-                            cur_hex.river = True
-                            if nh.elevation <= self.settings.sea_level:
-                                nh.river = True
-                            merged = True
-                            break
-                    if not merged:
-                        self.lakes.append(current)
-                        cur_hex.lake = True
-                    break
-                self.rivers.append(RiverSegment(current, nxt))
-                self.get(*current).river = True
-                current = nxt
+                if flow[c] > lake_threshold:
+                    if not hex_c.lake:
+                        self.lakes.append(c)
+                        hex_c.lake = True
 
     def all_hexes(self) -> Iterable[Hex]:
         for r in range(self.height):
