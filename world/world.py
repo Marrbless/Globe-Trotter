@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 import math
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Iterable
 import functools
@@ -188,6 +189,46 @@ def compute_temperature(
     seasonal = math.sin(2 * math.pi * season) * settings.seasonal_amplitude * 0.5
     return max(0.0, min(1.0, base + variation + wind_effect + seasonal))
 
+def _compute_moisture_with_orographic(
+    q: int,
+    r: int,
+    elevation: float,
+    settings: WorldSettings,
+    season: float = 0.0,
+) -> float:
+    """
+    Compute moisture using west-to-east transport with orographic (windward) effects.
+    """
+    rng_tile = random.Random(hash((r, settings.seed, "rain")))
+    base = settings.moisture + rng_tile.uniform(-0.1, 0.1)
+    base += math.sin(2 * math.pi * season) * settings.seasonal_amplitude * 0.5
+    moisture = max(0.0, min(1.0, base))
+
+    prev_elev = elevation  # placeholder, overwritten for x=0
+    precip = 0.0
+    for x in range(q + 1):
+        elev_local = elevation if x == q else None
+        # For earlier x, fetch elevation via caching if available; placeholder behavior in precompute
+        if x != q:
+            elev_local = settings._elevation_cache.get((x, r), None)
+            if elev_local is None:
+                elev_local = elevation  # fallback
+
+        # Orographic blocking: if current elev_local is significantly higher than prev_elev
+        orographic_threshold = getattr(settings, "orographic_threshold", 0.1)
+        orographic_factor = getattr(settings, "orographic_factor", 0.5)
+        if elev_local is not None and elev_local - prev_elev > orographic_threshold:
+            moisture = max(0.0, moisture - (elev_local - prev_elev) * orographic_factor)
+
+        precip = max(0.0, moisture * (1.0 - elev_local))
+        if x == q:
+            break
+        loss = (precip * 0.5 + elev_local * 0.1) * (1.0 - settings.wind_strength)
+        moisture = max(0.0, moisture - loss)
+        prev_elev = elev_local
+
+    return max(0.0, min(1.0, precip))
+
 def generate_temperature_map(
     elevation_map: List[List[float]],
     settings: WorldSettings,
@@ -213,7 +254,7 @@ def generate_rainfall(
     *,
     season: float = 0.0,
 ) -> List[List[float]]:
-    """Create rainfall map using simple west-to-east moisture transport."""
+    """Create rainfall map using orographic moisture transport from west to east."""
     rain: List[List[float]] = [
         [0.0 for _ in range(settings.width)] for _ in range(settings.height)
     ]
@@ -224,11 +265,9 @@ def generate_rainfall(
         moisture = max(0.0, min(1.0, base))
         for q in range(settings.width):
             elev = elevation_map[r][q]
-            precip = max(0.0, moisture * (1.0 - elev))
+            # Leverage orographic moisture computation
+            precip = _compute_moisture_with_orographic(q, r, elev, settings, season=season)
             rain[r][q] = precip
-            loss = (precip * 0.5 + elev * 0.1) * (1.0 - settings.wind_strength)
-            moisture = max(0.0, moisture - loss)
-
     return rain
 
 def determine_biome(
@@ -273,35 +312,78 @@ def determine_biome(
             return "floating_island"
     return base_biome
 
+def smooth_biome_map(
+    biomes: List[List[str]],
+    width: int,
+    height: int,
+    iterations: int = 1,
+) -> List[List[str]]:
+    """
+    Smooth the biome map by replacing isolated cells that differ from the majority of their neighbors.
+    """
+    def majority_neighbor(q: int, r: int) -> str:
+        counts: Dict[str, int] = {}
+        directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
+        for dq, dr in directions:
+            nq, nr = q + dq, r + dr
+            if 0 <= nq < width and 0 <= nr < height:
+                neighbor_biome = biomes[nr][nq]
+                counts[neighbor_biome] = counts.get(neighbor_biome, 0) + 1
+        if not counts:
+            return biomes[r][q]
+        majority = max(counts.items(), key=lambda item: item[1])[0]
+        return majority
+
+    for _ in range(iterations):
+        new_map = [row.copy() for row in biomes]
+        for r in range(height):
+            for q in range(width):
+                current = biomes[r][q]
+                majority = majority_neighbor(q, r)
+                if majority != current:
+                    new_map[r][q] = majority
+        biomes = new_map
+    return biomes
+
 def generate_biome_map(
     elevation_map: List[List[float]],
     temperature_map: List[List[float]],
     rainfall_map: List[List[float]],
     settings: WorldSettings,
 ) -> List[List[str]]:
-    """Return biome classification for each hex, including fantasy influence."""
+    """Return biome classification for each hex, including fantasy influence and regional variation."""
     height = len(elevation_map)
     width = len(elevation_map[0]) if height else 0
     biomes: List[List[str]] = []
 
+    region_size = getattr(settings, "biome_region_size", 10)
     for r in range(height):
         row: List[str] = []
         for q in range(width):
-            rng_tile = random.Random(hash((q, r, settings.seed, "biome")))
-            row.append(
-                determine_biome(
-                    elevation_map[r][q],
-                    temperature_map[r][q],
-                    rainfall_map[r][q],
-                    rng_tile,
-                    mountain_elev=settings.mountain_elev,
-                    hill_elev=settings.hill_elev,
-                    tundra_temp=settings.tundra_temp,
-                    desert_rain=settings.desert_rain,
-                    fantasy_level=settings.fantasy_level,
-                )
+            # Regional seed ensures clusters of similar biome variation
+            region_coord = (q // region_size, r // region_size)
+            region_seed = hash((region_coord[0], region_coord[1], settings.seed, "region"))
+            # Local tile seed combines region_seed for regional cohesion
+            tile_seed = hash((region_seed, q, r))
+            rng_tile = random.Random(tile_seed)
+            biome = determine_biome(
+                elevation_map[r][q],
+                temperature_map[r][q],
+                rainfall_map[r][q],
+                rng_tile,
+                mountain_elev=settings.mountain_elev,
+                hill_elev=settings.hill_elev,
+                tundra_temp=settings.tundra_temp,
+                desert_rain=settings.desert_rain,
+                fantasy_level=settings.fantasy_level,
             )
+            row.append(biome)
         biomes.append(row)
+
+    # Apply smoothing pass(s) to create gradual transitions
+    smoothing_iterations = getattr(settings, "biome_smoothing_iterations", 1)
+    if smoothing_iterations > 0:
+        biomes = smooth_biome_map(biomes, width, height, smoothing_iterations)
 
     return biomes
 
@@ -331,17 +413,22 @@ class World:
         self.settings = settings or WorldSettings(seed=seed, width=width, height=height)
         # Allow chunk size override in settings (fallback to 10)
         self.chunk_size = getattr(self.settings, "chunk_size", 10)
-        self.chunks: Dict[Tuple[int, int], List[List[Hex]]] = {}
+        # Maximum active chunks to keep in memory (oldest evicted first)
+        self.max_active_chunks = getattr(self.settings, "max_active_chunks", 100)
+        self.chunks: OrderedDict[Tuple[int, int], List[List[Hex]]] = OrderedDict()
         self.roads: List[Road] = []
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
         self.season = 0.0
 
+        # Precompute tectonic plate centers for plate height calculations
         self._plate_centers = self._init_plates()
-        # Precompute all hex properties before generating rivers
+        # Precompute and cache terrain layers (elevation, temperature, moisture, biome)
         self._precompute_terrain_layers()
+        # Generate rivers & lakes
         self._generate_rivers()
+        # Apply fantasy overlays if enabled
         if self.settings.fantasy_level > 0:
             apply_fantasy_overlays(self.all_hexes(), self.settings.fantasy_level)
 
@@ -416,22 +503,10 @@ class World:
 
     def _moisture(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         """
-        Compute moisture using west-to-east transport. Uses cached elevation
-        values to avoid recomputing elevation during river generation.
+        Compute moisture using west-to-east transport with orographic effects.
+        Relies on cached elevation values to avoid recomputing elevation during river generation.
         """
-        rng_tile = random.Random(hash((r, self.settings.seed, "rain")))
-        base = self.settings.moisture + rng_tile.uniform(-0.1, 0.1)
-        base += math.sin(2 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
-        moisture = max(0.0, min(1.0, base))
-        precip = 0.0
-        for x in range(q + 1):
-            elev_local = self._elevation_cache.get((x, r), self._elevation(x, r))
-            precip = max(0.0, moisture * (1.0 - elev_local))
-            if x == q:
-                break
-            loss = (precip * 0.5 + elev_local * 0.1) * (1.0 - self.settings.wind_strength)
-            moisture = max(0.0, moisture - loss)
-        return max(0.0, min(1.0, precip))
+        return _compute_moisture_with_orographic(q, r, elevation, self.settings, season=season)
 
     def _precompute_terrain_layers(self) -> None:
         """
@@ -443,27 +518,34 @@ class World:
         self._moisture_cache: Dict[Coordinate, float] = {}
         self._biome_cache: Dict[Coordinate, str] = {}
 
+        # First pass: compute elevation, temperature, moisture
         for r in range(self.settings.height):
             for q in range(self.settings.width):
                 elev = self._elevation(q, r)
                 temp = self._temperature(q, r, elev, self.season)
                 moist = self._moisture(q, r, elev, self.season)
-                rng_tile = random.Random(hash((q, r, self.settings.seed, "biome")))
-                biome = determine_biome(
-                    elev,
-                    temp,
-                    moist,
-                    rng_tile,
-                    mountain_elev=self.settings.mountain_elev,
-                    hill_elev=self.settings.hill_elev,
-                    tundra_temp=self.settings.tundra_temp,
-                    desert_rain=self.settings.desert_rain,
-                    fantasy_level=self.settings.fantasy_level,
-                )
                 self._elevation_cache[(q, r)] = elev
                 self._temperature_cache[(q, r)] = temp
                 self._moisture_cache[(q, r)] = moist
-                self._biome_cache[(q, r)] = biome
+
+        # Generate biome map based on cached values
+        elev_map = [
+            [self._elevation_cache[(q, r)] for q in range(self.settings.width)]
+            for r in range(self.settings.height)
+        ]
+        temp_map = [
+            [self._temperature_cache[(q, r)] for q in range(self.settings.width)]
+            for r in range(self.settings.height)
+        ]
+        rain_map = [
+            [self._moisture_cache[(q, r)] for q in range(self.settings.width)]
+            for r in range(self.settings.height)
+        ]
+
+        biomes = generate_biome_map(elev_map, temp_map, rain_map, self.settings)
+        for r in range(self.settings.height):
+            for q in range(self.settings.width):
+                self._biome_cache[(q, r)] = biomes[r][q]
 
     def _generate_hex(self, q: int, r: int) -> Hex:
         """Generate or retrieve a hex tile using cached terrain layers."""
@@ -484,7 +566,7 @@ class World:
         )
 
     def _generate_chunk(self, cx: int, cy: int) -> None:
-        """Populate a chunk of size self.chunk_size × self.chunk_size."""
+        """Populate a chunk of size self.chunk_size × self.chunk_size, then manage cache."""
         chunk: List[List[Hex]] = []
         base_q, base_r = cx * self.chunk_size, cy * self.chunk_size
         rows = (
@@ -507,7 +589,12 @@ class World:
                 row.append(self._generate_hex(q, r))
             if row:
                 chunk.append(row)
+
+        # Insert at end as most recently used
         self.chunks[(cx, cy)] = chunk
+        # If exceeding max_active_chunks, evict the oldest
+        if len(self.chunks) > self.max_active_chunks:
+            self.chunks.popitem(last=False)
 
     def get(self, q: int, r: int) -> Optional[Hex]:
         """Retrieve a Hex if within bounds; generate its chunk if needed."""
@@ -516,6 +603,8 @@ class World:
         cx, cy = q // self.chunk_size, r // self.chunk_size
         if (cx, cy) not in self.chunks:
             self._generate_chunk(cx, cy)
+        # Move accessed chunk to the end to mark as recently used
+        self.chunks.move_to_end((cx, cy))
         chunk = self.chunks.get((cx, cy))
         row_idx, col_idx = r % self.chunk_size, q % self.chunk_size
         if not chunk or row_idx >= len(chunk) or col_idx >= len(chunk[row_idx]):
@@ -555,7 +644,7 @@ class World:
         Generate rivers with branching and lake outflow:
         1. Compute initial flow from cached moisture.
         2. Accumulate downstream, allowing tributaries to merge.
-        3. Introduce random branching: some tiles with enough flow split to second-best downhill.
+        3. Introduce random branching with cycle prevention.
         4. Mark river segments and lakes, then handle lake outflow.
         """
         rainfall: Dict[Coordinate, float] = {}
@@ -576,22 +665,35 @@ class World:
                     downhill[coord] = None
 
         # Sort coordinates by descending elevation for accumulation
-        coords_sorted = sorted(flow.keys(), key=lambda c: self._elevation_cache[c], reverse=True)
+        coords_sorted = sorted(
+            flow.keys(),
+            key=lambda c: self._elevation_cache[c],
+            reverse=True,
+        )
+
+        visited: set[Coordinate] = set()
         for c in coords_sorted:
+            if c in visited:
+                continue
             d = downhill[c]
             if d and d in flow:
                 flow[d] += flow[c]
+                visited.add(c)
                 # 20% chance for a tributary branch if flow is high
                 if flow[c] > self.settings.river_branch_threshold * self.settings.rainfall_intensity:
                     neighbor_list = self._neighbors(*c)
-                    second_best = None
+                    second_best: Optional[Coordinate] = None
                     second_elev = self._elevation_cache[c]
                     for n in neighbor_list:
                         if downhill[c] != n and self._elevation_cache.get(n, 1.0) < second_elev:
                             second_elev = self._elevation_cache[n]
                             second_best = n
-                    if second_best and random.Random(hash((c, self.settings.seed, "branch"))).random() < 0.3:
-                        flow[second_best] += flow[c] * 0.3
+                    if second_best:
+                        branch_chance = random.Random(hash((c, self.settings.seed, "branch"))).random()
+                        if branch_chance < 0.3 and second_best not in visited:
+                            flow[second_best] += flow[c] * 0.3
+                            # Mark second_best as visited for this pass to avoid cycles
+                            visited.add(second_best)
 
         # Assign water_flow to hexes
         for coord, f in flow.items():
@@ -678,6 +780,9 @@ class World:
         return 1.5 if self.has_road(start, end) else 1.0
 
 def adjust_settings(settings: WorldSettings, **kwargs) -> None:
+    """
+    Adjust world settings safely by clamping any float values to [0.0, 1.0].
+    """
     for key, val in kwargs.items():
         if val is not None and hasattr(settings, key):
             setattr(settings, key, max(0.0, min(1.0, val)))

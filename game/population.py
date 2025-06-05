@@ -52,6 +52,12 @@ class FactionManager:
         if faction not in self.factions:
             self.factions.append(faction)
 
+    def toggle_assignment(self, faction: Faction, manual: bool, level: str | None = None) -> None:
+        """Switch a faction between manual and automated worker assignment."""
+        if faction not in self.factions:
+            raise ValueError("Faction not managed")
+        faction.toggle_manual_assignment(manual, level)
+
     def assign_workers(self, faction: Faction, number: int) -> int:
         """Assign available citizens as workers."""
         available = faction.workers.available(faction.citizens.count)
