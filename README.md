@@ -68,6 +68,13 @@ python main.py
 This loads `save.json` if it exists, applying any resource gains that would have
 accumulated while the game was not running.
 
+## Worker Assignment Efficiency
+
+Factions can either rely on automated worker assignment or manually place
+workers each tick. Automated assignment gathers resources at reduced efficiency
+(80% of what manual placement would yield). Use the MapView worker dialog or set
+`manual_assignment` on your faction to take full control.
+
 ## Saving Progress
 
 Call `game.save()` from your own scripts to persist the current state to

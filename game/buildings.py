@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
+from . import settings
+from .technology import TechLevel
+
 
 if TYPE_CHECKING:
     from .models import Faction
@@ -58,6 +61,7 @@ class Building:
     victory_points: int = 0
     resource_type: Optional[ResourceType] = None
     level: int = 1
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
     def upgrade_cost(self) -> Dict[ResourceType, int]:
         """Cost required to upgrade this building."""
@@ -78,77 +82,84 @@ class Building:
 class Farm(Building):
     name: str = "Farm"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 100}
+        default_factory=lambda: {ResourceType.WOOD: int(100 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 10
     resource_bonus: int = 5
     resource_type: ResourceType = ResourceType.FOOD
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
 class Mine(Building):
     name: str = "Mine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 150}
+        default_factory=lambda: {ResourceType.WOOD: int(150 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     resource_bonus: int = 10
     resource_type: ResourceType = ResourceType.ORE
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
 class IronMine(Building):
     name: str = "IronMine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 180}
+        default_factory=lambda: {ResourceType.WOOD: int(180 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 18
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.IRON
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
 class GoldMine(Building):
     name: str = "GoldMine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 200}
+        default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     resource_bonus: int = 1
     resource_type: ResourceType = ResourceType.GOLD
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
 class House(Building):
     name: str = "House"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 50}
+        default_factory=lambda: {ResourceType.WOOD: int(50 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 5
     population_bonus: int = 2
     resource_type: Optional[ResourceType] = None
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
 class LumberMill(Building):
     name: str = "LumberMill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 120}
+        default_factory=lambda: {ResourceType.WOOD: int(120 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     resource_bonus: int = 3
     resource_type: ResourceType = ResourceType.WOOD
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
 class Quarry(Building):
     name: str = "Quarry"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 130}
+        default_factory=lambda: {ResourceType.WOOD: int(130 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 14
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.STONE
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -172,24 +183,26 @@ class ProcessingBuilding(Building):
 class Smeltery(ProcessingBuilding):
     name: str = "Smeltery"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 200}
+        default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.ORE
     output_resource: ResourceType = ResourceType.METAL
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
 class TextileMill(ProcessingBuilding):
     name: str = "TextileMill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.CLOTH
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -198,12 +211,13 @@ class Mill(ProcessingBuilding):
 
     name: str = "Mill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 120}
+        default_factory=lambda: {ResourceType.WOOD: int(120 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 10
     input_resource: ResourceType = ResourceType.WHEAT
     output_resource: ResourceType = ResourceType.FLOUR
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -212,12 +226,13 @@ class Bakery(ProcessingBuilding):
 
     name: str = "Bakery"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 150}
+        default_factory=lambda: {ResourceType.WOOD: int(150 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.FLOUR
     output_resource: ResourceType = ResourceType.BREAD
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -226,12 +241,13 @@ class Forge(ProcessingBuilding):
 
     name: str = "Forge"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 220}
+        default_factory=lambda: {ResourceType.WOOD: int(220 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.IRON
     output_resource: ResourceType = ResourceType.WEAPON
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -240,12 +256,13 @@ class Tailor(ProcessingBuilding):
 
     name: str = "Tailor"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOL
     output_resource: ResourceType = ResourceType.CLOTHES
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -254,12 +271,13 @@ class Sawmill(ProcessingBuilding):
 
     name: str = "Sawmill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 140}
+        default_factory=lambda: {ResourceType.WOOD: int(140 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.PLANK
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -268,12 +286,13 @@ class Mason(ProcessingBuilding):
 
     name: str = "Mason"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 14
     input_resource: ResourceType = ResourceType.STONE
     output_resource: ResourceType = ResourceType.STONE_BLOCK
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -282,9 +301,10 @@ class SoupKitchen(ProcessingBuilding):
 
     name: str = "SoupKitchen"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 110}
+        default_factory=lambda: {ResourceType.WOOD: int(110 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 8
     input_resource: ResourceType = ResourceType.VEGETABLE
     output_resource: ResourceType = ResourceType.SOUP
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.PRIMITIVE

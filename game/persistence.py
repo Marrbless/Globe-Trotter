@@ -29,6 +29,10 @@ class GameState:
     factions: Dict[str, Any] = field(default_factory=dict)
     turn: int = 0
     cooldowns: Dict[str, int] = field(default_factory=dict)
+    roads: List[Any] = field(default_factory=list)
+    event_turn_counters: Dict[str, int] = field(default_factory=dict)
+    tech_levels: Dict[str, int] = field(default_factory=dict)
+    god_powers: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -67,12 +71,20 @@ def serialize_world(world: "World") -> Dict[str, Any]:
         "settings": asdict(world.settings),
         "roads": [list(r.start + r.end) for r in getattr(world, "roads", [])],
         "rivers": [list(r.start + r.end) for r in getattr(world, "rivers", [])],
+        "event_turn_counters": getattr(world, "event_turn_counters", {}),
+        "god_powers": getattr(world, "god_powers", {}),
+        "tech_levels": getattr(world, "tech_levels", {}),
         "hexes": {
-            f"{h.coord[0]},{h.coord[1]}": {"flooded": h.flooded, "ruined": h.ruined}
+            f"{h.coord[0]},{h.coord[1]}": {
+                "terrain": h.terrain,
+                "flooded": h.flooded,
+                "ruined": h.ruined,
+                "lake": h.lake,
+                "river": h.river,
+            }
             for chunk in getattr(world, "chunks", {}).values()
             for row in chunk
             for h in row
-            if h.flooded or h.ruined
         },
     }
 
@@ -95,6 +107,18 @@ def deserialize_world(data: Any, world: "World") -> None:
             RiverSegment(tuple(r[:2]), tuple(r[2:])) for r in rivers if isinstance(r, list) and len(r) == 4
         ]
 
+    etc = data.get("event_turn_counters")
+    if isinstance(etc, dict):
+        setattr(world, "event_turn_counters", {k: int(v) for k, v in etc.items()})
+
+    tech_levels = data.get("tech_levels")
+    if isinstance(tech_levels, dict):
+        setattr(world, "tech_levels", {k: int(v) for k, v in tech_levels.items()})
+
+    god_powers = data.get("god_powers")
+    if isinstance(god_powers, dict):
+        setattr(world, "god_powers", god_powers)
+
     hexes = data.get("hexes")
     if isinstance(hexes, dict):
         for key, value in hexes.items():
@@ -104,10 +128,16 @@ def deserialize_world(data: Any, world: "World") -> None:
                 continue
             hex_ = world.get(q, r)
             if hex_ and isinstance(value, dict):
+                if "terrain" in value:
+                    hex_.terrain = value["terrain"]
                 if "flooded" in value:
                     hex_.flooded = bool(value["flooded"])
                 if "ruined" in value:
                     hex_.ruined = bool(value["ruined"])
+                if "lake" in value:
+                    hex_.lake = bool(value["lake"])
+                if "river" in value:
+                    hex_.river = bool(value["river"])
 
 
 def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
@@ -117,8 +147,11 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
         result[fac.name] = {
             "citizens": fac.citizens.count,
             "workers": fac.workers.assigned,
+            "units": fac.units,
             "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
+            "tech_level": getattr(fac, "tech_level", 0),
+            "god_powers": getattr(fac, "god_powers", {}),
         }
     return result
 
@@ -134,8 +167,11 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
         result[name] = {
             "citizens": int(info.get("citizens", 0)),
             "workers": int(info.get("workers", 0)),
+            "units": int(info.get("units", 0)),
             "buildings": info.get("buildings", []),
             "projects": info.get("projects", []),
+            "tech_level": int(info.get("tech_level", 0)),
+            "god_powers": info.get("god_powers", {}),
         }
     return result
 
@@ -230,6 +266,10 @@ def load_state(
             factions=deserialize_factions(data.get("factions", {})),
             turn=int(data.get("turn", 0)),
             cooldowns=cooldowns,
+            roads=data.get("roads", []),
+            event_turn_counters={k: int(v) for k, v in data.get("event_turn_counters", {}).items()},
+            tech_levels={k: int(v) for k, v in data.get("tech_levels", {}).items()},
+            god_powers=data.get("god_powers", {}),
         )
 
         # If a World instance was passed, apply saved world data into it
@@ -244,6 +284,10 @@ def load_state(
             world={},
             factions={},
             turn=0,
+            roads=[],
+            event_turn_counters={},
+            tech_levels={},
+            god_powers={},
         )
 
     population_updates = apply_offline_gains(state, world, factions)
@@ -263,5 +307,9 @@ def save_state(state: GameState) -> None:
             "factions": state.factions,
             "turn": state.turn,
             "cooldowns": {k: int(v) for k, v in state.cooldowns.items()},
+            "roads": state.roads,
+            "event_turn_counters": state.event_turn_counters,
+            "tech_levels": state.tech_levels,
+            "god_powers": state.god_powers,
         }
         json.dump(data, f)

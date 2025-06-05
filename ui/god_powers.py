@@ -43,6 +43,11 @@ class GodPowersUI:
                     self.buttons[power.name],
                     f"{power.name} ({power.cooldown}t cd)"
                 )
+        for power in self.game.available_powers():
+            if power.name not in self.buttons:
+                dpg.push_container_stack(self.container)
+                self.buttons[power.name] = dpg.add_button(label=power.name, callback=self._make_callback(power))
+                dpg.pop_container_stack()
 
     def _make_callback(self, power: GodPower):
         def cb(sender=None, app_data=None):
