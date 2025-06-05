@@ -3,73 +3,20 @@ from __future__ import annotations
 """World generation and management utilities."""
 
 import random
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from typing import Dict, List, Tuple, Optional, Iterable
 
 from .generation import (
-    perlin_noise,
-    terrain_from_elevation,
     determine_biome,
     generate_elevation_map,
     generate_temperature_map,
     generate_rainfall,
     generate_biome_map,
 )
-
-Coordinate = Tuple[int, int]
-
-
-class ResourceType(Enum):
-    """Supported resource types found on hexes."""
-    FOOD = "food"
-    WHEAT = "wheat"
-    FLOUR = "flour"
-    BREAD = "bread"
-    WOOD = "wood"
-    STONE = "stone"
-    ORE = "ore"
-    METAL = "metal"
-    CLOTH = "cloth"
-    WOOL = "wool"
-    CLOTHES = "clothes"
-    PLANK = "plank"
-    STONE_BLOCK = "stone_block"
-    VEGETABLE = "vegetable"
-    SOUP = "soup"
-    GOLD = "gold"
-    IRON = "iron"
-    WEAPON = "weapon"
-    RICE = "rice"
-    CRABS = "crabs"
-    FISH = "fish"
-    CATTLE = "cattle"
-    HORSES = "horses"
-    PIGS = "pigs"
-    CLAY = "clay"
-    CHICKENS = "chickens"
-    PEARLS = "pearls"
-    SPICE = "spice"
-    GEMS = "gems"
-    TEA = "tea"
-    ELEPHANTS = "elephants"
-
-
-# Categorization helpers for resource types
-STRATEGIC_RESOURCES = {
-    ResourceType.IRON,
-    ResourceType.WEAPON,
-    ResourceType.HORSES,
-    ResourceType.ELEPHANTS,
-}
-
-LUXURY_RESOURCES = {
-    ResourceType.GOLD,
-    ResourceType.GEMS,
-    ResourceType.PEARLS,
-    ResourceType.SPICE,
-    ResourceType.TEA,
-}
+from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
+from .resources import generate_resources
+from .hex import Hex, Coordinate
+from .settings import WorldSettings
 
 
 @dataclass(frozen=True)
@@ -81,197 +28,13 @@ class Road:
 @dataclass(frozen=True)
 class RiverSegment:
     """A start/end pair describing a single river edge."""
+
     start: Coordinate
     end: Coordinate
-
-
-@dataclass
-class WorldSettings:
-    """Configuration values for world generation."""
-
-    seed: int = 0
-    width: int = 50
-    height: int = 50
-    biome_distribution: Dict[str, float] = field(
-        default_factory=lambda: {
-            "plains": 0.3,
-            "forest": 0.25,
-            "hills": 0.2,
-            "desert": 0.15,
-            "mountains": 0.05,
-            "water": 0.05,
-        }
-    )
-    weather_patterns: Dict[str, float] = field(
-        default_factory=lambda: {"rain": 0.3, "dry": 0.5, "snow": 0.2}
-    )
-    moisture: float = 0.5
-    elevation: float = 0.5
-    temperature: float = 0.5
-    rainfall_intensity: float = 0.5
-    disaster_intensity: float = 0.0
-    sea_level: float = 0.3
-    plate_activity: float = 0.5
-    base_height: float = 0.5
-    world_changes: bool = True
-
-
-@dataclass
-class Hex:
-    """Represents a single hex tile in the world."""
-
-    coord: Coordinate
-    terrain: str = "plains"
-    elevation: float = 0.0
-    moisture: float = 0.0
-    temperature: float = 0.0
-    resources: Dict[ResourceType, int] = field(default_factory=dict)
-    flooded: bool = False
-    ruined: bool = False
-    river: bool = False
-    lake: bool = False
-
-    def __getitem__(self, key: str):
-        return getattr(self, key)
-
-    def __setitem__(self, key: str, value) -> None:
-        setattr(self, key, value)
-
 
 def initialize_random(settings: WorldSettings) -> random.Random:
     """Create a random generator based on the provided seed."""
     return random.Random(settings.seed)
-
-
-def generate_terrain_type(rng: random.Random, settings: WorldSettings) -> str:
-    """Choose a biome based on distribution weights."""
-    biomes = list(settings.biome_distribution.keys())
-    weights = list(settings.biome_distribution.values())
-    return rng.choices(biomes, weights=weights, k=1)[0]
-
-
-def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, int]:
-    """Generate resources for a hex based on its terrain."""
-    resources: Dict[ResourceType, int] = {}
-
-    if terrain == "forest":
-        resources[ResourceType.WOOD] = rng.randint(5, 15)
-        if rng.random() < 0.3:
-            resources[ResourceType.STONE] = rng.randint(1, 4)
-        if rng.random() < 0.1:
-            resources[ResourceType.WOOL] = rng.randint(1, 3)
-        if rng.random() < 0.2:
-            resources[ResourceType.PIGS] = rng.randint(1, 3)
-        if rng.random() < 0.15:
-            resources[ResourceType.CHICKENS] = rng.randint(1, 3)
-        if rng.random() < 0.1:
-            resources[ResourceType.CLAY] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.SPICE] = rng.randint(1, 1)
-        if rng.random() < 0.05:
-            resources[ResourceType.TEA] = rng.randint(1, 1)
-    elif terrain == "mountains":
-        resources[ResourceType.STONE] = rng.randint(5, 15)
-        if rng.random() < 0.7:
-            resources[ResourceType.ORE] = rng.randint(1, 5)
-        if rng.random() < 0.4:
-            resources[ResourceType.IRON] = rng.randint(1, 3)
-        if rng.random() < 0.2:
-            resources[ResourceType.GOLD] = rng.randint(1, 2)
-        if rng.random() < 0.2:
-            resources[ResourceType.GEMS] = rng.randint(1, 2)
-        if rng.random() < 0.1:
-            resources[ResourceType.CLAY] = rng.randint(1, 2)
-    elif terrain == "hills":
-        if rng.random() < 0.5:
-            resources[ResourceType.WOOD] = rng.randint(1, 5)
-        if rng.random() < 0.6:
-            resources[ResourceType.STONE] = rng.randint(1, 4)
-        if rng.random() < 0.4:
-            resources[ResourceType.ORE] = rng.randint(1, 3)
-        if rng.random() < 0.2:
-            resources[ResourceType.IRON] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.GOLD] = rng.randint(1, 1)
-        if rng.random() < 0.1:
-            resources[ResourceType.CLAY] = rng.randint(1, 3)
-        if rng.random() < 0.05:
-            resources[ResourceType.HORSES] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.GEMS] = rng.randint(1, 1)
-    elif terrain == "plains":
-        if rng.random() < 0.5:
-            resources[ResourceType.WOOD] = rng.randint(1, 5)
-        if rng.random() < 0.4:
-            resources[ResourceType.STONE] = rng.randint(1, 4)
-        if rng.random() < 0.3:
-            resources[ResourceType.WHEAT] = rng.randint(1, 4)
-        if rng.random() < 0.2:
-            resources[ResourceType.WOOL] = rng.randint(1, 2)
-        if rng.random() < 0.4:
-            resources[ResourceType.RICE] = rng.randint(1, 3)
-        if rng.random() < 0.25:
-            resources[ResourceType.CATTLE] = rng.randint(1, 3)
-        if rng.random() < 0.15:
-            resources[ResourceType.HORSES] = rng.randint(1, 2)
-        if rng.random() < 0.2:
-            resources[ResourceType.PIGS] = rng.randint(1, 2)
-        if rng.random() < 0.25:
-            resources[ResourceType.CHICKENS] = rng.randint(1, 3)
-        if rng.random() < 0.1:
-            resources[ResourceType.CLAY] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.ELEPHANTS] = rng.randint(1, 1)
-    elif terrain == "desert":
-        if rng.random() < 0.2:
-            resources[ResourceType.STONE] = rng.randint(1, 3)
-        if rng.random() < 0.1:
-            resources[ResourceType.ORE] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.GOLD] = rng.randint(1, 1)
-        if rng.random() < 0.1:
-            resources[ResourceType.SPICE] = rng.randint(1, 2)
-        if rng.random() < 0.05:
-            resources[ResourceType.CLAY] = rng.randint(1, 2)
-    elif terrain == "tundra":
-        if rng.random() < 0.3:
-            resources[ResourceType.STONE] = rng.randint(1, 4)
-        if rng.random() < 0.2:
-            resources[ResourceType.WOOD] = rng.randint(1, 3)
-        if rng.random() < 0.25:
-            resources[ResourceType.WOOL] = rng.randint(1, 3)
-        if rng.random() < 0.05:
-            resources[ResourceType.CATTLE] = rng.randint(1, 2)
-    elif terrain == "rainforest":
-        resources[ResourceType.WOOD] = rng.randint(8, 20)
-        if rng.random() < 0.3:
-            resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
-        if rng.random() < 0.15:
-            resources[ResourceType.WHEAT] = rng.randint(1, 2)
-        if rng.random() < 0.1:
-            resources[ResourceType.WOOL] = rng.randint(1, 2)
-        if rng.random() < 0.25:
-            resources[ResourceType.SPICE] = rng.randint(1, 2)
-        if rng.random() < 0.2:
-            resources[ResourceType.TEA] = rng.randint(1, 2)
-        if rng.random() < 0.1:
-            resources[ResourceType.ELEPHANTS] = rng.randint(1, 1)
-        if rng.random() < 0.15:
-            resources[ResourceType.PIGS] = rng.randint(1, 2)
-        if rng.random() < 0.1:
-            resources[ResourceType.CHICKENS] = rng.randint(1, 2)
-        if rng.random() < 0.1:
-            resources[ResourceType.CLAY] = rng.randint(1, 2)
-    elif terrain == "water":
-        if rng.random() < 0.5:
-            resources[ResourceType.FISH] = rng.randint(1, 5)
-        if rng.random() < 0.3:
-            resources[ResourceType.CRABS] = rng.randint(1, 3)
-        if rng.random() < 0.05:
-            resources[ResourceType.PEARLS] = rng.randint(1, 1)
-
-    return resources
-
 
 class World:
     """Collection of hexes with optional road network."""
@@ -332,7 +95,15 @@ class World:
         elevation = self.elevation_map[r][q]
         temperature = self.temperature_map[r][q]
         moisture = self.rainfall_map[r][q]
-        terrain = determine_biome(elevation, temperature, moisture)
+        terrain = determine_biome(
+            elevation,
+            temperature,
+            moisture,
+            mountain_elev=self.settings.mountain_elev,
+            hill_elev=self.settings.hill_elev,
+            tundra_temp=self.settings.tundra_temp,
+            desert_rain=self.settings.desert_rain,
+        )
         resources = generate_resources(rng, terrain)
 
         return Hex(
@@ -404,13 +175,25 @@ class World:
             while current and current not in visited:
                 visited.add(current)
                 nxt = self._downhill_neighbor(*current)
-                if (
-                    not nxt
-                    or nxt == current
-                    or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height)
-                ):
-                    self.lakes.append(current)
-                    self.get(*current).lake = True
+                if not nxt or nxt == current:
+                    cur_hex = self.get(*current)
+                    if cur_hex is None:
+                        break
+                    # merge into nearby water or lakes if possible
+                    merged = False
+                    for n in self._neighbors(*current):
+                        nh = self.get(*n)
+                        if nh and (nh.lake or nh.elevation <= self.settings.sea_level):
+                            self.rivers.append(RiverSegment(current, n))
+                            cur_hex.river = True
+                            merged = True
+                            # create delta when entering the sea
+                            if nh.elevation <= self.settings.sea_level:
+                                nh.river = True
+                            break
+                    if not merged:
+                        self.lakes.append(current)
+                        cur_hex.lake = True
                     break
                 self.rivers.append(RiverSegment(current, nxt))
                 self.get(*current).river = True
@@ -429,7 +212,17 @@ class World:
             return None
         return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
 
-    def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
+    def all_hexes(self) -> Iterable[Hex]:
+        """Iterate over every generated hex in the world."""
+        for r in range(self.settings.height):
+            for q in range(self.settings.width):
+                h = self.get(q, r)
+                if h:
+                    yield h
+
+    def resources_near(
+        self, x: int, y: int, radius: int = 1
+    ) -> Dict[ResourceType, int]:
         """Sum up resources of all hexes within a given radius."""
         totals: Dict[ResourceType, int] = {r: 0 for r in ResourceType}
         for dy in range(-radius, radius + 1):
