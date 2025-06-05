@@ -41,6 +41,11 @@ class ResourceType(Enum):
     GEMS = "gems"
     TEA = "tea"
     ELEPHANTS = "elephants"
+    COAL = "coal"
+    COPPER = "copper"
+    SILVER = "silver"
+    SALT = "salt"
+    COFFEE = "coffee"
 
 
 STRATEGIC_RESOURCES: Set[ResourceType] = {
@@ -48,6 +53,7 @@ STRATEGIC_RESOURCES: Set[ResourceType] = {
     ResourceType.WEAPON,
     ResourceType.HORSES,
     ResourceType.ELEPHANTS,
+    ResourceType.COAL,
 }
 
 LUXURY_RESOURCES: Set[ResourceType] = {
@@ -56,6 +62,9 @@ LUXURY_RESOURCES: Set[ResourceType] = {
     ResourceType.PEARLS,
     ResourceType.SPICE,
     ResourceType.TEA,
+    ResourceType.SILVER,
+    ResourceType.SALT,
+    ResourceType.COFFEE,
 }
 
 __all__ = [
