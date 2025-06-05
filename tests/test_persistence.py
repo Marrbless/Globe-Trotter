@@ -153,7 +153,7 @@ def test_offline_project_completion(tmp_path, monkeypatch):
 
     template = GREAT_PROJECT_TEMPLATES["Grand Cathedral"]
     project = deepcopy(template)
-    faction.start_project(project)
+    faction.start_project(project, claimed_projects=game.claimed_projects)
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
     game.save()
