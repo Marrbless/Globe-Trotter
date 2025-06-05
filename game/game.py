@@ -154,6 +154,41 @@ class Faction:
             self.resources[res_type] -= amt
         building.upgrade()
 
+    # ------------------------------------------------------------------
+    # Diplomacy and resource utilities
+    # ------------------------------------------------------------------
+    def transfer_resources(self, other: "Faction", resources: Dict[ResourceType, int]) -> None:
+        """Send resources to ``other`` faction if available."""
+        for res, amt in resources.items():
+            if self.resources.get(res, 0) >= amt:
+                self.resources[res] -= amt
+                other.resources[res] = other.resources.get(res, 0) + amt
+
+    def form_trade_deal(
+        self,
+        other: "Faction",
+        game: "Game",
+        resources_to_other: Dict[ResourceType, int] | None = None,
+        resources_from_other: Dict[ResourceType, int] | None = None,
+        duration: int = 0,
+    ) -> TradeDeal:
+        """Create a trade deal with ``other`` via ``game``."""
+        return game.form_trade_deal(
+            self,
+            other,
+            resources_to_other or {},
+            resources_from_other or {},
+            duration,
+        )
+
+    def declare_war(self, other: "Faction", game: "Game") -> None:
+        """Declare war on another faction via ``game``."""
+        game.declare_war(self, other)
+
+    def agree_truce(self, other: "Faction", game: "Game", duration: int) -> None:
+        """Form a truce with ``other`` via ``game``."""
+        game.form_truce(self, other, duration)
+
 
 class Map:
     def __init__(self, width: int, height: int):
@@ -488,15 +523,11 @@ class Game:
     @staticmethod
     def _execute_trade(deal: TradeDeal) -> None:
         # transfer from A to B
-        for res, amt in deal.resources_a_to_b.items():
-            if deal.faction_a.resources.get(res, 0) >= amt:
-                deal.faction_a.resources[res] -= amt
-                deal.faction_b.resources[res] = deal.faction_b.resources.get(res, 0) + amt
+        if deal.resources_a_to_b:
+            deal.faction_a.transfer_resources(deal.faction_b, deal.resources_a_to_b)
         # transfer from B to A
-        for res, amt in deal.resources_b_to_a.items():
-            if deal.faction_b.resources.get(res, 0) >= amt:
-                deal.faction_b.resources[res] -= amt
-                deal.faction_a.resources[res] = deal.faction_a.resources.get(res, 0) + amt
+        if deal.resources_b_to_a:
+            deal.faction_b.transfer_resources(deal.faction_a, deal.resources_b_to_a)
 
 
 def main():
