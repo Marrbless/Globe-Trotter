@@ -257,6 +257,8 @@ class Game:
 
         # Apply offline gains now that the world and factions exist
         self.state, updated_pops = load_state(world=self.world, factions=self.map.factions)
+
+        # Replace resource manager with data from the loaded state
         self.resources = ResourceManager(self.world, self.state.resources)
         self.claimed_projects = set(self.state.claimed_projects)
 
