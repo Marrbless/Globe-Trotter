@@ -314,6 +314,23 @@ def _determine_biome_tile(
     return base_biome
 
 
+def determine_biome(
+    elevation: float,
+    temperature: float,
+    rainfall: float,
+    settings: WorldSettings | None = None,
+) -> str:
+    """Public helper to classify a single tile's biome."""
+    rng = random.Random(0xBEEF)
+    return _determine_biome_tile(
+        elevation=elevation,
+        temperature=temperature,
+        rainfall=rainfall,
+        settings=settings or WorldSettings(),
+        tile_rng=rng,
+    )
+
+
 def _smooth_biome_map(
     biomes: list[list[str]],
     width: int,
@@ -1274,4 +1291,5 @@ __all__ = [
     "register_biome_rule",
     "InvalidCoordinateError",
     "adjust_settings",
+    "determine_biome",
 ]
