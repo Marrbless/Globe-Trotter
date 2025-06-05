@@ -1,7 +1,7 @@
 import random
 import game.persistence as persistence
-from game.events import EventSystem, SettlementState, Earthquake, Hurricane
-from world.world import WorldSettings, World
+from game.events import EventSystem, SettlementState, Earthquake, Hurricane, Flood
+from world.world import WorldSettings, World, RiverSegment
 
 
 def test_event_frequency_scales_with_intensity():
@@ -46,3 +46,81 @@ def test_terrain_change_persists(tmp_path, monkeypatch):
     new_world = World(width=settings.width, height=settings.height, settings=settings)
     persistence.load_state(world=new_world)
     assert new_world.get(*coord).terrain == "water"
+
+
+def test_flood_respects_world_changes(monkeypatch):
+    coord = (1, 1)
+    on = WorldSettings(seed=3, width=3, height=3, world_changes=True)
+    off = WorldSettings(seed=3, width=3, height=3, world_changes=False)
+    world_on = World(width=on.width, height=on.height, settings=on)
+    world_off = World(width=off.width, height=off.height, settings=off)
+
+    for world in (world_on, world_off):
+        h = world.get(*coord)
+        h.terrain = "hills"
+        h.river = True
+        world.rivers.append(RiverSegment(coord, (1, 2)))
+
+    event_on = Flood()
+    event_off = Flood()
+    monkeypatch.setattr(event_on, "severity", lambda *_: 1.4)
+    monkeypatch.setattr(event_off, "severity", lambda *_: 1.4)
+    state_on = SettlementState(location=coord)
+    state_off = SettlementState(location=coord)
+    event_on.apply(state_on, world_on)
+    event_off.apply(state_off, world_off)
+
+    h_on = world_on.get(*coord)
+    h_off = world_off.get(*coord)
+    assert h_on.lake and not h_on.river
+    assert not h_off.lake and h_off.river
+
+
+def test_earthquake_respects_world_changes(monkeypatch):
+    coord = (1, 1)
+    on = WorldSettings(seed=4, width=3, height=3, world_changes=True)
+    off = WorldSettings(seed=4, width=3, height=3, world_changes=False)
+    world_on = World(width=on.width, height=on.height, settings=on)
+    world_off = World(width=off.width, height=off.height, settings=off)
+
+    world_on.get(*coord).terrain = "hills"
+    world_off.get(*coord).terrain = "hills"
+
+    event_on = Earthquake()
+    event_off = Earthquake()
+    monkeypatch.setattr(event_on, "severity", lambda *_: 1.4)
+    monkeypatch.setattr(event_off, "severity", lambda *_: 1.4)
+    state_on = SettlementState(location=coord)
+    state_off = SettlementState(location=coord)
+    event_on.apply(state_on, world_on)
+    event_off.apply(state_off, world_off)
+
+    assert world_on.get(*coord).terrain == "mountains"
+    assert world_off.get(*coord).terrain == "hills"
+
+
+def test_hurricane_respects_world_changes(monkeypatch):
+    coord = (1, 1)
+    on = WorldSettings(seed=5, width=3, height=3, world_changes=True)
+    off = WorldSettings(seed=5, width=3, height=3, world_changes=False)
+    world_on = World(width=on.width, height=on.height, settings=on)
+    world_off = World(width=off.width, height=off.height, settings=off)
+
+    for world in (world_on, world_off):
+        h = world.get(*coord)
+        h.river = True
+        world.rivers.append(RiverSegment(coord, (1, 2)))
+
+    event_on = Hurricane()
+    event_off = Hurricane()
+    monkeypatch.setattr(event_on, "severity", lambda *_: 1.4)
+    monkeypatch.setattr(event_off, "severity", lambda *_: 1.4)
+    state_on = SettlementState(location=coord)
+    state_off = SettlementState(location=coord)
+    event_on.apply(state_on, world_on)
+    event_off.apply(state_off, world_off)
+
+    h_on = world_on.get(*coord)
+    h_off = world_off.get(*coord)
+    assert h_on.lake and not h_on.river
+    assert not h_off.lake and h_off.river

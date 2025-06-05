@@ -148,6 +148,7 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
             "citizens": fac.citizens.count,
             "workers": fac.workers.assigned,
             "units": fac.units,
+            "resources": {k.value: v for k, v in fac.resources.items()},
             "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
             "settlement": {
@@ -176,6 +177,7 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
             "citizens": int(info.get("citizens", 0)),
             "workers": int(info.get("workers", 0)),
             "units": int(info.get("units", 0)),
+            "resources": {ResourceType(k): int(v) for k, v in info.get("resources", {}).items()} if isinstance(info.get("resources"), dict) else {},
             "buildings": info.get("buildings", []),
             "projects": info.get("projects", []),
             "tech_level": int(info.get("tech_level", 0)),
@@ -223,6 +225,11 @@ def apply_offline_gains(
     if elapsed > 0:
         res_mgr = ResourceManager(world, state.resources)
         pop_mgr = FactionManager(factions)
+        for fac in factions:
+            saved = state.resources.get(fac.name)
+            if saved:
+                fac.resources = saved.copy()
+                res_mgr.data[fac.name] = saved.copy()
         for _ in range(elapsed):
             simulate_tick(factions, pop_mgr, res_mgr, state.cooldowns)
             for fac in factions:
