@@ -1,5 +1,6 @@
 import os
 import sys
+import pytest
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -12,6 +13,7 @@ from game.buildings import (
     Bakery,
     Forge,
 )
+from game.technology import TechLevel
 
 
 def make_world():
@@ -112,3 +114,15 @@ def test_build_structure_deducts_resources():
     faction.build_structure(farm)
     assert faction.resources[ResourceType.WOOD] == starting - cost
     assert farm in faction.buildings
+
+
+def test_building_requires_tech_level():
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    faction.tech_level = TechLevel.PRIMITIVE
+    faction.resources[ResourceType.WOOD] = 500
+    forge = Forge()
+    with pytest.raises(ValueError):
+        faction.build_structure(forge)

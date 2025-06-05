@@ -67,11 +67,16 @@ def serialize_world(world: "World") -> Dict[str, Any]:
         "roads": [list(r.start + r.end) for r in getattr(world, "roads", [])],
         "rivers": [list(r.start + r.end) for r in getattr(world, "rivers", [])],
         "hexes": {
-            f"{h.coord[0]},{h.coord[1]}": {"flooded": h.flooded, "ruined": h.ruined}
+            f"{h.coord[0]},{h.coord[1]}": {
+                "terrain": h.terrain,
+                "flooded": h.flooded,
+                "ruined": h.ruined,
+                "lake": h.lake,
+                "river": h.river,
+            }
             for chunk in getattr(world, "chunks", {}).values()
             for row in chunk
             for h in row
-            if h.flooded or h.ruined
         },
     }
 
@@ -103,10 +108,16 @@ def deserialize_world(data: Any, world: "World") -> None:
                 continue
             hex_ = world.get(q, r)
             if hex_ and isinstance(value, dict):
+                if "terrain" in value:
+                    hex_.terrain = value["terrain"]
                 if "flooded" in value:
                     hex_.flooded = bool(value["flooded"])
                 if "ruined" in value:
                     hex_.ruined = bool(value["ruined"])
+                if "lake" in value:
+                    hex_.lake = bool(value["lake"])
+                if "river" in value:
+                    hex_.river = bool(value["river"])
 
 
 def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:

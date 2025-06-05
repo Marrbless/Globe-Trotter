@@ -88,7 +88,7 @@ def test_resource_manager_updates_once(monkeypatch):
     before = game.resources.data[player][ResourceType.ORE]
     game.tick()
     after = game.resources.data[player][ResourceType.ORE]
-    assert after - before == 6
+    assert after - before == 5
 
 
 def test_auto_assignment_gathers_resources(monkeypatch):
@@ -112,7 +112,38 @@ def test_auto_assignment_gathers_resources(monkeypatch):
     game.tick()
     after = game.resources.data[player][ResourceType.WOOD]
     assert game.player_faction.workers.assigned == game.player_faction.citizens.count
-    assert after - before == 6
+    assert after - before == 5
+
+
+def test_manual_assignment_yields_more_over_time(monkeypatch):
+    world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {ResourceType.WOOD: 1}
+
+    monkeypatch.setattr("random.randint", lambda a, b: 0)
+
+    manual_game = Game(world=world)
+    manual_game.place_initial_settlement(1, 1)
+    manual_game.player_faction.manual_assignment = True
+    manual_game.player_faction.workers.assigned = manual_game.player_faction.citizens.count
+
+    auto_game = Game(world=world)
+    auto_game.place_initial_settlement(1, 1)
+
+    manual_before = manual_game.player_faction.resources[ResourceType.WOOD]
+    auto_before = auto_game.player_faction.resources[ResourceType.WOOD]
+
+    for _ in range(3):
+        manual_game.tick()
+        auto_game.tick()
+
+    manual_after = manual_game.player_faction.resources[ResourceType.WOOD]
+    auto_after = auto_game.player_faction.resources[ResourceType.WOOD]
+
+    assert (manual_after - manual_before) > (auto_after - auto_before)
 
 
 def test_richer_tiles_yield_more_resources(monkeypatch):
@@ -136,7 +167,8 @@ def test_richer_tiles_yield_more_resources(monkeypatch):
     before = game.resources.data[player][ResourceType.ORE]
     game.tick()
     after = game.resources.data[player][ResourceType.ORE]
-    assert after - before == sum(amounts)
+    expected = int(round(sum(amounts) * 0.8))
+    assert after - before == expected
 
 
 def test_resource_manager_tick_updates_faction_store():
