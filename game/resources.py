@@ -61,6 +61,9 @@ class ResourceManager:
             )
             # Limit gathered amount by remaining workers plus any building bonus
             gathered = int(min(amount, workers_remaining + bonus) * settings.SCALE_FACTOR)
+            gathered = min(amount, workers_remaining + bonus)
+            efficiency = getattr(faction, "worker_efficiency", 1.0)
+            gathered = int(round(gathered * efficiency))
             if res_type not in resources:
                 resources[res_type] = 0
             resources[res_type] += gathered
