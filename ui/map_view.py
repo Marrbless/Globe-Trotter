@@ -1,7 +1,7 @@
 import math
 import time
 import dearpygui.dearpygui as dpg
-from world.generation import BIOME_COLORS
+from world.world import BIOME_COLORS
 from game import settings
 
 HEX_SIZE = 30
