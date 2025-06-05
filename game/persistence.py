@@ -165,8 +165,11 @@ def load_state(
         for _ in range(elapsed):
             pop_mgr.tick()
             res_mgr.tick(factions)
+            for fac in factions:
+                fac.progress_projects()
         state.resources = res_mgr.data
         state.population = sum(f.citizens.count for f in factions)
+        state.factions = serialize_factions(factions)
 
     state.timestamp = now
     return state
