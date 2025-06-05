@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""World generation and management utilities."""
+
 import random
 from dataclasses import dataclass, field
 from enum import Enum
@@ -17,6 +19,7 @@ Coordinate = Tuple[int, int]
 
 
 class ResourceType(Enum):
+    """Supported resource types found on hexes."""
     FOOD = "food"
     WHEAT = "wheat"
     FLOUR = "flour"
@@ -83,7 +86,9 @@ class WorldSettings:
     seed: int = 0
     width: int = 50
     height: int = 50
-    weather_patterns: Dict[str, float] = field(default_factory=lambda: {"rain": 0.3, "dry": 0.5, "snow": 0.2})
+    weather_patterns: Dict[str, float] = field(
+        default_factory=lambda: {"rain": 0.3, "dry": 0.5, "snow": 0.2}
+    )
     moisture: float = 0.5
     elevation: float = 0.5
     temperature: float = 0.5
@@ -93,10 +98,8 @@ class WorldSettings:
     plate_activity: float = 0.5
     base_height: float = 0.5
     world_changes: bool = True
-    mountain_elev: float = 0.8
-    hill_elev: float = 0.6
-    tundra_temp: float = 0.25
-    desert_rain: float = 0.2
+    noise_scale: float = 0.1
+    noise_octaves: int = 4
 
 
 @dataclass
@@ -123,28 +126,101 @@ def initialize_random(settings: WorldSettings) -> random.Random:
     return random.Random(settings.seed)
 
 
-RESOURCE_RULES = {
-    # unchanged; truncated for brevity...
+# --- Resource generation rules by terrain ---
+RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
     "forest": [
         (ResourceType.WOOD, 5, 15, 1.0),
-        # ... etc ...
-    ]
-    # ... rest of the terrains ...
+        (ResourceType.STONE, 1, 4, 0.3),
+        (ResourceType.WOOL, 1, 3, 0.1),
+        (ResourceType.PIGS, 1, 3, 0.2),
+        (ResourceType.CHICKENS, 1, 3, 0.15),
+        (ResourceType.CLAY, 1, 2, 0.1),
+        (ResourceType.SPICE, 1, 1, 0.05),
+        (ResourceType.TEA, 1, 1, 0.05),
+    ],
+    "mountains": [
+        (ResourceType.STONE, 5, 15, 1.0),
+        (ResourceType.ORE, 1, 5, 0.7),
+        (ResourceType.IRON, 1, 3, 0.4),
+        (ResourceType.GOLD, 1, 2, 0.2),
+        (ResourceType.GEMS, 1, 2, 0.2),
+        (ResourceType.CLAY, 1, 2, 0.1),
+    ],
+    "hills": [
+        (ResourceType.WOOD, 1, 5, 0.5),
+        (ResourceType.STONE, 1, 4, 0.6),
+        (ResourceType.ORE, 1, 3, 0.4),
+        (ResourceType.IRON, 1, 2, 0.2),
+        (ResourceType.GOLD, 1, 1, 0.05),
+        (ResourceType.CLAY, 1, 3, 0.1),
+        (ResourceType.HORSES, 1, 2, 0.05),
+        (ResourceType.GEMS, 1, 1, 0.05),
+    ],
+    "plains": [
+        (ResourceType.WOOD, 1, 5, 0.5),
+        (ResourceType.STONE, 1, 4, 0.4),
+        (ResourceType.WHEAT, 1, 4, 0.3),
+        (ResourceType.WOOL, 1, 2, 0.2),
+        (ResourceType.RICE, 1, 3, 0.4),
+        (ResourceType.CATTLE, 1, 3, 0.25),
+        (ResourceType.HORSES, 1, 2, 0.15),
+        (ResourceType.PIGS, 1, 2, 0.2),
+        (ResourceType.CHICKENS, 1, 3, 0.25),
+        (ResourceType.CLAY, 1, 2, 0.1),
+        (ResourceType.ELEPHANTS, 1, 1, 0.05),
+    ],
+    "desert": [
+        (ResourceType.STONE, 1, 3, 0.2),
+        (ResourceType.ORE, 1, 2, 0.1),
+        (ResourceType.GOLD, 1, 1, 0.05),
+        (ResourceType.SPICE, 1, 2, 0.1),
+        (ResourceType.CLAY, 1, 2, 0.05),
+    ],
+    "tundra": [
+        (ResourceType.STONE, 1, 4, 0.3),
+        (ResourceType.WOOD, 1, 3, 0.2),
+        (ResourceType.WOOL, 1, 3, 0.25),
+        (ResourceType.CATTLE, 1, 2, 0.05),
+    ],
+    "rainforest": [
+        (ResourceType.WOOD, 8, 20, 1.0),
+        (ResourceType.VEGETABLE, 1, 3, 0.3),
+        (ResourceType.WHEAT, 1, 2, 0.15),
+        (ResourceType.WOOL, 1, 2, 0.1),
+        (ResourceType.SPICE, 1, 2, 0.25),
+        (ResourceType.TEA, 1, 2, 0.2),
+        (ResourceType.ELEPHANTS, 1, 1, 0.1),
+        (ResourceType.PIGS, 1, 2, 0.15),
+        (ResourceType.CHICKENS, 1, 2, 0.1),
+        (ResourceType.CLAY, 1, 2, 0.1),
+    ],
+    "water": [
+        (ResourceType.FISH, 1, 5, 0.5),
+        (ResourceType.CRABS, 1, 3, 0.3),
+        (ResourceType.PEARLS, 1, 1, 0.05),
+    ],
 }
 
 
 def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, int]:
-    result = {}
-    for rtype, lo, hi, p in RESOURCE_RULES.get(terrain, []):
-        if rng.random() < p:
-            result[rtype] = rng.randint(lo, hi)
-    return result
+    return {
+        r: rng.randint(lo, hi)
+        for r, lo, hi, p in RESOURCE_RULES.get(terrain, [])
+        if rng.random() < p
+    }
 
 
 class World:
     CHUNK_SIZE = 10
 
-    def __init__(self, width: int = 50, height: int = 50, *, seed: int = 0, settings: Optional[WorldSettings] = None) -> None:
+    def __init__(
+        self,
+        width: int = 50,
+        height: int = 50,
+        *,
+        seed: int = 0,
+        settings: Optional[WorldSettings] = None,
+    ) -> None:
         self.settings = settings or WorldSettings(seed=seed, width=width, height=height)
         self.chunks: Dict[Tuple[int, int], List[List[Hex]]] = {}
         self.roads: List[Road] = []
@@ -158,39 +234,6 @@ class World:
 
         self._generate_rivers()
 
-    def _generate_hex(self, q: int, r: int) -> Hex:
-        elev = self.elevation_map[r][q]
-        temp = self.temperature_map[r][q]
-        moist = self.rainfall_map[r][q]
-        terrain = determine_biome(
-            elev, temp, moist,
-            mountain_elev=self.settings.mountain_elev,
-            hill_elev=self.settings.hill_elev,
-            tundra_temp=self.settings.tundra_temp,
-            desert_rain=self.settings.desert_rain,
-        )
-        rng = random.Random(q * 73856093 ^ r * 19349663 ^ self.settings.seed)
-        resources = generate_resources(rng, terrain)
-        return Hex(coord=(q, r), terrain=terrain, elevation=elev, temperature=temp, moisture=moist, resources=resources)
-
-    def _generate_chunk(self, cx: int, cy: int) -> None:
-        base_q, base_r = cx * self.CHUNK_SIZE, cy * self.CHUNK_SIZE
-        chunk = [
-            [self._generate_hex(base_q + q_off, base_r + r_off)
-             for q_off in range(min(self.CHUNK_SIZE, self.width - base_q))]
-            for r_off in range(min(self.CHUNK_SIZE, self.height - base_r))
-        ]
-        self.chunks[(cx, cy)] = chunk
-
-    def get(self, q: int, r: int) -> Optional[Hex]:
-        if not (0 <= q < self.width and 0 <= r < self.height):
-            return None
-        cx, cy = q // self.CHUNK_SIZE, r // self.CHUNK_SIZE
-        if (cx, cy) not in self.chunks:
-            self._generate_chunk(cx, cy)
-        chunk = self.chunks[(cx, cy)]
-        return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
-
     @property
     def width(self) -> int:
         return self.settings.width
@@ -199,22 +242,66 @@ class World:
     def height(self) -> int:
         return self.settings.height
 
+    def _generate_hex(self, q: int, r: int) -> Hex:
+        elev = self.elevation_map[r][q]
+        temp = self.temperature_map[r][q]
+        moist = self.rainfall_map[r][q]
+        terrain = determine_biome(elev, temp, moist)
+        rng = random.Random(hash((q, r, self.settings.seed)))
+        resources = generate_resources(rng, terrain)
+
+        return Hex(
+            coord=(q, r),
+            terrain=terrain,
+            elevation=elev,
+            temperature=temp,
+            moisture=moist,
+            resources=resources,
+        )
+
+    def _generate_chunk(self, cx: int, cy: int) -> None:
+        chunk = []
+        base_q, base_r = cx * self.CHUNK_SIZE, cy * self.CHUNK_SIZE
+        for r_off in range(min(self.CHUNK_SIZE, self.height - base_r)):
+            row = []
+            for q_off in range(min(self.CHUNK_SIZE, self.width - base_q)):
+                q, r = base_q + q_off, base_r + r_off
+                row.append(self._generate_hex(q, r))
+            chunk.append(row)
+        self.chunks[(cx, cy)] = chunk
+
+    def get(self, q: int, r: int) -> Optional[Hex]:
+        if not (0 <= q < self.width and 0 <= r < self.height):
+            return None
+        cx, cy = q // self.CHUNK_SIZE, r // self.CHUNK_SIZE
+        if (cx, cy) not in self.chunks:
+            self._generate_chunk(cx, cy)
+        chunk = self.chunks.get((cx, cy))
+        row_idx, col_idx = r % self.CHUNK_SIZE, q % self.CHUNK_SIZE
+        if not chunk or row_idx >= len(chunk) or col_idx >= len(chunk[row_idx]):
+            return None
+        return chunk[row_idx][col_idx]
+
     def _neighbors(self, q: int, r: int) -> List[Coordinate]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
         return [(q + dq, r + dr) for dq, dr in directions if 0 <= q + dq < self.width and 0 <= r + dr < self.height]
 
     def _downhill_neighbor(self, q: int, r: int) -> Optional[Coordinate]:
-        h = self.get(q, r)
-        if not h: return None
-        return min(
-            ((nq, nr) for nq, nr in self._neighbors(q, r)),
-            key=lambda c: self.get(*c).elevation if self.get(*c) else float("inf"),
-            default=None
-        )
+        current = self.get(q, r)
+        if not current:
+            return None
+        best = None
+        best_elev = current.elevation
+        for nq, nr in self._neighbors(q, r):
+            neighbor = self.get(nq, nr)
+            if neighbor and neighbor.elevation < best_elev:
+                best_elev = neighbor.elevation
+                best = (nq, nr)
+        return best
 
     def _generate_rivers(self) -> None:
         seeds = max(1, int(self.settings.rainfall_intensity * 5))
-        avg_elev = sum(map(sum, self.elevation_map)) / (self.width * self.height)
+        avg_elev = sum(sum(row) for row in self.elevation_map) / (self.width * self.height)
         threshold = max(self.settings.sea_level, avg_elev)
 
         for _ in range(seeds):
@@ -225,32 +312,20 @@ class World:
                     break
             else:
                 continue
-
-            visited = set()
             current = (q, r)
+            visited = set()
             while current and current not in visited:
                 visited.add(current)
-                next_coord = self._downhill_neighbor(*current)
-                cur_hex = self.get(*current)
-                if not next_coord or next_coord == current:
-                    for n in self._neighbors(*current):
-                        nh = self.get(*n)
-                        if nh and (nh.lake or nh.elevation <= self.settings.sea_level):
-                            self.rivers.append(RiverSegment(current, n))
-                            cur_hex.river = True
-                            if nh.elevation <= self.settings.sea_level:
-                                nh.river = True
-                            break
-                    else:
-                        self.lakes.append(current)
-                        cur_hex.lake = True
+                nxt = self._downhill_neighbor(*current)
+                if not nxt or nxt == current:
+                    self.lakes.append(current)
+                    self.get(*current).lake = True
                     break
-                self.rivers.append(RiverSegment(current, next_coord))
-                cur_hex.river = True
-                current = next_coord
+                self.rivers.append(RiverSegment(current, nxt))
+                self.get(*current).river = True
+                current = nxt
 
     def all_hexes(self) -> Iterable[Hex]:
-        """Iterate over every generated hex in the world."""
         for r in range(self.height):
             for q in range(self.width):
                 h = self.get(q, r)
@@ -258,7 +333,7 @@ class World:
                     yield h
 
     def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
-        totals = {rtype: 0 for rtype in ResourceType}
+        totals = {r: 0 for r in ResourceType}
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
                 h = self.get(x + dx, y + dy)
