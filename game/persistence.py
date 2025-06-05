@@ -150,7 +150,15 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
             "units": fac.units,
             "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
-            "tech_level": getattr(fac, "tech_level", 0),
+            "settlement": {
+                "name": fac.settlement.name,
+                "position": {"x": fac.settlement.position.x, "y": fac.settlement.position.y},
+            },
+            "tech_level": (
+                fac.tech_level.value
+                if hasattr(fac, "tech_level") and hasattr(fac.tech_level, "value")
+                else int(getattr(fac, "tech_level", 0))
+            ),
             "god_powers": getattr(fac, "god_powers", {}),
         }
     return result

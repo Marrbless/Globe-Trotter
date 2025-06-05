@@ -8,6 +8,7 @@ MAP_SIZE = (10, 10)
 
 # Minimum distance from player's settlement to spawn AI
 MIN_DISTANCE_FROM_PLAYER = 2
+AI_SPAWN_MAX_ATTEMPTS_MULTIPLIER = 3
 
 # Duration of one game tick in seconds
 TICK_SECONDS = 1
