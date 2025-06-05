@@ -420,10 +420,15 @@ class Game:
                 )
                 continue
 
-            if not (0 <= sx < self.world.width and 0 <= sy < self.world.height):
+            if (
+                not self.world.settings.infinite
+                and not (0 <= sx < self.world.width and 0 <= sy < self.world.height)
+            ):
                 logger.warning(
                     "Saved settlement for faction %r out of bounds: (%d, %d). Clamping.",
-                    fname, sx, sy
+                    fname,
+                    sx,
+                    sy,
                 )
                 sx = max(0, min(self.world.width - 1, sx))
                 sy = max(0, min(self.world.height - 1, sy))
