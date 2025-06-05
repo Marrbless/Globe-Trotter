@@ -19,9 +19,11 @@ class WorldSettings:
     temperature: float = 0.5
     rainfall_intensity: float = 0.5
     disaster_intensity: float = 0.0
+    seasonal_amplitude: float = 0.0
     sea_level: float = 0.3
     plate_activity: float = 0.5
     base_height: float = 0.5
+    wind_strength: float = 0.5
     world_changes: bool = True
     mountain_elev: float = 0.8
     hill_elev: float = 0.6

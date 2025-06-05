@@ -3,6 +3,7 @@ from __future__ import annotations
 """World generation and management utilities."""
 
 import random
+import math
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Iterable
 
@@ -72,24 +73,30 @@ class World:
         plate = self._plate_height(q, r)
         return max(0.0, min(1.0, (base + plate) / 2))
 
-    def _temperature(self, q: int, r: int) -> float:
+    def _temperature(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         lat = r / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
         base = 1.0 - abs(lat - 0.5) * 2
+        base -= elevation * 0.3
         rng = random.Random(hash((r, self.settings.seed)))
         variation = rng.uniform(-0.1, 0.1) * self.settings.temperature
-        return max(0.0, min(1.0, base + variation))
+        wind_effect = ((q / float(self.settings.width - 1) if self.settings.width > 1 else 0.5) - 0.5) * self.settings.wind_strength * 0.2
+        seasonal = math.sin(2 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
+        return max(0.0, min(1.0, base + variation + wind_effect + seasonal))
 
-    def _moisture(self, q: int, r: int, elevation: float) -> float:
+    def _moisture(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         rng = random.Random(hash((r, self.settings.seed, "rain")))
-        moisture = self.settings.moisture + rng.uniform(-0.1, 0.1)
+        base = self.settings.moisture + rng.uniform(-0.1, 0.1)
+        base += math.sin(2 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
+        moisture = max(0.0, min(1.0, base))
         precip = 0.0
         for x in range(q + 1):
             elev = self._elevation(x, r)
             precip = max(0.0, moisture * (1.0 - elev))
             if x == q:
                 break
-            moisture = max(0.0, moisture - precip * 0.5 - elev * 0.1)
-        return precip
+            loss = (precip * 0.5 + elev * 0.1) * (1.0 - self.settings.wind_strength)
+            moisture = max(0.0, moisture - loss)
+        return max(0.0, min(1.0, precip))
 
     def __init__(
         self,
@@ -105,6 +112,7 @@ class World:
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
+        self.season = 0.0
 
         self._plate_centers = self._init_plates()
         self._generate_rivers()
@@ -119,8 +127,8 @@ class World:
 
     def _generate_hex(self, q: int, r: int) -> Hex:
         elevation = self._elevation(q, r)
-        temperature = self._temperature(q, r)
-        moisture = self._moisture(q, r, elevation)
+        temperature = self._temperature(q, r, elevation, self.season)
+        moisture = self._moisture(q, r, elevation, self.season)
         terrain = determine_biome(
             elevation,
             temperature,

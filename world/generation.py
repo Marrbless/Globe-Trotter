@@ -180,25 +180,39 @@ def _latitude(row: int, height: int) -> float:
 
 def compute_temperature(
     row: int,
+    col: int,
+    elevation: float,
     settings: WorldSettings,
     rng: random.Random,
+    *,
+    season: float = 0.0,
 ) -> float:
-    """Compute temperature influenced by latitude and random climate variation."""
+    """Compute temperature influenced by latitude, elevation, winds and season."""
     lat = _latitude(row, settings.height)
-    # Base temp peaks at equator (lat=0.5) and drops towards poles
     base = 1.0 - abs(lat - 0.5) * 2
+    base -= elevation * 0.3
     variation = rng.uniform(-0.1, 0.1) * settings.temperature
-    return max(0.0, min(1.0, base + variation))
+    wind_effect = (
+        (col / float(settings.width - 1) if settings.width > 1 else 0.5) - 0.5
+    ) * settings.wind_strength * 0.2
+    seasonal = math.sin(2 * math.pi * season) * settings.seasonal_amplitude * 0.5
+    return max(0.0, min(1.0, base + variation + wind_effect + seasonal))
 
 
 def generate_temperature_map(
+    elevation_map: List[List[float]],
     settings: WorldSettings,
     rng: random.Random,
+    *,
+    season: float = 0.0,
 ) -> List[List[float]]:
-    """Generate a temperature value for each hex row."""
+    """Generate a temperature value for each hex."""
     temps: List[List[float]] = []
     for r in range(settings.height):
-        row = [compute_temperature(r, settings, rng) for _ in range(settings.width)]
+        row: List[float] = []
+        for q in range(settings.width):
+            elev = elevation_map[r][q]
+            row.append(compute_temperature(r, q, elev, settings, rng, season=season))
         temps.append(row)
     return temps
 
@@ -207,6 +221,8 @@ def generate_rainfall(
     elevation_map: List[List[float]],
     settings: WorldSettings,
     rng: random.Random,
+    *,
+    season: float = 0.0,
 ) -> List[List[float]]:
     """Create rainfall map using simple west-to-east moisture transport."""
     rain: List[List[float]] = [
@@ -214,14 +230,17 @@ def generate_rainfall(
     ]
 
     for r in range(settings.height):
-        # initial moisture with slight randomness per row
-        moisture = settings.moisture + rng.uniform(-0.1, 0.1)
+        # initial moisture with slight randomness per row and season adjustment
+        base = settings.moisture + rng.uniform(-0.1, 0.1)
+        base += math.sin(2 * math.pi * season) * settings.seasonal_amplitude * 0.5
+        moisture = max(0.0, min(1.0, base))
         for q in range(settings.width):
             elev = elevation_map[r][q]
             precip = max(0.0, moisture * (1.0 - elev))
             rain[r][q] = precip
             # moisture lost proportional to rainfall and elevation blocking
-            moisture = max(0.0, moisture - precip * 0.5 - elev * 0.1)
+            loss = (precip * 0.5 + elev * 0.1) * (1.0 - settings.wind_strength)
+            moisture = max(0.0, moisture - loss)
 
     return rain
 
