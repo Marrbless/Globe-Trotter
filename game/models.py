@@ -70,6 +70,7 @@ class Faction:
         }
     )
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
+    units: int = 0
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
     unlocked_actions: List[str] = field(default_factory=list)

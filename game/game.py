@@ -129,6 +129,7 @@ class Game:
         self.trade_deals: List[TradeDeal] = []
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
+        self.leaders: Dict[str, str | None] = {"largest_army": None, "longest_road": None}
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -231,6 +232,7 @@ class Game:
             fdata = self.state.factions.get(faction.name, {})
             faction.citizens.count = fdata.get("citizens", faction.citizens.count)
             faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
+            faction.units = fdata.get("units", getattr(faction, "units", 0))
             restore_buildings(faction, fdata.get("buildings", []))
             restore_projects(faction, fdata.get("projects", []))
 
@@ -249,6 +251,7 @@ class Game:
 
         # Simulate a sample event demonstrating defensive buildings
         self.simulate_events()
+        self.update_leaders()
 
     def simulate_events(self):
         """Run sample attack and disaster to show defensive buildings."""
@@ -333,10 +336,19 @@ class Game:
         self.turn += 1
         for faction in self.map.factions:
             faction.progress_projects()
+        self.update_leaders()
 
     def calculate_scores(self) -> Dict[str, int]:
         """Return victory points for all factions."""
-        return {f.name: f.get_victory_points() for f in self.map.factions}
+        scores: Dict[str, int] = {}
+        for faction in self.map.factions:
+            vp = faction.get_victory_points()
+            if faction.name == self.leaders.get("largest_army"):
+                vp += 2
+            if faction.name == self.leaders.get("longest_road"):
+                vp += 2
+            scores[faction.name] = vp
+        return scores
 
     # ------------------------------------------------------------------
     # Diplomacy utilities
@@ -385,6 +397,41 @@ class Game:
             truce.duration -= 1
             if truce.duration <= 0:
                 self.truces.remove(truce)
+
+    def _longest_road_for(self, faction: Faction) -> int:
+        start = (faction.settlement.position.x, faction.settlement.position.y)
+        adjacency: Dict[tuple[int, int], List[tuple[int, int]]] = {}
+        for r in self.world.roads:
+            adjacency.setdefault(r.start, []).append(r.end)
+            adjacency.setdefault(r.end, []).append(r.start)
+
+        def dfs(node: tuple[int, int], visited: set[tuple[tuple[int, int], tuple[int, int]]]) -> int:
+            best = 0
+            for neigh in adjacency.get(node, []):
+                edge = tuple(sorted((node, neigh)))
+                if edge in visited:
+                    continue
+                visited.add(edge)
+                best = max(best, 1 + dfs(neigh, visited))
+                visited.remove(edge)
+            return best
+
+        return dfs(start, set())
+
+    def update_leaders(self) -> None:
+        armies = {f.name: f.units for f in self.map.factions}
+        if armies:
+            max_units = max(armies.values())
+            self.leaders["largest_army"] = (
+                next((name for name, u in armies.items() if u == max_units and max_units > 0), None)
+            )
+
+        roads = {f.name: self._longest_road_for(f) for f in self.map.factions}
+        if roads:
+            max_len = max(roads.values())
+            self.leaders["longest_road"] = (
+                next((name for name, l in roads.items() if l == max_len and max_len > 0), None)
+            )
 
     @staticmethod
     def _execute_trade(deal: TradeDeal) -> None:
