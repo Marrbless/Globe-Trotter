@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
+from .technology import TechLevel
 
 if TYPE_CHECKING:
     from .models import Faction
@@ -58,6 +59,7 @@ class Building:
     victory_points: int = 0
     resource_type: Optional[ResourceType] = None
     level: int = 1
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
     def upgrade_cost(self) -> Dict[ResourceType, int]:
         """Cost required to upgrade this building."""
@@ -83,6 +85,7 @@ class Farm(Building):
     upkeep: int = 10
     resource_bonus: int = 5
     resource_type: ResourceType = ResourceType.FOOD
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -94,6 +97,7 @@ class Mine(Building):
     upkeep: int = 15
     resource_bonus: int = 10
     resource_type: ResourceType = ResourceType.ORE
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -105,6 +109,7 @@ class IronMine(Building):
     upkeep: int = 18
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.IRON
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -116,6 +121,7 @@ class GoldMine(Building):
     upkeep: int = 20
     resource_bonus: int = 1
     resource_type: ResourceType = ResourceType.GOLD
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -127,6 +133,7 @@ class House(Building):
     upkeep: int = 5
     population_bonus: int = 2
     resource_type: Optional[ResourceType] = None
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -138,6 +145,7 @@ class LumberMill(Building):
     upkeep: int = 12
     resource_bonus: int = 3
     resource_type: ResourceType = ResourceType.WOOD
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -149,6 +157,7 @@ class Quarry(Building):
     upkeep: int = 14
     resource_bonus: int = 2
     resource_type: ResourceType = ResourceType.STONE
+    tech_level: TechLevel = TechLevel.PRIMITIVE
 
 
 @dataclass
@@ -178,6 +187,7 @@ class Smeltery(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.ORE
     output_resource: ResourceType = ResourceType.METAL
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -190,6 +200,7 @@ class TextileMill(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.CLOTH
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -204,6 +215,7 @@ class Mill(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.WHEAT
     output_resource: ResourceType = ResourceType.FLOUR
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -218,6 +230,7 @@ class Bakery(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.FLOUR
     output_resource: ResourceType = ResourceType.BREAD
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -232,6 +245,7 @@ class Forge(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.IRON
     output_resource: ResourceType = ResourceType.WEAPON
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -246,6 +260,7 @@ class Tailor(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.WOOL
     output_resource: ResourceType = ResourceType.CLOTHES
     conversion_rate: int = 1
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -260,6 +275,7 @@ class Sawmill(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.WOOD
     output_resource: ResourceType = ResourceType.PLANK
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -274,6 +290,7 @@ class Mason(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.STONE
     output_resource: ResourceType = ResourceType.STONE_BLOCK
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.MEDIEVAL
 
 
 @dataclass
@@ -288,3 +305,4 @@ class SoupKitchen(ProcessingBuilding):
     input_resource: ResourceType = ResourceType.VEGETABLE
     output_resource: ResourceType = ResourceType.SOUP
     conversion_rate: int = 2
+    tech_level: TechLevel = TechLevel.PRIMITIVE
