@@ -125,9 +125,15 @@ def load_state(
     *,
     world: Optional["World"] = None,
     factions: Optional[List["Faction"]] = None,
-) -> GameState:
-    """Load the saved game state and optionally apply offline gains."""
+) -> tuple[GameState, Dict[str, Dict[str, int]]]:
+    """Load the saved game state and optionally apply offline gains.
+
+    Returns a tuple containing the ``GameState`` and a mapping of faction names
+    to their updated population and worker counts. When no faction list is
+    provided the second element will be an empty dictionary.
+    """
     now = time.time()
+    population_updates: Dict[str, Dict[str, int]] = {}
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -167,9 +173,17 @@ def load_state(
             res_mgr.tick(factions)
         state.resources = res_mgr.data
         state.population = sum(f.citizens.count for f in factions)
+        for fac in factions:
+            population_updates[fac.name] = {
+                "citizens": fac.citizens.count,
+                "workers": fac.workers.assigned,
+            }
+            fdata = state.factions.setdefault(fac.name, {})
+            fdata["citizens"] = fac.citizens.count
+            fdata["workers"] = fac.workers.assigned
 
     state.timestamp = now
-    return state
+    return state, population_updates
 
 
 def save_state(state: GameState) -> None:
