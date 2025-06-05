@@ -74,11 +74,16 @@ def serialize_world(world: "World") -> Dict[str, Any]:
         "god_powers": getattr(world, "god_powers", {}),
         "tech_levels": getattr(world, "tech_levels", {}),
         "hexes": {
-            f"{h.coord[0]},{h.coord[1]}": {"flooded": h.flooded, "ruined": h.ruined}
+            f"{h.coord[0]},{h.coord[1]}": {
+                "terrain": h.terrain,
+                "flooded": h.flooded,
+                "ruined": h.ruined,
+                "lake": h.lake,
+                "river": h.river,
+            }
             for chunk in getattr(world, "chunks", {}).values()
             for row in chunk
             for h in row
-            if h.flooded or h.ruined
         },
     }
 
@@ -122,10 +127,16 @@ def deserialize_world(data: Any, world: "World") -> None:
                 continue
             hex_ = world.get(q, r)
             if hex_ and isinstance(value, dict):
+                if "terrain" in value:
+                    hex_.terrain = value["terrain"]
                 if "flooded" in value:
                     hex_.flooded = bool(value["flooded"])
                 if "ruined" in value:
                     hex_.ruined = bool(value["ruined"])
+                if "lake" in value:
+                    hex_.lake = bool(value["lake"])
+                if "river" in value:
+                    hex_.river = bool(value["river"])
 
 
 def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
@@ -135,6 +146,7 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
         result[fac.name] = {
             "citizens": fac.citizens.count,
             "workers": fac.workers.assigned,
+            "units": fac.units,
             "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
             "tech_level": getattr(fac, "tech_level", 0),
@@ -154,6 +166,7 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
         result[name] = {
             "citizens": int(info.get("citizens", 0)),
             "workers": int(info.get("workers", 0)),
+            "units": int(info.get("units", 0)),
             "buildings": info.get("buildings", []),
             "projects": info.get("projects", []),
             "tech_level": int(info.get("tech_level", 0)),
