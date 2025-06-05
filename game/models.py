@@ -6,6 +6,7 @@ from typing import Dict, List, TYPE_CHECKING
 from world.world import ResourceType
 from .buildings import Building
 from .population import Citizen, Worker
+from . import settings
 
 if TYPE_CHECKING:
     from .diplomacy import TradeDeal
@@ -72,6 +73,9 @@ class Faction:
     workers: Worker = field(default_factory=lambda: Worker(assigned=10))
     buildings: List[Building] = field(default_factory=list)
     projects: List[GreatProject] = field(default_factory=list)
+    total_roads: int = 0
+    city_count: int = 0
+    army_size: int = 0
     unlocked_actions: List[str] = field(default_factory=list)
     manual_assignment: bool = False
     automation_level: str = "mid"
@@ -108,9 +112,29 @@ class Faction:
     def completed_projects(self) -> List[GreatProject]:
         return [p for p in self.projects if p.is_complete()]
 
-    def get_victory_points(self) -> int:
-        total = sum(b.victory_points for b in self.buildings)
+    def get_victory_points(self, game: "Game" | None = None) -> int:
+        """Calculate total victory points for this faction."""
+        # Base score from number of factions in the game
+        total = (settings.AI_FACTION_COUNT + 1) * 10
+
+        # Points from settlements and cities
+        total += 1  # home settlement
+        total += self.city_count * 2
+
+        # Buildings and completed projects
+        total += sum(b.victory_points for b in self.buildings)
         total += sum(p.victory_points for p in self.completed_projects())
+
+        # Bonus for longest road
+        if game is not None and game.map.factions:
+            longest = max(f.total_roads for f in game.map.factions)
+            if self.total_roads == longest and longest > 0:
+                total += 5
+
+            largest_army = max(f.army_size for f in game.map.factions)
+            if self.army_size == largest_army and largest_army > 0:
+                total += 5
+
         return total
 
     def build_structure(self, building: Building) -> None:

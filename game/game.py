@@ -336,7 +336,7 @@ class Game:
 
     def calculate_scores(self) -> Dict[str, int]:
         """Return victory points for all factions."""
-        return {f.name: f.get_victory_points() for f in self.map.factions}
+        return {f.name: f.get_victory_points(self) for f in self.map.factions}
 
     # ------------------------------------------------------------------
     # Diplomacy utilities
