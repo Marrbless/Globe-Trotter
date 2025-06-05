@@ -15,6 +15,7 @@ from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
+from .fantasy import apply_fantasy_overlays
 
 @dataclass(frozen=True)
 class Road:
@@ -116,6 +117,8 @@ class World:
 
         self._plate_centers = self._init_plates()
         self._generate_rivers()
+        if self.settings.fantasy_level > 0:
+            apply_fantasy_overlays(self.all_hexes(), self.settings.fantasy_level)
 
     @property
     def width(self) -> int:

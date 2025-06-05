@@ -152,6 +152,14 @@ class WorldSetupUI:
                 default_value=self.settings.base_height,
                 callback=self._update_world,
             )
+            dpg.add_slider_float(
+                label="Fantasy Level",
+                tag="fantasy_level",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.fantasy_level,
+                callback=self._update_world,
+            )
             dpg.add_checkbox(
                 label="World Changes",
                 tag="world_changes",
@@ -188,6 +196,9 @@ class WorldSetupUI:
         )
         self.settings.base_height = max(
             0.0, min(1.0, dpg.get_value("base_height"))
+        )
+        self.settings.fantasy_level = max(
+            0.0, min(1.0, dpg.get_value("fantasy_level"))
         )
         self.settings.world_changes = dpg.get_value("world_changes")
 
