@@ -45,7 +45,7 @@ def test_farm_increases_food():
     initial = game.player_faction.resources[ResourceType.FOOD]
     game.tick()
     after = game.player_faction.resources[ResourceType.FOOD]
-    assert after - initial >= 10  # base + farm bonus
+    assert after - initial >= 10
 
 
 def test_lumbermill_increases_wood():
@@ -92,7 +92,6 @@ def test_resource_manager_updates_once(monkeypatch):
 
 
 def test_auto_assignment_gathers_resources(monkeypatch):
-    """Idle citizens should automatically become workers and gather."""
     world = make_world()
     center = (1, 1)
     for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
@@ -102,9 +101,7 @@ def test_auto_assignment_gathers_resources(monkeypatch):
 
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
-    # Remove all assigned workers to simulate idle population
     game.player_faction.workers.assigned = 0
-    # Ensure precondition holds
     assert game.player_faction.workers.assigned == 0
     player = game.player_faction.name
 
@@ -114,7 +111,6 @@ def test_auto_assignment_gathers_resources(monkeypatch):
     before = game.resources.data[player][ResourceType.WOOD]
     game.tick()
     after = game.resources.data[player][ResourceType.WOOD]
-    # FactionManager should have assigned all idle citizens as workers
     assert game.player_faction.workers.assigned == game.player_faction.citizens.count
     assert after - before == 6
 
@@ -154,7 +150,6 @@ def test_resource_manager_tick_updates_faction_store():
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     faction = game.player_faction
-    assert faction is not None
     player = faction.name
 
     before_store = game.resources.data[player][ResourceType.WOOD]
@@ -170,14 +165,11 @@ def test_resource_manager_tick_updates_faction_store():
 
 
 def test_register_uses_faction_resources():
-    """ResourceManager should start with faction's initial amounts."""
     world = World(width=3, height=3)
     game = Game(world=world)
     game.place_initial_settlement(1, 1)
     faction = game.player_faction
-    assert faction is not None
 
-    # Food has a non-zero default value on a new faction
     expected_food = faction.resources[ResourceType.FOOD]
     manager = ResourceManager(world)
     manager.register(faction)
@@ -186,38 +178,32 @@ def test_register_uses_faction_resources():
 
 
 def test_advanced_resources_generated():
-    """World generation should include some rare resources."""
     settings = WorldSettings(seed=42, width=5, height=5)
     world = World(width=settings.width, height=settings.height, settings=settings)
 
     advanced = {ResourceType.IRON, ResourceType.GOLD, ResourceType.WHEAT, ResourceType.WOOL}
     found: set[ResourceType] = set()
-    for r in range(settings.height):
-        for q in range(settings.width):
-            hex_ = world.get(q, r)
-            for res in hex_.resources:
-                if res in advanced:
-                    found.add(res)
+    for hex_ in world.all_hexes():
+        for res in hex_.resources:
+            if res in advanced:
+                found.add(res)
 
     assert any(res in found for res in advanced)
 
 
 def test_strategic_and_luxury_resources_generated():
-    """World generation should include strategic and luxury resources."""
     settings = WorldSettings(seed=99, width=10, height=10)
     world = World(width=settings.width, height=settings.height, settings=settings)
 
     strategic_found: set[ResourceType] = set()
     luxury_found: set[ResourceType] = set()
 
-    for r in range(settings.height):
-        for q in range(settings.width):
-            hex_ = world.get(q, r)
-            for res in hex_.resources:
-                if res in STRATEGIC_RESOURCES:
-                    strategic_found.add(res)
-                if res in LUXURY_RESOURCES:
-                    luxury_found.add(res)
+    for hex_ in world.all_hexes():
+        for res in hex_.resources:
+            if res in STRATEGIC_RESOURCES:
+                strategic_found.add(res)
+            if res in LUXURY_RESOURCES:
+                luxury_found.add(res)
 
     assert strategic_found
     assert luxury_found
