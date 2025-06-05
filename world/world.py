@@ -9,9 +9,6 @@ from typing import Dict, List, Tuple, Optional, Iterable
 from .generation import (
     perlin_noise,
     determine_biome,
-    generate_elevation_map,
-    generate_temperature_map,
-    generate_rainfall,
 )
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .resources import generate_resources
@@ -38,6 +35,62 @@ def initialize_random(settings: WorldSettings) -> random.Random:
 class World:
     CHUNK_SIZE = 10
 
+    def _init_plates(self) -> List[Tuple[int, int, float]]:
+        plates = max(2, int(3 + self.settings.plate_activity * 5))
+        rng = random.Random(self.settings.seed)
+        return [
+            (
+                rng.randint(0, self.settings.width - 1),
+                rng.randint(0, self.settings.height - 1),
+                rng.random(),
+            )
+            for _ in range(plates)
+        ]
+
+    def _plate_height(self, q: int, r: int) -> float:
+        dists = sorted(
+            (
+                (cx - q) ** 2 + (cy - r) ** 2,
+                base,
+            )
+            for cx, cy, base in self._plate_centers
+        )
+        dist0, base = dists[0]
+        dist1 = dists[1][0] if len(dists) > 1 else dist0
+        ratio = dist0 / (dist0 + dist1) if dist1 > 0 else 0.0
+        boundary = 1.0 - abs(0.5 - ratio) * 2.0
+        return base * self.settings.base_height + boundary * self.settings.plate_activity
+
+    def _noise_value(self, q: int, r: int, seed_offset: int, setting: float) -> float:
+        n = perlin_noise(q, r, self.settings.seed + seed_offset)
+        amp = 0.5 + setting / 2
+        offset = setting - 0.5
+        return max(0.0, min(1.0, n * amp + offset))
+
+    def _elevation(self, q: int, r: int) -> float:
+        base = self._noise_value(q, r, 0, self.settings.elevation)
+        plate = self._plate_height(q, r)
+        return max(0.0, min(1.0, (base + plate) / 2))
+
+    def _temperature(self, q: int, r: int) -> float:
+        lat = r / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
+        base = 1.0 - abs(lat - 0.5) * 2
+        rng = random.Random(hash((r, self.settings.seed)))
+        variation = rng.uniform(-0.1, 0.1) * self.settings.temperature
+        return max(0.0, min(1.0, base + variation))
+
+    def _moisture(self, q: int, r: int, elevation: float) -> float:
+        rng = random.Random(hash((r, self.settings.seed, "rain")))
+        moisture = self.settings.moisture + rng.uniform(-0.1, 0.1)
+        precip = 0.0
+        for x in range(q + 1):
+            elev = self._elevation(x, r)
+            precip = max(0.0, moisture * (1.0 - elev))
+            if x == q:
+                break
+            moisture = max(0.0, moisture - precip * 0.5 - elev * 0.1)
+        return precip
+
     def __init__(
         self,
         width: int = 50,
@@ -53,10 +106,7 @@ class World:
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
-        self.elevation_map = generate_elevation_map(width, height, self.settings)
-        self.temperature_map = generate_temperature_map(self.settings, self.rng)
-        self.rainfall_map = generate_rainfall(self.elevation_map, self.settings, self.rng)
-
+        self._plate_centers = self._init_plates()
         self._generate_rivers()
 
     @property
@@ -68,9 +118,9 @@ class World:
         return self.settings.height
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        elevation = self.elevation_map[r][q]
-        temperature = self.temperature_map[r][q]
-        moisture = self.rainfall_map[r][q]
+        elevation = self._elevation(q, r)
+        temperature = self._temperature(q, r)
+        moisture = self._moisture(q, r, elevation)
         terrain = determine_biome(
             elevation,
             temperature,
@@ -134,7 +184,11 @@ class World:
 
     def _generate_rivers(self) -> None:
         seeds = max(1, int(self.settings.rainfall_intensity * 5))
-        avg_elev = sum(sum(row) for row in self.elevation_map) / (self.width * self.height)
+        total = 0.0
+        for r in range(self.height):
+            for q in range(self.width):
+                total += self._elevation(q, r)
+        avg_elev = total / (self.width * self.height)
         threshold = max(self.settings.sea_level, avg_elev)
 
         for _ in range(seeds):
