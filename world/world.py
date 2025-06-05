@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-"""World generation and management utilities."""
+"""World generation and management utilities with enhanced realism and fantasy integration."""
 
 import random
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional, Iterable
 
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
@@ -12,7 +12,6 @@ from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
-
 
 # -- Visualization -----------------------------------------------------------
 
@@ -29,17 +28,13 @@ BIOME_COLORS: Dict[str, Tuple[int, int, int, int]] = {
     "crystal_forest": (0, 255, 255, 255),
 }
 
-
 # -- Noise utilities ---------------------------------------------------------
-
 
 def _fade(t: float) -> float:
     return t * t * t * (t * (t * 6 - 15) + 10)
 
-
 def _lerp(a: float, b: float, t: float) -> float:
     return a + t * (b - a)
-
 
 def _grad(ix: int, iy: int, seed: int) -> tuple[float, float]:
     """Return a pseudo-random gradient vector for the grid point."""
@@ -47,13 +42,11 @@ def _grad(ix: int, iy: int, seed: int) -> tuple[float, float]:
     angle = rnd.random() * 2 * math.pi
     return math.cos(angle), math.sin(angle)
 
-
 def _dot_grid_gradient(ix: int, iy: int, x: float, y: float, seed: int) -> float:
     gx, gy = _grad(ix, iy, seed)
     dx = x - ix
     dy = y - iy
     return gx * dx + gy * dy
-
 
 def _perlin(x: float, y: float, seed: int) -> float:
     """Classic 2D Perlin noise in range [0, 1]."""
@@ -74,7 +67,6 @@ def _perlin(x: float, y: float, seed: int) -> float:
     ix1 = _lerp(n01, n11, sx)
     value = _lerp(ix0, ix1, sy)
     return (value + 1) / 2
-
 
 def perlin_noise(
     x: float,
@@ -99,18 +91,15 @@ def perlin_noise(
 
     return value / max_amp
 
-
-# -- Elevation map generation ------------------------------------------------
-
+# -- Elevation map generation (legacy, kept for external tools) --------------
 
 def generate_elevation_map(
     width: int,
     height: int,
     settings: WorldSettings,
 ) -> List[List[float]]:
-    """Return a 2D list of elevation values in range [0, 1]."""
+    """Return a 2D list of elevation values in range [0, 1], using same logic as World."""
     elev: List[List[float]] = []
-
     for y in range(height):
         row: List[float] = []
         for x in range(width):
@@ -120,10 +109,8 @@ def generate_elevation_map(
             val = max(0.0, min(1.0, n * amp + offset))
             row.append(val)
         elev.append(row)
-
     apply_tectonic_plates(elev, settings)
     return elev
-
 
 def apply_tectonic_plates(
     elev: List[List[float]],
@@ -158,7 +145,6 @@ def apply_tectonic_plates(
             )
             elev[y][x] = min(1.0, max(0.0, (elev[y][x] + plate_height) / 2))
 
-
 def terrain_from_elevation(
     value: float,
     settings: WorldSettings,
@@ -172,16 +158,13 @@ def terrain_from_elevation(
         return "hills"
     return "mountains"
 
-
-# -- Climate and biome utilities -----------------------------------------------
-
+# -- Climate and biome utilities ---------------------------------------------
 
 def _latitude(row: int, height: int) -> float:
     """Return normalized latitude (0 south pole -> 1 north pole)."""
     if height <= 1:
         return 0.5
     return row / float(height - 1)
-
 
 def compute_temperature(
     row: int,
@@ -203,7 +186,6 @@ def compute_temperature(
     seasonal = math.sin(2 * math.pi * season) * settings.seasonal_amplitude * 0.5
     return max(0.0, min(1.0, base + variation + wind_effect + seasonal))
 
-
 def generate_temperature_map(
     elevation_map: List[List[float]],
     settings: WorldSettings,
@@ -220,7 +202,6 @@ def generate_temperature_map(
             row.append(compute_temperature(r, q, elev, settings, rng, season=season))
         temps.append(row)
     return temps
-
 
 def generate_rainfall(
     elevation_map: List[List[float]],
@@ -247,7 +228,6 @@ def generate_rainfall(
 
     return rain
 
-
 def determine_biome(
     elevation: float,
     temperature: float,
@@ -257,29 +237,45 @@ def determine_biome(
     hill_elev: float = 0.6,
     tundra_temp: float = 0.25,
     desert_rain: float = 0.2,
+    fantasy_level: float = 0.0,
 ) -> str:
-    """Classify biome from elevation, temperature, and rainfall values."""
+    """
+    Classify biome from elevation, temperature, rainfall, and fantasy influence.
+    Higher fantasy_level can override certain real biomes with magical variants.
+    """
+    # Realistic base biome
     if elevation > mountain_elev:
-        return "mountains"
-    if elevation > hill_elev:
-        return "hills"
-    if temperature < tundra_temp:
-        return "tundra"
-    if rainfall < desert_rain and temperature > 0.5:
-        return "desert"
-    if rainfall > 0.7 and temperature > 0.5:
-        return "rainforest"
-    if rainfall > 0.4:
-        return "forest"
-    return "plains"
+        base_biome = "mountains"
+    elif elevation > hill_elev:
+        base_biome = "hills"
+    elif temperature < tundra_temp:
+        base_biome = "tundra"
+    elif rainfall < desert_rain and temperature > 0.5:
+        base_biome = "desert"
+    elif rainfall > 0.7 and temperature > 0.5:
+        base_biome = "rainforest"
+    elif rainfall > 0.4:
+        base_biome = "forest"
+    else:
+        base_biome = "plains"
 
+    # Fantasy overrides
+    if fantasy_level > 0:
+        # Chance to become a crystal forest if fantasy_level high and elevation moderate
+        if base_biome == "forest" and elevation > 0.4 and fantasy_level > 0.6:
+            return "crystal_forest"
+        # Floating islands in mountainous areas if fantasy is extreme
+        if base_biome == "mountains" and fantasy_level > 0.8 and random.random() < fantasy_level * 0.1:
+            return "floating_island"
+    return base_biome
 
 def generate_biome_map(
     elevation_map: List[List[float]],
     temperature_map: List[List[float]],
     rainfall_map: List[List[float]],
+    settings: WorldSettings,
 ) -> List[List[str]]:
-    """Return biome classification for each hex."""
+    """Return biome classification for each hex, including fantasy influence."""
     height = len(elevation_map)
     width = len(elevation_map[0]) if height else 0
     biomes: List[List[str]] = []
@@ -292,6 +288,11 @@ def generate_biome_map(
                     elevation_map[r][q],
                     temperature_map[r][q],
                     rainfall_map[r][q],
+                    mountain_elev=settings.mountain_elev,
+                    hill_elev=settings.hill_elev,
+                    tundra_temp=settings.tundra_temp,
+                    desert_rain=settings.desert_rain,
+                    fantasy_level=settings.fantasy_level,
                 )
             )
         biomes.append(row)
@@ -303,17 +304,14 @@ class Road:
     start: Coordinate
     end: Coordinate
 
-
 @dataclass(frozen=True)
 class RiverSegment:
     """A start/end pair describing a single river edge."""
     start: Coordinate
     end: Coordinate
 
-
 def initialize_random(settings: WorldSettings) -> random.Random:
     return random.Random(settings.seed)
-
 
 class World:
     CHUNK_SIZE = 10
@@ -351,6 +349,7 @@ class World:
         return max(0.0, min(1.0, n * amp + offset))
 
     def _elevation(self, q: int, r: int) -> float:
+        """Compute elevation combining Perlin noise and plate tectonics."""
         base = self._noise_value(q, r, 0, self.settings.elevation)
         plate = self._plate_height(q, r)
         return max(0.0, min(1.0, (base + plate) / 2))
@@ -371,6 +370,7 @@ class World:
         base += math.sin(2 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
         moisture = max(0.0, min(1.0, base))
         precip = 0.0
+        # West-to-east moisture transport with elevation loss
         for x in range(q + 1):
             elev = self._elevation(x, r)
             precip = max(0.0, moisture * (1.0 - elev))
@@ -397,40 +397,57 @@ class World:
         self.season = 0.0
 
         self._plate_centers = self._init_plates()
+        # Precompute all hexes to assign elevation, temperature, moisture before generating rivers
+        self._precompute_terrain_layers()
         self._generate_rivers()
         if self.settings.fantasy_level > 0:
             apply_fantasy_overlays(self.all_hexes(), self.settings.fantasy_level)
 
-    @property
-    def width(self) -> int:
-        return self.settings.width
+    def _precompute_terrain_layers(self) -> None:
+        """
+        Generate and cache elevation, temperature, moisture, and biome for each tile
+        before rivers and lakes. Stored temporarily in a dict to avoid re-calc.
+        """
+        self._elevation_cache: Dict[Coordinate, float] = {}
+        self._temperature_cache: Dict[Coordinate, float] = {}
+        self._moisture_cache: Dict[Coordinate, float] = {}
+        self._biome_cache: Dict[Coordinate, str] = {}
 
-    @property
-    def height(self) -> int:
-        return self.settings.height
+        for r in range(self.settings.height):
+            for q in range(self.settings.width):
+                elev = self._elevation(q, r)
+                temp = self._temperature(q, r, elev, self.season)
+                moist = self._moisture(q, r, elev, self.season)
+                biome = determine_biome(
+                    elev,
+                    temp,
+                    moist,
+                    mountain_elev=self.settings.mountain_elev,
+                    hill_elev=self.settings.hill_elev,
+                    tundra_temp=self.settings.tundra_temp,
+                    desert_rain=self.settings.desert_rain,
+                    fantasy_level=self.settings.fantasy_level,
+                )
+                self._elevation_cache[(q, r)] = elev
+                self._temperature_cache[(q, r)] = temp
+                self._moisture_cache[(q, r)] = moist
+                self._biome_cache[(q, r)] = biome
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        elevation = self._elevation(q, r)
-        temperature = self._temperature(q, r, elevation, self.season)
-        moisture = self._moisture(q, r, elevation, self.season)
-        terrain = determine_biome(
-            elevation,
-            temperature,
-            moisture,
-            mountain_elev=self.settings.mountain_elev,
-            hill_elev=self.settings.hill_elev,
-            tundra_temp=self.settings.tundra_temp,
-            desert_rain=self.settings.desert_rain,
-        )
+        """Generate or retrieve a hex tile using cached terrain layers."""
+        elev = self._elevation_cache[(q, r)]
+        temp = self._temperature_cache[(q, r)]
+        moist = self._moisture_cache[(q, r)]
+        terrain = self._biome_cache[(q, r)]
         rng = random.Random(hash((q, r, self.settings.seed)))
         resources = generate_resources(rng, terrain)
 
         return Hex(
             coord=(q, r),
             terrain=terrain,
-            elevation=elevation,
-            temperature=temperature,
-            moisture=moisture,
+            elevation=elev,
+            temperature=temp,
+            moisture=moist,
             resources=resources,
         )
 
@@ -452,8 +469,12 @@ class World:
             row: List[Hex] = []
             for q_off in range(cols):
                 q, r = base_q + q_off, base_r + r_off
+                # Skip if outside bounds in finite mode
+                if not self.settings.infinite and not (0 <= q < self.width and 0 <= r < self.height):
+                    continue
                 row.append(self._generate_hex(q, r))
-            row and chunk.append(row)
+            if row:
+                chunk.append(row)
         self.chunks[(cx, cy)] = chunk
 
     def get(self, q: int, r: int) -> Optional[Hex]:
@@ -469,6 +490,10 @@ class World:
         return chunk[row_idx][col_idx]
 
     def _neighbors(self, q: int, r: int) -> List[Coordinate]:
+        """
+        Return axial hex neighbors for pointy-topped layout:
+        Directions: E, W, SE, NW, NE, SW as (1,0), (-1,0), (0,1), (0,-1), (1,-1), (-1,1).
+        """
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
         if self.settings.infinite:
             return [(q + dq, r + dr) for dq, dr in directions]
@@ -479,64 +504,111 @@ class World:
         ]
 
     def _downhill_neighbor(self, q: int, r: int) -> Optional[Coordinate]:
-        current = self.get(q, r)
-        if not current:
+        current_elev = self._elevation_cache.get((q, r), None)
+        if current_elev is None:
             return None
-        best = None
-        best_elev = current.elevation
+        best_coord: Optional[Coordinate] = None
+        best_elev = current_elev
         for nq, nr in self._neighbors(q, r):
-            neighbor = self.get(nq, nr)
-            if neighbor and neighbor.elevation < best_elev:
-                best_elev = neighbor.elevation
-                best = (nq, nr)
-        return best
+            neighbor_elev = self._elevation_cache.get((nq, nr), None)
+            if neighbor_elev is not None and neighbor_elev < best_elev:
+                best_elev = neighbor_elev
+                best_coord = (nq, nr)
+        return best_coord
 
     def _generate_rivers(self) -> None:
+        """
+        Generate rivers with branching and lake outflow:
+        1. Compute initial flow from rainfall.
+        2. Accumulate downstream, allowing tributaries to merge.
+        3. Introduce random branching: some tiles with enough flow split to second-best downhill.
+        4. Mark river segments and lakes, then handle lake outflow.
+        """
         rainfall: Dict[Coordinate, float] = {}
         flow: Dict[Coordinate, float] = {}
         downhill: Dict[Coordinate, Optional[Coordinate]] = {}
 
+        # Initial pass: assign rainfall & downhill neighbor
         for r in range(self.height):
             for q in range(self.width):
-                hex_ = self.get(q, r)
-                rain = hex_.moisture * self.settings.rainfall_intensity
-                rainfall[(q, r)] = rain
-                flow[(q, r)] = rain
+                coord = (q, r)
+                rain_amount = self._moisture_cache[coord] * self.settings.rainfall_intensity
+                rainfall[coord] = rain_amount
+                flow[coord] = rain_amount
                 dn = self._downhill_neighbor(q, r)
-                if dn and self.get(*dn).elevation < hex_.elevation:
-                    downhill[(q, r)] = dn
+                if dn and self._elevation_cache[dn] < self._elevation_cache[coord]:
+                    downhill[coord] = dn
                 else:
-                    downhill[(q, r)] = None
+                    downhill[coord] = None
 
-        coords = sorted(flow.keys(), key=lambda c: self.get(*c).elevation, reverse=True)
-        for c in coords:
+        # Sort coordinates by descending elevation for accumulation
+        coords_sorted = sorted(flow.keys(), key=lambda c: self._elevation_cache[c], reverse=True)
+        for c in coords_sorted:
             d = downhill[c]
-            if d and d in flow:
+            if d:
+                # Accumulate main flow
                 flow[d] += flow[c]
+                # 20% chance for a tributary branch if flow is high
+                if flow[c] > self.settings.river_branch_threshold * self.settings.rainfall_intensity:
+                    # Find second-best downhill neighbor for branching
+                    neighbor_list = self._neighbors(*c)
+                    second_best = None
+                    second_elev = self._elevation_cache[c]
+                    for n in neighbor_list:
+                        if downhill[c] != n and self._elevation_cache.get(n, 1.0) < second_elev:
+                            second_elev = self._elevation_cache[n]
+                            second_best = n
+                    if second_best and random.random() < 0.3:
+                        flow[second_best] += flow[c] * 0.3  # 30% of flow branches
+            # else: potential lake candidate
 
-        for c, f in flow.items():
-            self.get(*c).water_flow = f
+        # Assign water_flow to hexes
+        for coord, f in flow.items():
+            h = self.get(*coord)
+            if h:
+                h.water_flow = f
 
         avg_flow = sum(flow.values()) / len(flow) if flow else 0.0
         river_threshold = max(0.05 * self.settings.rainfall_intensity, avg_flow * 2)
         lake_threshold = max(0.1 * self.settings.rainfall_intensity, avg_flow * 4)
 
-        for c in coords:
-            d = downhill[c]
-            hex_c = self.get(*c)
+        # Identify rivers and lakes
+        for coord in coords_sorted:
+            d = downhill[coord]
+            hex_c = self.get(*coord)
             if d:
-                if flow[c] >= river_threshold:
-                    self.rivers.append(RiverSegment(c, d))
+                if flow[coord] >= river_threshold:
+                    self.rivers.append(RiverSegment(coord, d))
                     hex_c.river = True
                     self.get(*d).river = True
             else:
-                if flow[c] > lake_threshold:
+                if flow[coord] > lake_threshold:
                     if not hex_c.lake:
-                        self.lakes.append(c)
+                        self.lakes.append(coord)
                         hex_c.lake = True
                         hex_c.terrain = "water"
-                        rng = random.Random(hash((c, self.settings.seed, "water")))
+                        rng = random.Random(hash((coord, self.settings.seed, "water")))
                         hex_c.resources = generate_resources(rng, "water")
+
+        # Lake outflow: for each lake, if neighbor lower, create a river from lake
+        for lake_coord in list(self.lakes):
+            q, r = lake_coord
+            lake_elev = self._elevation_cache[lake_coord]
+            lowest_neighbor: Optional[Coordinate] = None
+            lowest_elev = lake_elev
+            for n in self._neighbors(q, r):
+                neigh_elev = self._elevation_cache.get(n, None)
+                if neigh_elev is not None and neigh_elev < lowest_elev:
+                    lowest_elev = neigh_elev
+                    lowest_neighbor = n
+            if lowest_neighbor:
+                self.rivers.append(RiverSegment(lake_coord, lowest_neighbor))
+                lake_hex = self.get(*lake_coord)
+                out_hex = self.get(*lowest_neighbor)
+                if lake_hex:
+                    lake_hex.river = True
+                if out_hex:
+                    out_hex.river = True
 
     def all_hexes(self) -> Iterable[Hex]:
         for r in range(self.height):
@@ -549,14 +621,18 @@ class World:
         totals = {r: 0 for r in ResourceType}
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
-                h = self.get(x + dx, y + dy)
+                coord = (x + dx, y + dy)
+                h = self.get(*coord)
                 if h:
                     for rtype, amt in h.resources.items():
                         totals[rtype] += amt
         return {rtype: amt for rtype, amt in totals.items() if amt > 0}
 
     def has_road(self, start: Coordinate, end: Coordinate) -> bool:
-        return any((r.start, r.end) == (start, end) or (r.start, r.end) == (end, start) for r in self.roads)
+        return any(
+            (r.start, r.end) == (start, end) or (r.start, r.end) == (end, start)
+            for r in self.roads
+        )
 
     def add_road(self, start: Coordinate, end: Coordinate) -> None:
         if start == end or not self.get(*start) or not self.get(*end):
@@ -567,12 +643,10 @@ class World:
     def trade_efficiency(self, start: Coordinate, end: Coordinate) -> float:
         return 1.5 if self.has_road(start, end) else 1.0
 
-
 def adjust_settings(settings: WorldSettings, **kwargs) -> None:
     for key, val in kwargs.items():
         if val is not None and hasattr(settings, key):
             setattr(settings, key, max(0.0, min(1.0, val)))
-
 
 __all__ = [
     "ResourceType",
