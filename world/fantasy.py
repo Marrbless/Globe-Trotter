@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+"""Fantasy terrain generators like floating islands and crystal forests."""
+
+import random
+from typing import Iterable
+
+from .hex import Hex
+
+
+def add_floating_islands(hexes: Iterable[Hex], level: float, *, rng: random.Random | None = None) -> None:
+    """Convert some high elevation tiles into floating islands."""
+    if level <= 0:
+        return
+    rng = rng or random.Random(42)
+    candidates = [h for h in hexes if h.elevation > 0.6 and h.terrain != "water"]
+    if not candidates:
+        candidates = [h for h in hexes if h.terrain != "water"]
+    count = max(1, int(len(candidates) * 0.05 * level))
+    for h in rng.sample(candidates, min(len(candidates), count)):
+        h.terrain = "floating_island"
+
+
+def add_crystal_forests(hexes: Iterable[Hex], level: float, *, rng: random.Random | None = None) -> None:
+    """Transform some forests or plains into crystal forests."""
+    if level <= 0:
+        return
+    rng = rng or random.Random(99)
+    candidates = [h for h in hexes if h.terrain in {"forest", "plains"}]
+    if not candidates:
+        candidates = [h for h in hexes if h.terrain != "water"]
+    count = max(1, int(len(candidates) * 0.1 * level))
+    for h in rng.sample(candidates, min(len(candidates), count)):
+        h.terrain = "crystal_forest"
+
+
+def apply_fantasy_overlays(hexes: Iterable[Hex], level: float) -> None:
+    """Apply all fantasy overlays based on the given level."""
+    if level <= 0:
+        return
+    hex_list = list(hexes)
+    add_floating_islands(hex_list, level)
+    add_crystal_forests(hex_list, level)
+
+
+__all__ = ["add_floating_islands", "add_crystal_forests", "apply_fantasy_overlays"]

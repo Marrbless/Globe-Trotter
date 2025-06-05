@@ -21,6 +21,8 @@ BIOME_COLORS: Dict[str, Tuple[int, int, int, int]] = {
     "tundra": (220, 220, 220, 255),
     "rainforest": (0, 100, 0, 255),
     "water": (65, 105, 225, 255),
+    "floating_island": (186, 85, 211, 255),
+    "crystal_forest": (0, 255, 255, 255),
 }
 
 

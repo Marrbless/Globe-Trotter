@@ -12,6 +12,11 @@ from .generation import (
     BIOME_COLORS,
 )
 from .export import export_resources_json, export_resources_xml
+from .fantasy import (
+    add_floating_islands,
+    add_crystal_forests,
+    apply_fantasy_overlays,
+)
 
 __all__ = [
     "ResourceType",
@@ -30,4 +35,7 @@ __all__ = [
     "BIOME_COLORS",
     "export_resources_json",
     "export_resources_xml",
+    "add_floating_islands",
+    "add_crystal_forests",
+    "apply_fantasy_overlays",
 ]

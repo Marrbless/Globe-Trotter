@@ -27,6 +27,7 @@ class WorldSettings:
     hill_elev: float = 0.6
     tundra_temp: float = 0.25
     desert_rain: float = 0.2
+    fantasy_level: float = 0.0
 
 
 __all__ = ["WorldSettings"]
