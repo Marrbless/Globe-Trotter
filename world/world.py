@@ -230,7 +230,7 @@ class World:
         coords = sorted(flow.keys(), key=lambda c: self.get(*c).elevation, reverse=True)
         for c in coords:
             d = downhill[c]
-            if d:
+            if d and d in flow:
                 flow[d] += flow[c]
 
         for c, f in flow.items():
@@ -243,12 +243,12 @@ class World:
         for c in coords:
             d = downhill[c]
             hex_c = self.get(*c)
-            if d:
+            if d and d in flow:
                 if flow[c] >= river_threshold:
                     self.rivers.append(RiverSegment(c, d))
                     hex_c.river = True
                     self.get(*d).river = True
-            else:
+            elif d is None:
                 if flow[c] > lake_threshold:
                     if not hex_c.lake:
                         self.lakes.append(c)
