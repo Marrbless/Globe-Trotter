@@ -6,6 +6,7 @@ from typing import Dict, List, TYPE_CHECKING
 from world.world import ResourceType
 from .buildings import Building
 from .population import Citizen, Worker
+from .technology import TechLevel
 
 if TYPE_CHECKING:
     from .diplomacy import TradeDeal
@@ -75,6 +76,8 @@ class Faction:
     unlocked_actions: List[str] = field(default_factory=list)
     manual_assignment: bool = False
     automation_level: str = "mid"
+    tech_level: TechLevel = TechLevel.PRIMITIVE
+    research_points: int = 0
 
     def toggle_manual_assignment(self, manual: bool, level: str | None = None) -> None:
         self.manual_assignment = manual
@@ -113,7 +116,28 @@ class Faction:
         total += sum(p.victory_points for p in self.completed_projects())
         return total
 
+    def progress_research(self, amount: int = 1) -> None:
+        """Advance research and update tech level when thresholds are met."""
+        if self.tech_level is TechLevel.INDUSTRIAL:
+            return
+        self.research_points += amount
+        thresholds = {
+            TechLevel.PRIMITIVE: 10,
+            TechLevel.MEDIEVAL: 20,
+        }
+        needed = thresholds.get(self.tech_level)
+        if needed is not None and self.research_points >= needed:
+            self.research_points -= needed
+            if self.tech_level is TechLevel.PRIMITIVE:
+                self.tech_level = TechLevel.MEDIEVAL
+            elif self.tech_level is TechLevel.MEDIEVAL:
+                self.tech_level = TechLevel.INDUSTRIAL
+
     def build_structure(self, building: Building) -> None:
+        if building.tech_level.value > self.tech_level.value:
+            raise ValueError(
+                f"{building.name} requires {building.tech_level.name} technology"
+            )
         cost: Dict[ResourceType, int] = building.construction_cost
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:
@@ -123,6 +147,10 @@ class Faction:
         self.buildings.append(building)
 
     def upgrade_structure(self, building: Building) -> None:
+        if building.tech_level.value > self.tech_level.value:
+            raise ValueError(
+                f"{building.name} requires {building.tech_level.name} technology"
+            )
         cost: Dict[ResourceType, int] = building.upgrade_cost()
         for res_type, amt in cost.items():
             if self.resources.get(res_type, 0) < amt:

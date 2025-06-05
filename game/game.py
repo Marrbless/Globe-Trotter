@@ -296,8 +296,10 @@ class Game:
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (
-                    current + building.resource_bonus
-                )
+                        current + building.resource_bonus
+                    )
+
+            faction.progress_research()
 
         # Apply diplomacy effects such as trade deals
         self._apply_trade_deals()

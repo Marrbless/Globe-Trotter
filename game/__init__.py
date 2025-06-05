@@ -4,6 +4,7 @@ from .game import Game
 from .models import Faction
 from .diplomacy import TradeDeal, Truce, DeclarationOfWar
 from .models import Settlement, Position
+from .technology import TechLevel
 from .buildings import (
     Building,
     Farm,
@@ -43,6 +44,7 @@ __all__ = [
     "TradeDeal",
     "Truce",
     "DeclarationOfWar",
+    "TechLevel",
 ]
 
 # Expose the world package as a submodule to allow `import game.world`
