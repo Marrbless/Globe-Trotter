@@ -1,46 +1,50 @@
+from .export import export_resources_json, export_resources_xml
+from .fantasy import (
+    add_crystal_forests,
+    add_floating_islands,
+    apply_fantasy_overlays,
+)
+from .generation import (
+    _compute_moisture_orographic,
+    compute_temperature,
+    determine_biome,
+    generate_elevation_map,
+    generate_rainfall,
+    generate_temperature_map,
+    terrain_from_elevation,
+)
+from .hex import Hex
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .settings import WorldSettings
-from .hex import Hex
 from .world import (
+    BIOME_COLORS,
     Road,
     RiverSegment,
     World,
     adjust_settings,
 )
-from .generation import (
-    compute_temperature,
-    generate_temperature_map,
-    generate_rainfall,
-    determine_biome,
-    generate_elevation_map,
-    terrain_from_elevation,
-    BIOME_COLORS,
-)
-from .export import export_resources_json, export_resources_xml
-from .fantasy import (
-    add_floating_islands,
-    add_crystal_forests,
-    apply_fantasy_overlays,
-)
 
 __all__ = [
-    "ResourceType",
-    "WorldSettings",
+    "BIOME_COLORS",
     "Hex",
+    "LUXURY_RESOURCES",
+    "ResourceType",
     "Road",
     "RiverSegment",
+    "STRATEGIC_RESOURCES",
     "World",
+    "WorldSettings",
+    "add_crystal_forests",
+    "add_floating_islands",
     "adjust_settings",
+    "apply_fantasy_overlays",
     "compute_temperature",
-    "generate_temperature_map",
-    "generate_rainfall",
     "determine_biome",
-    "generate_elevation_map",
-    "terrain_from_elevation",
-    "BIOME_COLORS",
     "export_resources_json",
     "export_resources_xml",
-    "add_floating_islands",
-    "add_crystal_forests",
-    "apply_fantasy_overlays",
+    "generate_elevation_map",
+    "generate_rainfall",
+    "generate_temperature_map",
+    "terrain_from_elevation",
+    "_compute_moisture_orographic",
 ]

@@ -314,6 +314,23 @@ def _determine_biome_tile(
     return base_biome
 
 
+def determine_biome(
+    elevation: float,
+    temperature: float,
+    rainfall: float,
+    settings: WorldSettings | None = None,
+) -> str:
+    """Public helper to classify a single tile's biome."""
+    rng = random.Random(0xBEEF)
+    return _determine_biome_tile(
+        elevation=elevation,
+        temperature=temperature,
+        rainfall=rainfall,
+        settings=settings or WorldSettings(),
+        tile_rng=rng,
+    )
+
+
 def _smooth_biome_map(
     biomes: list[list[str]],
     width: int,
@@ -609,6 +626,9 @@ class World:
                     new_chunk.append(row_tiles)
 
             self.chunks[(cx, cy)] = new_chunk
+            # Generate water only for new tiles
+            self._dirty_rivers = True
+            self.generate_water_features()
 
             # Evict LRU chunk if over capacity
             if len(self.chunks) > self.max_active_chunks:
@@ -665,17 +685,10 @@ class World:
         Returns:
             Iterable[Hex]: All Hex objects that have been generated or cached.
         """
-        if not self.settings.infinite:
-            for r in range(self.settings.height):
-                for q in range(self.settings.width):
-                    h = self.get(q, r)
-                    if h:
-                        yield h
-        else:
-            for chunk in self.chunks.values():
-                for row in chunk:
-                    for h in row:
-                        yield h
+        for chunk in self.chunks.values():
+            for row in chunk:
+                for h in row:
+                    yield h
 
     def iter_all_coords(self) -> Iterable[Coordinate]:
         """
@@ -908,42 +921,28 @@ class World:
         flow_map: FlowMap = {}
         downhill_map: Dict[Coordinate, Optional[Coordinate]] = {}
 
-        # Determine iteration bounds
-        if self.settings.infinite:
-            qs: List[int] = []
-            rs: List[int] = []
-            for (cx, cy), chunk in self.chunks.items():
-                for r_idx, row_tiles in enumerate(chunk):
-                    for q_idx, tile in enumerate(row_tiles):
-                        q = cx * self.chunk_width + q_idx
-                        r = cy * self.chunk_height + r_idx
-                        qs.append(q)
-                        rs.append(r)
-            if not qs:
-                self.rivers.clear()
-                self.lakes.clear()
-                self._dirty_rivers = False
-                return {}, {}
-            min_q, max_q = min(qs), max(qs)
-            min_r, max_r = min(rs), max(rs)
-        else:
-            min_q, max_q = 0, self.settings.width - 1
-            min_r, max_r = 0, self.settings.height - 1
+        # Only process currently loaded chunks
+        if not self.chunks:
+            self.rivers.clear()
+            self.lakes.clear()
+            self._dirty_rivers = False
+            return {}, {}
 
-        # Collect flow & downhill
-        for r in range(min_r, max_r + 1):
-            for q in range(min_q, max_q + 1):
-                if not self.settings.infinite and not (0 <= q < self.settings.width and 0 <= r < self.settings.height):
-                    continue
-                elev = self._elevation(q, r)
-                rain_amt = self._moisture(q, r, elev, self._season) * self.settings.rainfall_intensity
-                flow_map[(q, r)] = rain_amt
+        for (cx, cy), chunk in self.chunks.items():
+            for r_idx, row_tiles in enumerate(chunk):
+                for q_idx, _ in enumerate(row_tiles):
+                    q = cx * self.chunk_width + q_idx
+                    r = cy * self.chunk_height + r_idx
 
-                dn = self._downhill_neighbor(q, r)
-                if dn and self._elevation(*dn) < elev:
-                    downhill_map[(q, r)] = dn
-                else:
-                    downhill_map[(q, r)] = None
+                    elev = self._elevation(q, r)
+                    rain_amt = self._moisture(q, r, elev, self._season) * self.settings.rainfall_intensity
+                    flow_map[(q, r)] = rain_amt
+
+                    dn = self._downhill_neighbor(q, r)
+                    if dn and self._elevation(*dn) < elev:
+                        downhill_map[(q, r)] = dn
+                    else:
+                        downhill_map[(q, r)] = None
 
         return flow_map, downhill_map
 
@@ -1300,4 +1299,5 @@ __all__ = [
     "register_biome_rule",
     "InvalidCoordinateError",
     "adjust_settings",
+    "determine_biome",
 ]

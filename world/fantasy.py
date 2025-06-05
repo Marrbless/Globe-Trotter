@@ -6,6 +6,7 @@ import random
 from typing import Iterable
 
 from .hex import Hex
+from .resources import generate_resources
 
 
 def add_floating_islands(hexes: Iterable[Hex], level: float, *, rng: random.Random | None = None) -> None:
@@ -19,6 +20,7 @@ def add_floating_islands(hexes: Iterable[Hex], level: float, *, rng: random.Rand
     count = max(1, int(len(candidates) * 0.05 * level))
     for h in rng.sample(candidates, min(len(candidates), count)):
         h.terrain = "floating_island"
+        h.resources = generate_resources(random.Random(h.coord[0] * 73856093 ^ h.coord[1] * 19349663 ^ 0xF17A57), h.terrain)
 
 
 def add_crystal_forests(hexes: Iterable[Hex], level: float, *, rng: random.Random | None = None) -> None:
@@ -32,6 +34,7 @@ def add_crystal_forests(hexes: Iterable[Hex], level: float, *, rng: random.Rando
     count = max(1, int(len(candidates) * 0.1 * level))
     for h in rng.sample(candidates, min(len(candidates), count)):
         h.terrain = "crystal_forest"
+        h.resources = generate_resources(random.Random(h.coord[0] * 73856093 ^ h.coord[1] * 19349663 ^ 0xC5A1CE), h.terrain)
 
 
 def apply_fantasy_overlays(hexes: Iterable[Hex], level: float) -> None:

@@ -45,6 +45,43 @@ class GreatProject:
         self.progress = min(self.build_time, self.progress + amount)
 
 
+class GrandCathedral(GreatProject):
+    def __init__(self) -> None:
+        super().__init__(
+            name="Grand Cathedral",
+            build_time=int(5 * settings.SCALE_FACTOR),
+            victory_points=10,
+            bonus="Increases faith across the realm",
+        )
+
+
+class SkyFortress(GreatProject):
+    def __init__(self) -> None:
+        super().__init__(
+            name="Sky Fortress",
+            build_time=int(8 * settings.SCALE_FACTOR),
+            victory_points=15,
+            bonus="Provides unmatched military power",
+        )
+
+
+class GreatDam(GreatProject):
+    def __init__(self) -> None:
+        super().__init__(
+            name="Great Dam",
+            build_time=int(6 * settings.SCALE_FACTOR),
+            victory_points=12,
+            bonus="Controls flooding and provides power",
+        )
+
+
+PROJECT_NAME_TO_CLASS: Dict[str, type[GreatProject]] = {
+    "Grand Cathedral": GrandCathedral,
+    "Sky Fortress": SkyFortress,
+    "Great Dam": GreatDam,
+}
+
+
 @dataclass
 class Faction:
     """Core data model representing a faction in the game."""
