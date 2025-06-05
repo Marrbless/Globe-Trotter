@@ -230,7 +230,7 @@ class World:
         coords = sorted(flow.keys(), key=lambda c: self.get(*c).elevation, reverse=True)
         for c in coords:
             d = downhill[c]
-            if d:
+            if d and d in flow:
                 flow[d] += flow[c]
 
         for c, f in flow.items():

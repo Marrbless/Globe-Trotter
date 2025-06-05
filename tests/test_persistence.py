@@ -219,3 +219,34 @@ def test_extended_state_roundtrip(tmp_path, monkeypatch):
     assert new_game.event_turn_counters == {"raid": 5}
     assert new_game.player_faction.tech_level == 3
     assert new_game.player_faction.god_powers == {"smite": 1}
+
+
+def test_buildings_persist_across_save(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+
+    from game.buildings import Farm, House
+
+    faction.resources[ResourceType.WOOD] = 300
+    faction.build_structure(Farm())
+    faction.build_structure(House())
+    game.resources.data[faction.name] = faction.resources.copy()
+
+    game.save()
+
+    new_game = Game(world=world)
+    new_game.place_initial_settlement(1, 1)
+    new_game.begin()
+
+    new_faction = new_game.player_faction
+    assert new_faction is not None
+    assert any(b.name == "Farm" for b in new_faction.buildings)
+    assert any(b.name == "House" for b in new_faction.buildings)
+    assert new_faction.resources[ResourceType.WOOD] == faction.resources[ResourceType.WOOD]

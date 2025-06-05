@@ -148,7 +148,10 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
             "citizens": fac.citizens.count,
             "workers": fac.workers.assigned,
             "units": fac.units,
-            "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
+            "buildings": [
+                {"id": getattr(b, "CLASS_ID", None), "level": b.level}
+                for b in fac.buildings
+            ],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
             "settlement": {
                 "name": fac.settlement.name,
