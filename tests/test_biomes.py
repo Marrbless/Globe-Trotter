@@ -15,5 +15,8 @@ def test_biome_map_used_for_terrain():
     settings = WorldSettings(seed=2, width=4, height=4)
     world = World(width=settings.width, height=settings.height, settings=settings)
     expected = generate_biome_map(world.elevation_map, world.temperature_map, world.rainfall_map)
-    terrains = [[h.terrain for h in row] for row in world.hexes]
+    terrains = [
+        [world.get(q, r).terrain for q in range(settings.width)]
+        for r in range(settings.height)
+    ]
     assert terrains == expected

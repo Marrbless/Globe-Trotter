@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Iterable
 
 from .generation import (
     perlin_noise,
@@ -288,7 +288,6 @@ class World:
     ) -> None:
         self.settings = settings or WorldSettings(seed=seed, width=width, height=height)
         self.chunks: Dict[Tuple[int, int], List[List[Hex]]] = {}
-        self.hexes: List[List[Hex]] = []
         self.roads: List[Road] = []
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
@@ -306,7 +305,6 @@ class World:
             self.elevation_map, self.temperature_map, self.rainfall_map
         )
 
-        self._initialize_base_area()
         self._generate_rivers()
 
     @property
@@ -316,14 +314,6 @@ class World:
     @property
     def height(self) -> int:
         return self.settings.height
-
-    def _initialize_base_area(self) -> None:
-        """Populate hexes for the entire world by lazily generating each chunk."""
-        for r in range(self.settings.height):
-            row: List[Hex] = []
-            for q in range(self.settings.width):
-                row.append(self.get(q, r))
-            self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
         """Generate a single hex tile using precomputed climate maps."""
@@ -428,6 +418,19 @@ class World:
         if chunk is None:
             return None
         return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
+
+    def all_hexes(self) -> "Iterable[Hex]":
+        """Yield every hex in the world, generating chunks as required."""
+        chunk_cols = (self.width + self.CHUNK_SIZE - 1) // self.CHUNK_SIZE
+        chunk_rows = (self.height + self.CHUNK_SIZE - 1) // self.CHUNK_SIZE
+        for cy in range(chunk_rows):
+            for cx in range(chunk_cols):
+                if (cx, cy) not in self.chunks:
+                    self._generate_chunk(cx, cy)
+                chunk = self.chunks[(cx, cy)]
+                for row in chunk:
+                    for hex_ in row:
+                        yield hex_
 
     def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
         """Sum up resources of all hexes within a given radius."""

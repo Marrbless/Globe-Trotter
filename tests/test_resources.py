@@ -192,11 +192,10 @@ def test_advanced_resources_generated():
 
     advanced = {ResourceType.IRON, ResourceType.GOLD, ResourceType.WHEAT, ResourceType.WOOL}
     found: set[ResourceType] = set()
-    for row in world.hexes:
-        for hex_ in row:
-            for res in hex_.resources:
-                if res in advanced:
-                    found.add(res)
+    for hex_ in world.all_hexes():
+        for res in hex_.resources:
+            if res in advanced:
+                found.add(res)
 
     assert any(res in found for res in advanced)
 
@@ -209,13 +208,12 @@ def test_strategic_and_luxury_resources_generated():
     strategic_found: set[ResourceType] = set()
     luxury_found: set[ResourceType] = set()
 
-    for row in world.hexes:
-        for hex_ in row:
-            for res in hex_.resources:
-                if res in STRATEGIC_RESOURCES:
-                    strategic_found.add(res)
-                if res in LUXURY_RESOURCES:
-                    luxury_found.add(res)
+    for hex_ in world.all_hexes():
+        for res in hex_.resources:
+            if res in STRATEGIC_RESOURCES:
+                strategic_found.add(res)
+            if res in LUXURY_RESOURCES:
+                luxury_found.add(res)
 
     assert strategic_found
     assert luxury_found
