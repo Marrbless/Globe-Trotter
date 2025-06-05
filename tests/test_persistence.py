@@ -97,7 +97,7 @@ def test_offline_processing_buildings(tmp_path, monkeypatch):
     ticks = int((1003.0 - 1000.0) // persistence.TICK_DURATION)
     values = [0, 0, 0] * ticks
     monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
-    loaded = persistence.load_state(world=world, factions=[faction])
+    loaded, _ = persistence.load_state(world=world, factions=[faction])
 
     assert loaded.resources[player][ResourceType.METAL] == 4
     assert loaded.resources[player][ResourceType.ORE] == 0
@@ -153,7 +153,7 @@ def test_offline_project_completion(tmp_path, monkeypatch):
 
     template = GREAT_PROJECT_TEMPLATES["Grand Cathedral"]
     project = deepcopy(template)
-    faction.start_project(project)
+    faction.start_project(project, claimed_projects=game.claimed_projects)
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
     game.save()
@@ -162,7 +162,7 @@ def test_offline_project_completion(tmp_path, monkeypatch):
     monkeypatch.setattr(persistence.time, "time", lambda: offline_time)
     monkeypatch.setattr("random.randint", lambda a, b: 0)
 
-    loaded = persistence.load_state(world=world, factions=[faction])
+    loaded, _ = persistence.load_state(world=world, factions=[faction])
 
     assert faction.projects[0].is_complete()
     player = faction.name

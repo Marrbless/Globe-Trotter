@@ -96,12 +96,11 @@ class Faction:
     def population(self, value: int) -> None:
         self.citizens.count = value
 
-    def start_project(self, project: GreatProject, claimed_projects: set[str] | None = None) -> None:
-        """Begin constructing a great project if not already claimed."""
-        if claimed_projects is not None:
-            if project.name in claimed_projects:
-                raise ValueError(f"{project.name} already claimed")
-            claimed_projects.add(project.name)
+    def start_project(self, project: GreatProject, claimed_projects: set[str]) -> None:
+        """Begin constructing a great project ensuring it's unique globally."""
+        if project.name in claimed_projects:
+            raise ValueError(f"{project.name} already claimed")
+        claimed_projects.add(project.name)
         self.projects.append(project)
 
     def progress_projects(self) -> None:
