@@ -11,7 +11,8 @@ from .persistence import (
     deserialize_world,
     apply_offline_gains,
 )
-from .diplomacy import TradeDeal, Truce, DeclarationOfWar
+from .diplomacy import TradeDeal, Truce, DeclarationOfWar, Alliance
+from . import ai
 from .buildings import (
     Building,
     ProcessingBuilding,
@@ -131,6 +132,8 @@ class Game:
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
         self.god_powers: Dict[str, GodPower] = {p.name: p for p in ALL_POWERS}
+        self.alliances: List[Alliance] = []
+
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -305,6 +308,9 @@ class Game:
         self._apply_trade_deals()
         self._advance_truces()
 
+        # Evaluate AI relationships each turn
+        ai.evaluate_relations(self)
+
         # After all factions have been processed, update overall population and
         # ResourceManager data
         self.population = sum(f.citizens.count for f in self.map.factions)
@@ -338,11 +344,15 @@ class Game:
 
     def calculate_scores(self) -> Dict[str, int]:
         """Return victory points for all factions."""
-        return {f.name: f.get_victory_points() for f in self.map.factions}
+        return {f.name: f.get_victory_points(self) for f in self.map.factions}
 
     # ------------------------------------------------------------------
     # Diplomacy utilities
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _match_pair(pair: tuple[Faction, Faction], a: Faction, b: Faction) -> bool:
+        return (pair[0] is a and pair[1] is b) or (pair[0] is b and pair[1] is a)
     def form_trade_deal(
         self,
         faction_a: Faction,
@@ -368,11 +378,31 @@ class Game:
 
     def form_truce(self, faction_a: Faction, faction_b: Faction, duration: int) -> None:
         # remove any existing war between the factions
-        self.wars = [w for w in self.wars if set(w.factions) != {faction_a, faction_b}]
+        self.wars = [w for w in self.wars if not self._match_pair(w.factions, faction_a, faction_b)]
         self.truces.append(Truce((faction_a, faction_b), duration))
 
+    def break_truce(self, faction_a: Faction, faction_b: Faction) -> None:
+        self.truces = [t for t in self.truces if not self._match_pair(t.factions, faction_a, faction_b)]
+
+    def form_alliance(self, faction_a: Faction, faction_b: Faction) -> Alliance:
+        # remove war or truce between them
+        self.wars = [w for w in self.wars if not self._match_pair(w.factions, faction_a, faction_b)]
+        self.break_truce(faction_a, faction_b)
+        alliance = Alliance((faction_a, faction_b))
+        self.alliances.append(alliance)
+        return alliance
+
+    def break_alliance(self, faction_a: Faction, faction_b: Faction) -> None:
+        self.alliances = [a for a in self.alliances if not self._match_pair(a.factions, faction_a, faction_b)]
+
+    def is_allied(self, faction_a: Faction, faction_b: Faction) -> bool:
+        return any(self._match_pair(a.factions, faction_a, faction_b) for a in self.alliances)
+
+    def is_under_truce(self, faction_a: Faction, faction_b: Faction) -> bool:
+        return any(self._match_pair(t.factions, faction_a, faction_b) for t in self.truces)
+
     def is_at_war(self, faction_a: Faction, faction_b: Faction) -> bool:
-        return any(set(w.factions) == {faction_a, faction_b} for w in self.wars)
+        return any(self._match_pair(w.factions, faction_a, faction_b) for w in self.wars)
 
     def _apply_trade_deals(self) -> None:
         for deal in list(self.trade_deals):
