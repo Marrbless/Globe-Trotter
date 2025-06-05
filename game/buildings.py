@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
 
 if TYPE_CHECKING:
-    from .game import Faction
+    from .models import Faction
 
 # Categories for defensive structures
 FACTION_DEFENSE = "faction"

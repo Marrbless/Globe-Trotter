@@ -5,7 +5,7 @@ import random
 from typing import List, TYPE_CHECKING, Callable, Dict
 
 if TYPE_CHECKING:
-    from .game import Faction
+    from .models import Faction
 
 
 @dataclass

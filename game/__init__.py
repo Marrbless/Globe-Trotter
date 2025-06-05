@@ -1,6 +1,7 @@
 """Game package exposing core classes."""
 
-from .game import Game, Faction
+from .game import Game
+from .models import Faction
 from .diplomacy import TradeDeal, Truce, DeclarationOfWar
 from .models import Settlement, Position
 from .buildings import (
