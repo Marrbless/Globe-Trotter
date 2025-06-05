@@ -349,3 +349,8 @@ ALL_BUILDING_CLASSES: List[type[Building]] = [
     SoupKitchen,
 ]
 
+# Map CLASS_ID strings to the implementing class for easy lookup
+BUILDING_ID_TO_CLASS: Dict[str, type[Building]] = {
+    cls.CLASS_ID: cls for cls in ALL_BUILDING_CLASSES
+}
+
