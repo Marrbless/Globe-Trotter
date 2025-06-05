@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
 from .resources import ResourceManager
 from .population import FactionManager
+from .buildings import ProcessingBuilding
 
 if TYPE_CHECKING:
     from .game import Faction
@@ -121,6 +122,24 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
     return result
 
 
+def simulate_tick(
+    factions: List["Faction"],
+    pop_mgr: FactionManager,
+    res_mgr: ResourceManager,
+) -> None:
+    """Advance one tick for offline gains."""
+    pop_mgr.tick()
+    for fac in factions:
+        for b in getattr(fac, "buildings", []):
+            if isinstance(b, ProcessingBuilding):
+                b.process(fac)
+        if fac.name in res_mgr.data:
+            res_mgr.data[fac.name].update(fac.resources)
+        else:
+            res_mgr.data[fac.name] = fac.resources.copy()
+    res_mgr.tick(factions)
+
+
 def load_state(
     *,
     world: Optional["World"] = None,
@@ -163,8 +182,7 @@ def load_state(
         res_mgr = ResourceManager(world, state.resources)
         pop_mgr = FactionManager(factions)
         for _ in range(elapsed):
-            pop_mgr.tick()
-            res_mgr.tick(factions)
+            simulate_tick(factions, pop_mgr, res_mgr)
         state.resources = res_mgr.data
         state.population = sum(f.citizens.count for f in factions)
 

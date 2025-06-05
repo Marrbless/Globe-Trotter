@@ -62,6 +62,45 @@ def test_offline_gains(tmp_path, monkeypatch):
     assert loaded.resources[player][ResourceType.ORE] == 30
 
 
+def test_offline_processing_buildings(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+
+    world = make_world()
+    center = (1, 1)
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(center[0] + dq, center[1] + dr)
+        if tile:
+            tile.resources = {}
+
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    player = faction.name
+
+    faction.resources = {
+        ResourceType.ORE: 4,
+        ResourceType.METAL: 0,
+        ResourceType.FOOD: 0,
+    }
+    game.resources.data[player] = faction.resources.copy()
+    from game.buildings import Smeltery
+
+    faction.buildings.append(Smeltery())
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1003.0)
+    ticks = int((1003.0 - 1000.0) // persistence.TICK_DURATION)
+    values = [0, 0, 0] * ticks
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+    loaded = persistence.load_state(world=world, factions=[faction])
+
+    assert loaded.resources[player][ResourceType.METAL] == 4
+    assert loaded.resources[player][ResourceType.ORE] == 0
+
+
 def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
     tmp_file = tmp_path / "save.json"
     monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
