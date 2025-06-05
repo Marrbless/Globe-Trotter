@@ -98,6 +98,8 @@ def test_auto_assignment_gathers_resources(monkeypatch):
     game.place_initial_settlement(1, 1)
     # Remove all assigned workers to simulate idle population
     game.player_faction.workers.assigned = 0
+    # Ensure precondition holds
+    assert game.player_faction.workers.assigned == 0
     player = game.player_faction.name
 
     values = [0, 0, 0]
@@ -106,6 +108,8 @@ def test_auto_assignment_gathers_resources(monkeypatch):
     before = game.resources.data[player][ResourceType.WOOD]
     game.tick()
     after = game.resources.data[player][ResourceType.WOOD]
+    # FactionManager should have assigned all idle citizens as workers
+    assert game.player_faction.workers.assigned == game.player_faction.citizens.count
     assert after - before == 6
 
 
