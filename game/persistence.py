@@ -189,16 +189,19 @@ def load_state(
         pop_mgr = FactionManager(factions)
         for _ in range(elapsed):
             simulate_tick(factions, pop_mgr, res_mgr)
+            for fac in factions:
+                fac.progress_projects()
+
         state.resources = res_mgr.data
         state.population = sum(f.citizens.count for f in factions)
+
         for fac in factions:
             population_updates[fac.name] = {
                 "citizens": fac.citizens.count,
                 "workers": fac.workers.assigned,
             }
-            fdata = state.factions.setdefault(fac.name, {})
-            fdata["citizens"] = fac.citizens.count
-            fdata["workers"] = fac.workers.assigned
+
+        state.factions = serialize_factions(factions)
 
     state.timestamp = now
     return state, population_updates

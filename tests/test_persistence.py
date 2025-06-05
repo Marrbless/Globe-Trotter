@@ -6,6 +6,7 @@ import tempfile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
+from game.game import GREAT_PROJECT_TEMPLATES
 from world.world import World, ResourceType
 import game.persistence as persistence
 from game import settings
@@ -136,6 +137,36 @@ def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
 
     assert new_game.player_faction.resources[ResourceType.FOOD] == 10
     assert new_game.player_faction.citizens.count == 12
+
+
+def test_offline_project_completion(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+
+    from copy import deepcopy
+
+    template = GREAT_PROJECT_TEMPLATES["Grand Cathedral"]
+    project = deepcopy(template)
+    faction.start_project(project)
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    offline_time = 1000.0 + project.build_time * persistence.TICK_DURATION
+    monkeypatch.setattr(persistence.time, "time", lambda: offline_time)
+    monkeypatch.setattr("random.randint", lambda a, b: 0)
+
+    loaded = persistence.load_state(world=world, factions=[faction])
+
+    assert faction.projects[0].is_complete()
+    player = faction.name
+    assert loaded.factions[player]["projects"][0]["progress"] == project.build_time
 
 
 def test_population_persists_between_sessions(tmp_path, monkeypatch):
