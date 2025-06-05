@@ -31,6 +31,8 @@ class WorldSettings:
     desert_rain: float = 0.2
     fantasy_level: float = 0.0
     infinite: bool = False
+    river_branch_threshold: float = 0.3
+    river_branch_chance: float = 0.05
 
 
 __all__ = ["WorldSettings"]

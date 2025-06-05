@@ -6,6 +6,8 @@ from .world import (
     RiverSegment,
     World,
     adjust_settings,
+)
+from .generation import (
     compute_temperature,
     generate_temperature_map,
     generate_rainfall,
