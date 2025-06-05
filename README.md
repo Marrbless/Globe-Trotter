@@ -3,6 +3,8 @@
 This repository contains modular prototypes for a turn-based strategy game. It includes:
 
 - A **Faction Creation UI** to let players customize their faction
+- A **Defense Building Selection UI** to pick starting structures
+- A **Map Viewer** for exploring generated worlds
 - A **Procedural World Generator** using hex tiles
 - A **Game Runtime Module** that spawns AI factions after the player starts the game
 
@@ -32,7 +34,31 @@ A simple GUI for experimenting with player faction creation.
 python ui/faction_creation.py
 ```
 
-## 2. Random Event System
+## 2. Defense Building Selection UI
+
+Choose which defensive structures your settlement will start with.
+
+**Location:** `ui/defense_building_ui.py`
+
+### How to Run
+
+```bash
+python ui/defense_building_ui.py
+```
+
+## 3. Map Viewer
+
+View a generated world map and select a hex tile using mouse controls.
+
+**Location:** `ui/map_view.py`
+
+### How to Run
+
+```bash
+python ui/map_view.py
+```
+
+## 4. Random Event System
 
 The `game.events` module provides a lightweight framework for triggering
 random events such as floods, droughts or raids during gameplay. Each
