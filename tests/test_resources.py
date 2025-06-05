@@ -127,16 +127,21 @@ def test_manual_assignment_yields_more_over_time(monkeypatch):
 
     manual_game = Game(world=world)
     manual_game.place_initial_settlement(1, 1)
-    manual_game.player_faction.manual_assignment = True
+    manual_game.faction_manager.toggle_assignment(
+        manual_game.player_faction, True
+    )
     manual_game.player_faction.workers.assigned = manual_game.player_faction.citizens.count
 
     auto_game = Game(world=world)
     auto_game.place_initial_settlement(1, 1)
+    auto_game.faction_manager.toggle_assignment(
+        auto_game.player_faction, False, "mid"
+    )
 
     manual_before = manual_game.player_faction.resources[ResourceType.WOOD]
     auto_before = auto_game.player_faction.resources[ResourceType.WOOD]
 
-    for _ in range(3):
+    for _ in range(5):
         manual_game.tick()
         auto_game.tick()
 

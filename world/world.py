@@ -231,6 +231,8 @@ class World:
         for c in coords:
             d = downhill[c]
             if d:
+                if d not in flow:
+                    flow[d] = 0
                 flow[d] += flow[c]
 
         for c, f in flow.items():
