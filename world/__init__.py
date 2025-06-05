@@ -1,8 +1,11 @@
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .settings import WorldSettings
 from .hex import Hex
-from .world import Road, RiverSegment, World, adjust_settings
-from .generation import (
+from .world import (
+    Road,
+    RiverSegment,
+    World,
+    adjust_settings,
     compute_temperature,
     generate_temperature_map,
     generate_rainfall,
