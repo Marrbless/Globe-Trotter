@@ -242,21 +242,22 @@ class Game:
             self.resources.register(faction)
             self.faction_manager.add_faction(faction)
 
-        # Peek saved state to rebuild world and faction data
-        initial_state = load_state()
-        if initial_state.world:
+        # Load saved state and apply offline gains
+        self.state = load_state(world=self.world, factions=self.map.factions)
+
+        # Initialize the world from the loaded data
+        if self.state.world:
             from world.world import WorldSettings
 
-            settings_obj = WorldSettings(**initial_state.world.get("settings", {}))
+            settings_obj = WorldSettings(**self.state.world.get("settings", {}))
             self.world = World(
                 width=settings_obj.width,
                 height=settings_obj.height,
                 settings=settings_obj,
             )
-            deserialize_world(initial_state.world, self.world)
+            deserialize_world(self.state.world, self.world)
 
-        # Apply offline gains now that the world and factions exist
-        self.state = load_state(world=self.world, factions=self.map.factions)
+        # Replace resource manager with data from the loaded state
         self.resources = ResourceManager(self.world, self.state.resources)
         self.claimed_projects = set(self.state.claimed_projects)
 
