@@ -24,6 +24,7 @@ from . import settings
 from world.world import World, ResourceType
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject, Faction
+from .god_powers import ALL_POWERS, GodPower
 
 
 # Predefined templates for special high-cost projects
@@ -130,7 +131,9 @@ class Game:
         self.trade_deals: List[TradeDeal] = []
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
+        self.god_powers: Dict[str, GodPower] = {p.name: p for p in ALL_POWERS}
         self.alliances: List[Alliance] = []
+
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -423,6 +426,25 @@ class Game:
         # transfer from B to A
         if deal.resources_b_to_a:
             deal.faction_b.transfer_resources(deal.faction_a, deal.resources_b_to_a)
+
+    # ------------------------------------------------------------------
+    # God power utilities
+    # ------------------------------------------------------------------
+    def available_powers(self) -> List[GodPower]:
+        if not self.player_faction:
+            return []
+        completed = {p.name for p in self.player_faction.completed_projects()}
+        return [
+            p
+            for p in self.god_powers.values()
+            if p.is_unlocked(self.player_faction, completed)
+        ]
+
+    def use_power(self, name: str) -> None:
+        if name not in self.god_powers:
+            raise ValueError("Unknown power")
+        power = self.god_powers[name]
+        power.apply(self)
 
 
 def main():
