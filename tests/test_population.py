@@ -63,3 +63,24 @@ def test_game_tick_updates_population(monkeypatch):
     game.tick()
 
     assert game.player_faction.citizens.count == initial + 2
+
+
+def test_mid_level_strategy_matches_original(monkeypatch):
+    """Default mid-level automation should assign all idle citizens."""
+    faction = make_faction(10)
+    faction.workers.assigned = 0
+    mgr = FactionManager([faction])
+    values = [0, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+    mgr.tick()
+    assert faction.workers.assigned == faction.citizens.count
+
+
+def test_select_automation_level_when_toggling(monkeypatch):
+    faction = make_faction(10)
+    faction.toggle_manual_assignment(False, "basic")
+    mgr = FactionManager([faction])
+    values = [0, 0, 0]
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+    mgr.tick()
+    assert faction.workers.assigned == faction.citizens.count // 2

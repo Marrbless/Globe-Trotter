@@ -87,6 +87,14 @@ class Faction:
     # When True, workers will only be assigned manually. When False, all idle
     # citizens are automatically distributed to resource tasks each tick.
     manual_assignment: bool = False
+    # Strategy level used when ``manual_assignment`` is False.
+    automation_level: str = "mid"
+
+    def toggle_manual_assignment(self, manual: bool, level: str | None = None) -> None:
+        """Enable or disable manual worker assignment."""
+        self.manual_assignment = manual
+        if not manual and level is not None:
+            self.automation_level = level
 
     @property
     def population(self) -> int:
