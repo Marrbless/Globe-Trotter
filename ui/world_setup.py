@@ -57,6 +57,38 @@ class WorldSetupUI:
                 callback=self._update_world,
             )
             dpg.add_slider_float(
+                label="Mountain Elev",
+                tag="mountain_elev",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.mountain_elev,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Hill Elev",
+                tag="hill_elev",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.hill_elev,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Tundra Temp",
+                tag="tundra_temp",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.tundra_temp,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Desert Rain",
+                tag="desert_rain",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.desert_rain,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
                 label="Tectonic Activity",
                 tag="tectonic",
                 min_value=0.0,
@@ -79,6 +111,10 @@ class WorldSetupUI:
         self.settings.sea_level = dpg.get_value("sea_level")
         self.settings.temperature = dpg.get_value("temperature")
         self.settings.moisture = dpg.get_value("moisture")
+        self.settings.mountain_elev = dpg.get_value("mountain_elev")
+        self.settings.hill_elev = dpg.get_value("hill_elev")
+        self.settings.tundra_temp = dpg.get_value("tundra_temp")
+        self.settings.desert_rain = dpg.get_value("desert_rain")
         self.settings.plate_activity = dpg.get_value("tectonic")
         self.settings.world_changes = dpg.get_value("world_changes")
 

@@ -22,6 +22,7 @@ Coordinate = Tuple[int, int]
 
 class ResourceType(Enum):
     """Supported resource types found on hexes."""
+
     FOOD = "food"
     WHEAT = "wheat"
     FLOUR = "flour"
@@ -81,6 +82,7 @@ class Road:
 @dataclass(frozen=True)
 class RiverSegment:
     """A start/end pair describing a single river edge."""
+
     start: Coordinate
     end: Coordinate
 
@@ -114,6 +116,10 @@ class WorldSettings:
     plate_activity: float = 0.5
     base_height: float = 0.5
     world_changes: bool = True
+    mountain_elev: float = 0.8
+    hill_elev: float = 0.6
+    tundra_temp: float = 0.25
+    desert_rain: float = 0.2
 
 
 @dataclass
@@ -332,7 +338,15 @@ class World:
         elevation = self.elevation_map[r][q]
         temperature = self.temperature_map[r][q]
         moisture = self.rainfall_map[r][q]
-        terrain = determine_biome(elevation, temperature, moisture)
+        terrain = determine_biome(
+            elevation,
+            temperature,
+            moisture,
+            mountain_elev=self.settings.mountain_elev,
+            hill_elev=self.settings.hill_elev,
+            tundra_temp=self.settings.tundra_temp,
+            desert_rain=self.settings.desert_rain,
+        )
         resources = generate_resources(rng, terrain)
 
         return Hex(
@@ -429,7 +443,9 @@ class World:
             return None
         return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
 
-    def resources_near(self, x: int, y: int, radius: int = 1) -> Dict[ResourceType, int]:
+    def resources_near(
+        self, x: int, y: int, radius: int = 1
+    ) -> Dict[ResourceType, int]:
         """Sum up resources of all hexes within a given radius."""
         totals: Dict[ResourceType, int] = {r: 0 for r in ResourceType}
         for dy in range(-radius, radius + 1):

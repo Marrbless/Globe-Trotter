@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 # -- Noise utilities ---------------------------------------------------------
 
+
 def _fade(t: float) -> float:
     return t * t * t * (t * (t * 6 - 15) + 10)
 
@@ -81,6 +82,7 @@ def perlin_noise(
 
 # -- Elevation map generation ------------------------------------------------
 
+
 def generate_elevation_map(
     width: int,
     height: int,
@@ -128,7 +130,9 @@ def apply_tectonic_plates(
             dist1 = dists[1][0] if len(dists) > 1 else dist0
             ratio = dist0 / (dist0 + dist1) if dist1 > 0 else 0.0
             boundary = 1.0 - abs(0.5 - ratio) * 2.0
-            plate_height = base * settings.base_height + boundary * settings.plate_activity
+            plate_height = (
+                base * settings.base_height + boundary * settings.plate_activity
+            )
             elev[y][x] = min(1.0, max(0.0, (elev[y][x] + plate_height) / 2))
 
 
@@ -147,6 +151,7 @@ def terrain_from_elevation(
 
 
 # -- Climate and biome utilities ------------------------------------------------
+
 
 def _latitude(row: int, height: int) -> float:
     """Return normalized latitude (0 south pole -> 1 north pole)."""
@@ -207,15 +212,20 @@ def determine_biome(
     elevation: float,
     temperature: float,
     rainfall: float,
+    *,
+    mountain_elev: float = 0.8,
+    hill_elev: float = 0.6,
+    tundra_temp: float = 0.25,
+    desert_rain: float = 0.2,
 ) -> str:
     """Classify biome from elevation, temperature, and rainfall values."""
-    if elevation > 0.8:
+    if elevation > mountain_elev:
         return "mountains"
-    if elevation > 0.6:
+    if elevation > hill_elev:
         return "hills"
-    if temperature < 0.25:
+    if temperature < tundra_temp:
         return "tundra"
-    if rainfall < 0.2 and temperature > 0.5:
+    if rainfall < desert_rain and temperature > 0.5:
         return "desert"
     if rainfall > 0.7 and temperature > 0.5:
         return "rainforest"
