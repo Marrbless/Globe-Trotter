@@ -126,32 +126,58 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
         resources[ResourceType.WOOD] = rng.randint(5, 15)
         if rng.random() < 0.3:
             resources[ResourceType.STONE] = rng.randint(1, 4)
+        if rng.random() < 0.1:
+            resources[ResourceType.WOOL] = rng.randint(1, 3)
     elif terrain == "mountains":
         resources[ResourceType.STONE] = rng.randint(5, 15)
         if rng.random() < 0.7:
             resources[ResourceType.ORE] = rng.randint(1, 5)
+        if rng.random() < 0.4:
+            resources[ResourceType.IRON] = rng.randint(1, 3)
+        if rng.random() < 0.2:
+            resources[ResourceType.GOLD] = rng.randint(1, 2)
     elif terrain == "hills":
         if rng.random() < 0.5:
             resources[ResourceType.WOOD] = rng.randint(1, 5)
         if rng.random() < 0.6:
             resources[ResourceType.STONE] = rng.randint(1, 4)
+        if rng.random() < 0.4:
+            resources[ResourceType.ORE] = rng.randint(1, 3)
+        if rng.random() < 0.2:
+            resources[ResourceType.IRON] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.GOLD] = rng.randint(1, 1)
     elif terrain == "plains":
         if rng.random() < 0.5:
             resources[ResourceType.WOOD] = rng.randint(1, 5)
         if rng.random() < 0.4:
             resources[ResourceType.STONE] = rng.randint(1, 4)
+        if rng.random() < 0.3:
+            resources[ResourceType.WHEAT] = rng.randint(1, 4)
+        if rng.random() < 0.2:
+            resources[ResourceType.WOOL] = rng.randint(1, 2)
     elif terrain == "desert":
         if rng.random() < 0.2:
             resources[ResourceType.STONE] = rng.randint(1, 3)
+        if rng.random() < 0.1:
+            resources[ResourceType.ORE] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.GOLD] = rng.randint(1, 1)
     elif terrain == "tundra":
         if rng.random() < 0.3:
             resources[ResourceType.STONE] = rng.randint(1, 4)
         if rng.random() < 0.2:
             resources[ResourceType.WOOD] = rng.randint(1, 3)
+        if rng.random() < 0.25:
+            resources[ResourceType.WOOL] = rng.randint(1, 3)
     elif terrain == "rainforest":
         resources[ResourceType.WOOD] = rng.randint(8, 20)
         if rng.random() < 0.3:
             resources[ResourceType.VEGETABLE] = rng.randint(1, 3)
+        if rng.random() < 0.15:
+            resources[ResourceType.WHEAT] = rng.randint(1, 2)
+        if rng.random() < 0.1:
+            resources[ResourceType.WOOL] = rng.randint(1, 2)
     elif terrain == "water":
         pass
 

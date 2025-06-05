@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
 from .resources import ResourceManager
 from .population import FactionManager
+from .buildings import ProcessingBuilding
 
 if TYPE_CHECKING:
     from .game import Faction
@@ -121,13 +122,37 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
     return result
 
 
+def simulate_tick(
+    factions: List["Faction"],
+    pop_mgr: FactionManager,
+    res_mgr: ResourceManager,
+) -> None:
+    """Advance one tick for offline gains."""
+    pop_mgr.tick()
+    for fac in factions:
+        for b in getattr(fac, "buildings", []):
+            if isinstance(b, ProcessingBuilding):
+                b.process(fac)
+        if fac.name in res_mgr.data:
+            res_mgr.data[fac.name].update(fac.resources)
+        else:
+            res_mgr.data[fac.name] = fac.resources.copy()
+    res_mgr.tick(factions)
+
+
 def load_state(
     *,
     world: Optional["World"] = None,
     factions: Optional[List["Faction"]] = None,
-) -> GameState:
-    """Load the saved game state and optionally apply offline gains."""
+) -> tuple[GameState, Dict[str, Dict[str, int]]]:
+    """Load the saved game state and optionally apply offline gains.
+
+    Returns a tuple containing the ``GameState`` and a mapping of faction names
+    to their updated population and worker counts. When no faction list is
+    provided the second element will be an empty dictionary.
+    """
     now = time.time()
+    population_updates: Dict[str, Dict[str, int]] = {}
     if SAVE_FILE.exists():
         with open(SAVE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -163,16 +188,23 @@ def load_state(
         res_mgr = ResourceManager(world, state.resources)
         pop_mgr = FactionManager(factions)
         for _ in range(elapsed):
-            pop_mgr.tick()
-            res_mgr.tick(factions)
+            simulate_tick(factions, pop_mgr, res_mgr)
             for fac in factions:
                 fac.progress_projects()
+
         state.resources = res_mgr.data
         state.population = sum(f.citizens.count for f in factions)
+
+        for fac in factions:
+            population_updates[fac.name] = {
+                "citizens": fac.citizens.count,
+                "workers": fac.workers.assigned,
+            }
+
         state.factions = serialize_factions(factions)
 
     state.timestamp = now
-    return state
+    return state, population_updates
 
 
 def save_state(state: GameState) -> None:
