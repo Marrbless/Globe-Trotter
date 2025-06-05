@@ -109,7 +109,11 @@ def generate_elevation_map(
         row: List[float] = []
         for x in range(width):
             n = perlin_noise(x, y, settings.seed)
-            row.append(n)
+            # Adjust elevation based on the requested overall level.
+            amp = 0.5 + settings.elevation / 2
+            offset = settings.elevation - 0.5
+            val = max(0.0, min(1.0, n * amp + offset))
+            row.append(val)
         elev.append(row)
 
     apply_tectonic_plates(elev, settings)

@@ -65,9 +65,10 @@ def serialize_world(world: "World") -> Dict[str, Any]:
         "roads": [list(r.start + r.end) for r in getattr(world, "roads", [])],
         "rivers": [list(r.start + r.end) for r in getattr(world, "rivers", [])],
         "hexes": {
-            f"{q},{r}": {"flooded": h.flooded, "ruined": h.ruined}
-            for r, row in enumerate(getattr(world, "hexes", []))
-            for q, h in enumerate(row)
+            f"{h.coord[0]},{h.coord[1]}": {"flooded": h.flooded, "ruined": h.ruined}
+            for chunk in getattr(world, "chunks", {}).values()
+            for row in chunk
+            for h in row
             if h.flooded or h.ruined
         },
     }

@@ -37,8 +37,8 @@ python ui/faction_creation.py
 The `game.events` module provides a lightweight framework for triggering
 random events such as floods, droughts or raids during gameplay. Each
 event affects a settlement's resources, population and buildings.
-Probabilities are influenced by the biome and weather settings from the
-world generator, allowing different worlds to feel unique.
+Probabilities are influenced by configurable event weights and the
+world's weather settings, allowing different worlds to feel unique.
 
 Example usage:
 
@@ -47,7 +47,7 @@ from world.world import WorldSettings
 from game.events import EventSystem, SettlementState
 
 settings = WorldSettings()
-events = EventSystem(settings)
+events = EventSystem(settings, event_weights={"flood": 1.0, "drought": 1.0, "raid": 0.5})
 state = SettlementState()
 
 # Advance turns and print triggered events
