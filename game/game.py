@@ -11,6 +11,7 @@ from .persistence import (
     serialize_factions,
     deserialize_world,
 )
+from .diplomacy import TradeDeal, Truce, DeclarationOfWar
 from .buildings import (
     Building,
     ProcessingBuilding,
@@ -216,6 +217,9 @@ class Game:
         self.player_faction: Faction | None = None
         self.player_buildings: List[Building] = []
         self.turn = 0
+        self.trade_deals: List[TradeDeal] = []
+        self.truces: List[Truce] = []
+        self.wars: List[DeclarationOfWar] = []
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -383,8 +387,12 @@ class Game:
                 if building.resource_type is not None:
                     current = faction.resources.get(building.resource_type, 0)
                     faction.resources[building.resource_type] = (
-                        current + building.resource_bonus
-                    )
+                    current + building.resource_bonus
+                )
+
+        # Apply diplomacy effects such as trade deals
+        self._apply_trade_deals()
+        self._advance_truces()
 
         # After all factions have been processed, update overall population and
         # ResourceManager data
@@ -420,6 +428,67 @@ class Game:
     def calculate_scores(self) -> Dict[str, int]:
         """Return victory points for all factions."""
         return {f.name: f.get_victory_points() for f in self.map.factions}
+
+    # ------------------------------------------------------------------
+    # Diplomacy utilities
+    # ------------------------------------------------------------------
+    def form_trade_deal(
+        self,
+        faction_a: Faction,
+        faction_b: Faction,
+        resources_a_to_b: Dict[ResourceType, int] | None = None,
+        resources_b_to_a: Dict[ResourceType, int] | None = None,
+        duration: int = 0,
+    ) -> TradeDeal:
+        """Create and register a new trade deal."""
+        deal = TradeDeal(
+            faction_a=faction_a,
+            faction_b=faction_b,
+            resources_a_to_b=resources_a_to_b or {},
+            resources_b_to_a=resources_b_to_a or {},
+            duration=duration,
+        )
+        self.trade_deals.append(deal)
+        return deal
+
+    def declare_war(self, faction_a: Faction, faction_b: Faction) -> None:
+        if not self.is_at_war(faction_a, faction_b):
+            self.wars.append(DeclarationOfWar((faction_a, faction_b)))
+
+    def form_truce(self, faction_a: Faction, faction_b: Faction, duration: int) -> None:
+        # remove any existing war between the factions
+        self.wars = [w for w in self.wars if set(w.factions) != {faction_a, faction_b}]
+        self.truces.append(Truce((faction_a, faction_b), duration))
+
+    def is_at_war(self, faction_a: Faction, faction_b: Faction) -> bool:
+        return any(set(w.factions) == {faction_a, faction_b} for w in self.wars)
+
+    def _apply_trade_deals(self) -> None:
+        for deal in list(self.trade_deals):
+            self._execute_trade(deal)
+            if deal.duration > 0:
+                deal.duration -= 1
+                if deal.duration <= 0:
+                    self.trade_deals.remove(deal)
+
+    def _advance_truces(self) -> None:
+        for truce in list(self.truces):
+            truce.duration -= 1
+            if truce.duration <= 0:
+                self.truces.remove(truce)
+
+    @staticmethod
+    def _execute_trade(deal: TradeDeal) -> None:
+        # transfer from A to B
+        for res, amt in deal.resources_a_to_b.items():
+            if deal.faction_a.resources.get(res, 0) >= amt:
+                deal.faction_a.resources[res] -= amt
+                deal.faction_b.resources[res] = deal.faction_b.resources.get(res, 0) + amt
+        # transfer from B to A
+        for res, amt in deal.resources_b_to_a.items():
+            if deal.faction_b.resources.get(res, 0) >= amt:
+                deal.faction_b.resources[res] -= amt
+                deal.faction_a.resources[res] = deal.faction_a.resources.get(res, 0) + amt
 
 
 def main():
