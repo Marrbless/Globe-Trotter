@@ -81,6 +81,19 @@ def test_raid_raises_hill(monkeypatch):
     assert hex_.terrain == "mountains"
 
 
+def test_disaster_intensity_affects_flood_damage():
+    low = WorldSettings(seed=1, width=3, height=3, disaster_intensity=0.0)
+    high = WorldSettings(seed=1, width=3, height=3, disaster_intensity=1.0)
+    world_low = World(width=low.width, height=low.height, settings=low)
+    world_high = World(width=high.width, height=high.height, settings=high)
+    loc = (1, 1)
+    state_low = SettlementState(location=loc, buildings=10)
+    state_high = SettlementState(location=loc, buildings=10)
+    Flood().apply(state_low, world_low)
+    Flood().apply(state_high, world_high)
+    assert state_high.buildings < state_low.buildings
+
+
 def test_world_changes_disabled(monkeypatch):
     settings = WorldSettings(seed=1, width=3, height=3, world_changes=False)
     world = World(width=settings.width, height=settings.height, settings=settings)
@@ -98,4 +111,3 @@ def test_world_changes_disabled(monkeypatch):
     monkeypatch.setattr(drought, "severity", lambda *_: 1.4)
     drought.apply(state, world)
     assert pickle.dumps(world) == baseline
-

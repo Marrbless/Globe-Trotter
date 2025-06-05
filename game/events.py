@@ -25,12 +25,14 @@ class Event:
     name: str = "event"
 
     def severity(self, state: SettlementState, world: World) -> float:
-        """Return a location-based severity multiplier between 0.5 and 1.5."""
+        """Return a location-based severity influenced by disaster intensity."""
         if not state.location:
-            return 1.0
-        x, y = state.location
-        n = perlin_noise(x, y, world.settings.seed, scale=0.1)
-        return max(0.5, min(1.5, 1 + (n - 0.5) * 2))
+            base = 1.0
+        else:
+            x, y = state.location
+            n = perlin_noise(x, y, world.settings.seed, scale=0.1)
+            base = max(0.5, min(1.5, 1 + (n - 0.5) * 2))
+        return base * (1 + world.settings.disaster_intensity)
 
     def apply(self, state: SettlementState, world: World) -> None:
         raise NotImplementedError
@@ -133,7 +135,8 @@ class EventSystem:
         # Time until next event influenced by weather randomness
         base = self.rng.randint(5, 10)
         weather_factor = 1.0 + self.settings.moisture * 0.5
-        delay = max(2, int(base * weather_factor))
+        intensity_factor = 1.0 - 0.5 * self.settings.disaster_intensity
+        delay = max(2, int(base * weather_factor * intensity_factor))
         return self.turn_counter + delay
 
     def _choose_event(self) -> Event:
