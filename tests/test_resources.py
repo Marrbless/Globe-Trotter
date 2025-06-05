@@ -12,6 +12,7 @@ from world.world import (
     STRATEGIC_RESOURCES,
     LUXURY_RESOURCES,
 )
+from world.resources import RESOURCE_RULES
 from game.resources import ResourceManager
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
@@ -244,3 +245,35 @@ def test_strategic_and_luxury_resources_generated():
 
     assert strategic_found
     assert luxury_found
+
+
+def test_all_resource_types_can_generate():
+    expected = {rule[0] for rules in RESOURCE_RULES.values() for rule in rules}
+    found: set[ResourceType] = set()
+    base = WorldSettings(
+        seed=0,
+        width=20,
+        height=20,
+        moisture=1.0,
+        temperature=1.0,
+        rainfall_intensity=5,
+        sea_level=0.3,
+    )
+
+    for seed in range(30):
+        s = WorldSettings(
+            seed=seed,
+            width=base.width,
+            height=base.height,
+            moisture=base.moisture,
+            temperature=base.temperature,
+            rainfall_intensity=base.rainfall_intensity,
+            sea_level=base.sea_level,
+        )
+        world = World(width=s.width, height=s.height, settings=s)
+        for hex_ in world.all_hexes():
+            found.update(hex_.resources.keys())
+        if expected.issubset(found):
+            break
+
+    assert expected.issubset(found)

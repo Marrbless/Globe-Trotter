@@ -1,5 +1,4 @@
-from world.world import WorldSettings, World
-from world.generation import determine_biome
+from world.world import WorldSettings, World, determine_biome
 
 
 def test_temperature_and_rainfall_attributes():
