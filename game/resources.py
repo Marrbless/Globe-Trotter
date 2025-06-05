@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, TYPE_CHECKING
 
 from world.world import World, Hex, ResourceType
+from . import settings
 
 if TYPE_CHECKING:
     from .game import Position, Faction
@@ -59,6 +60,7 @@ class ResourceManager:
                 if getattr(b, "resource_type", None) == res_type
             )
             # Limit gathered amount by remaining workers plus any building bonus
+            gathered = int(min(amount, workers_remaining + bonus) * settings.SCALE_FACTOR)
             gathered = min(amount, workers_remaining + bonus)
             efficiency = getattr(faction, "worker_efficiency", 1.0)
             gathered = int(round(gathered * efficiency))

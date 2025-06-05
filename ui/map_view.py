@@ -1,6 +1,8 @@
 import math
+import time
 import dearpygui.dearpygui as dpg
 from world.generation import BIOME_COLORS
+from game import settings
 
 HEX_SIZE = 30
 
@@ -85,9 +87,12 @@ class Camera:
 
 
 class MapView:
-    def __init__(self, world, size=(800, 600)):
+    def __init__(self, world, size=(800, 600), *, show_progress=False, total_ticks=None):
         self.world = world
         self.size = size
+        self.show_progress = show_progress
+        self.total_ticks = total_ticks or settings.TARGET_TICKS
+        self.start_time = time.time() if show_progress else None
         self.camera = Camera(*size)
         self.road_mode = False
         self.road_start = None
@@ -97,6 +102,8 @@ class MapView:
         dpg.create_context()
         dpg.create_viewport(title="Map View", width=size[0], height=size[1])
         with dpg.window(tag="_map_window", width=size[0], height=size[1], no_move=True, no_resize=True, no_title_bar=True):
+            if show_progress:
+                self.progress = dpg.add_progress_bar(label="0%", width=size[0], default_value=0.0)
             self.canvas = dpg.add_drawlist(width=size[0], height=size[1], tag="_canvas")
         dpg.set_primary_window("_map_window", True)
         with dpg.handler_registry():
@@ -190,6 +197,12 @@ class MapView:
     def run(self):
         while dpg.is_dearpygui_running():
             self.draw_map()
+            if self.show_progress:
+                elapsed = time.time() - self.start_time
+                total = self.total_ticks * settings.TICK_SECONDS
+                fraction = min(elapsed / total, 1.0)
+                dpg.set_value(self.progress, fraction)
+                dpg.set_item_label(self.progress, f"{int(elapsed)}s / {int(total)}s")
             dpg.render_dearpygui_frame()
         dpg.destroy_context()
         return self.result

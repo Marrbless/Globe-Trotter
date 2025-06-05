@@ -31,13 +31,13 @@ from .god_powers import ALL_POWERS, GodPower
 GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
     "Grand Cathedral": GreatProject(
         name="Grand Cathedral",
-        build_time=5,
+        build_time=int(5 * settings.SCALE_FACTOR),
         victory_points=10,
         bonus="Increases faith across the realm",
     ),
     "Sky Fortress": GreatProject(
         name="Sky Fortress",
-        build_time=8,
+        build_time=int(8 * settings.SCALE_FACTOR),
         victory_points=15,
         bonus="Provides unmatched military power",
     ),
@@ -288,7 +288,7 @@ class Game:
 
         for faction in self.map.factions:
             # 1. Generate base food from population
-            food_gain = faction.citizens.count // 2
+            food_gain = int((faction.citizens.count // 2) * settings.SCALE_FACTOR)
             faction.resources[ResourceType.FOOD] = (
                 faction.resources.get(ResourceType.FOOD, 0) + food_gain
             )

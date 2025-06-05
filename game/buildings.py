@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, TYPE_CHECKING
 from world.world import ResourceType
+from . import settings
 from .technology import TechLevel
+
 
 if TYPE_CHECKING:
     from .models import Faction
@@ -80,7 +82,7 @@ class Building:
 class Farm(Building):
     name: str = "Farm"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 100}
+        default_factory=lambda: {ResourceType.WOOD: int(100 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 10
     resource_bonus: int = 5
@@ -92,7 +94,7 @@ class Farm(Building):
 class Mine(Building):
     name: str = "Mine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 150}
+        default_factory=lambda: {ResourceType.WOOD: int(150 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     resource_bonus: int = 10
@@ -104,7 +106,7 @@ class Mine(Building):
 class IronMine(Building):
     name: str = "IronMine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 180}
+        default_factory=lambda: {ResourceType.WOOD: int(180 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 18
     resource_bonus: int = 2
@@ -116,7 +118,7 @@ class IronMine(Building):
 class GoldMine(Building):
     name: str = "GoldMine"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 200}
+        default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     resource_bonus: int = 1
@@ -128,7 +130,7 @@ class GoldMine(Building):
 class House(Building):
     name: str = "House"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 50}
+        default_factory=lambda: {ResourceType.WOOD: int(50 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 5
     population_bonus: int = 2
@@ -140,7 +142,7 @@ class House(Building):
 class LumberMill(Building):
     name: str = "LumberMill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 120}
+        default_factory=lambda: {ResourceType.WOOD: int(120 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     resource_bonus: int = 3
@@ -152,7 +154,7 @@ class LumberMill(Building):
 class Quarry(Building):
     name: str = "Quarry"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 130}
+        default_factory=lambda: {ResourceType.WOOD: int(130 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 14
     resource_bonus: int = 2
@@ -181,7 +183,7 @@ class ProcessingBuilding(Building):
 class Smeltery(ProcessingBuilding):
     name: str = "Smeltery"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 200}
+        default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.ORE
@@ -194,7 +196,7 @@ class Smeltery(ProcessingBuilding):
 class TextileMill(ProcessingBuilding):
     name: str = "TextileMill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOD
@@ -209,7 +211,7 @@ class Mill(ProcessingBuilding):
 
     name: str = "Mill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 120}
+        default_factory=lambda: {ResourceType.WOOD: int(120 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 10
     input_resource: ResourceType = ResourceType.WHEAT
@@ -224,7 +226,7 @@ class Bakery(ProcessingBuilding):
 
     name: str = "Bakery"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 150}
+        default_factory=lambda: {ResourceType.WOOD: int(150 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.FLOUR
@@ -239,7 +241,7 @@ class Forge(ProcessingBuilding):
 
     name: str = "Forge"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 220}
+        default_factory=lambda: {ResourceType.WOOD: int(220 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 20
     input_resource: ResourceType = ResourceType.IRON
@@ -254,7 +256,7 @@ class Tailor(ProcessingBuilding):
 
     name: str = "Tailor"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 15
     input_resource: ResourceType = ResourceType.WOOL
@@ -269,7 +271,7 @@ class Sawmill(ProcessingBuilding):
 
     name: str = "Sawmill"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 140}
+        default_factory=lambda: {ResourceType.WOOD: int(140 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 12
     input_resource: ResourceType = ResourceType.WOOD
@@ -284,7 +286,7 @@ class Mason(ProcessingBuilding):
 
     name: str = "Mason"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 160}
+        default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 14
     input_resource: ResourceType = ResourceType.STONE
@@ -299,7 +301,7 @@ class SoupKitchen(ProcessingBuilding):
 
     name: str = "SoupKitchen"
     construction_cost: Dict[ResourceType, int] = field(
-        default_factory=lambda: {ResourceType.WOOD: 110}
+        default_factory=lambda: {ResourceType.WOOD: int(110 * settings.SCALE_FACTOR)}
     )
     upkeep: int = 8
     input_resource: ResourceType = ResourceType.VEGETABLE
