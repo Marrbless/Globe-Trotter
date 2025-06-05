@@ -82,6 +82,7 @@ class WorldSettings:
     sea_level: float = 0.3
     plate_activity: float = 0.5
     base_height: float = 0.5
+    world_changes: bool = True
 
 
 @dataclass

@@ -1,6 +1,7 @@
 import random
 from game.events import EventSystem, SettlementState, Flood, Drought, Raid
 from world.world import WorldSettings, World, RiverSegment
+import pickle
 
 
 def test_event_frequency_reduced():
@@ -78,4 +79,23 @@ def test_raid_raises_hill(monkeypatch):
     monkeypatch.setattr(event, "severity", lambda *_: 1.4)
     event.apply(state, world)
     assert hex_.terrain == "mountains"
+
+
+def test_world_changes_disabled(monkeypatch):
+    settings = WorldSettings(seed=1, width=3, height=3, world_changes=False)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+    coord = (1, 1)
+    state = SettlementState(location=coord)
+
+    baseline = pickle.dumps(world)
+
+    flood = Flood()
+    monkeypatch.setattr(flood, "severity", lambda *_: 1.4)
+    flood.apply(state, world)
+    assert pickle.dumps(world) == baseline
+
+    drought = Drought()
+    monkeypatch.setattr(drought, "severity", lambda *_: 1.4)
+    drought.apply(state, world)
+    assert pickle.dumps(world) == baseline
 

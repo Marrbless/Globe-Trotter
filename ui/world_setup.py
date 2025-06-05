@@ -23,7 +23,7 @@ class WorldSetupUI:
         self.result: WorldSettings | None = None
 
         # Sliders window layered on top of the MapView viewport
-        with dpg.window(label="World Setup", pos=(10, 10), width=250, height=270):
+        with dpg.window(label="World Setup", pos=(10, 10), width=250, height=300):
             dpg.add_slider_int(
                 label="Seed",
                 tag="seed",
@@ -64,6 +64,12 @@ class WorldSetupUI:
                 default_value=self.settings.plate_activity,
                 callback=self._update_world,
             )
+            dpg.add_checkbox(
+                label="World Changes",
+                tag="world_changes",
+                default_value=self.settings.world_changes,
+                callback=self._update_world,
+            )
             dpg.add_button(label="Confirm", callback=self._confirm)
 
     def _update_world(self, sender, app_data):
@@ -74,6 +80,7 @@ class WorldSetupUI:
         self.settings.temperature = dpg.get_value("temperature")
         self.settings.moisture = dpg.get_value("moisture")
         self.settings.plate_activity = dpg.get_value("tectonic")
+        self.settings.world_changes = dpg.get_value("world_changes")
 
         self.world = World(
             width=self.settings.width,
