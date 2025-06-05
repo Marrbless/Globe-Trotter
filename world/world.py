@@ -40,6 +40,7 @@ from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
+from .generation import _compute_moisture_orographic  # Required for moisture calculations
 
 # ─────────────────────────────────────────────────────────────────────────────
 # == TYPE ALIASES & CUSTOM EXCEPTIONS ==
@@ -174,21 +175,102 @@ class BiomeRule:
     min_rain: float = 0.0
     max_rain: float = 1.0
     is_fantasy: bool = False
-    # Probability or random chance can be added later if needed.
 
 
 _REALISTIC_BIOME_RULES: List[BiomeRule] = [
-    BiomeRule(name="mountains", min_elev=0.8, max_elev=1.0, min_temp=0.0, max_temp=1.0, min_rain=0.0, max_rain=1.0, is_fantasy=False),
-    BiomeRule(name="hills", min_elev=0.6, max_elev=0.8, min_temp=0.0, max_temp=1.0, min_rain=0.0, max_rain=1.0, is_fantasy=False),
-    BiomeRule(name="tundra", min_elev=0.0, max_elev=1.0, min_temp=0.0, max_temp=0.3, min_rain=0.0, max_rain=1.0, is_fantasy=False),
-    BiomeRule(name="desert", min_elev=0.0, max_elev=0.6, min_temp=0.5, max_temp=1.0, min_rain=0.0, max_rain=0.3, is_fantasy=False),
-    BiomeRule(name="rainforest", min_elev=0.0, max_elev=1.0, min_temp=0.5, max_temp=1.0, min_rain=0.7, max_rain=1.0, is_fantasy=False),
-    BiomeRule(name="forest", min_elev=0.0, max_elev=1.0, min_temp=0.0, max_temp=1.0, min_rain=0.4, max_rain=0.7, is_fantasy=False),
-    BiomeRule(name="plains", min_elev=0.0, max_elev=0.6, min_temp=0.0, max_temp=1.0, min_rain=0.3, max_rain=1.0, is_fantasy=False),
+    BiomeRule(
+        name="mountains",
+        min_elev=0.8,
+        max_elev=1.0,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.0,
+        max_rain=1.0,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="hills",
+        min_elev=0.6,
+        max_elev=0.8,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.0,
+        max_rain=1.0,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="tundra",
+        min_elev=0.0,
+        max_elev=1.0,
+        min_temp=0.0,
+        max_temp=0.3,
+        min_rain=0.0,
+        max_rain=1.0,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="desert",
+        min_elev=0.0,
+        max_elev=0.6,
+        min_temp=0.5,
+        max_temp=1.0,
+        min_rain=0.0,
+        max_rain=0.3,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="rainforest",
+        min_elev=0.0,
+        max_elev=1.0,
+        min_temp=0.5,
+        max_temp=1.0,
+        min_rain=0.7,
+        max_rain=1.0,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="forest",
+        min_elev=0.0,
+        max_elev=1.0,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.4,
+        max_rain=0.7,
+        is_fantasy=False,
+    ),
+    BiomeRule(
+        name="plains",
+        min_elev=0.0,
+        max_elev=0.6,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.3,
+        max_rain=1.0,
+        is_fantasy=False,
+    ),
 ]
+
 _FANTASY_BIOME_RULES: List[BiomeRule] = [
-    BiomeRule(name="crystal_forest", min_elev=0.4, max_elev=1.0, min_temp=0.0, max_temp=1.0, min_rain=0.0, max_rain=1.0, is_fantasy=True),
-    BiomeRule(name="floating_island", min_elev=0.8, max_elev=1.0, min_temp=0.0, max_temp=1.0, min_rain=0.0, max_rain=1.0, is_fantasy=True),
+    BiomeRule(
+        name="crystal_forest",
+        min_elev=0.4,
+        max_elev=1.0,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.0,
+        max_rain=1.0,
+        is_fantasy=True,
+    ),
+    BiomeRule(
+        name="floating_island",
+        min_elev=0.8,
+        max_elev=1.0,
+        min_temp=0.0,
+        max_temp=1.0,
+        min_rain=0.0,
+        max_rain=1.0,
+        is_fantasy=True,
+    ),
 ]
 
 
@@ -308,13 +390,16 @@ class RiverSegment:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# == MAIN WORLD CLASS ==
+# == ROAD DATACLASS ==
 
 @dataclass(frozen=True)
 class Road:
     start: Coordinate
     end: Coordinate
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# == MAIN WORLD CLASS ==
 
 class World:
     __slots__ = (
@@ -706,7 +791,7 @@ class World:
             wind_strength=self.settings.wind_strength,
             seasonal_amplitude=self.settings.seasonal_amplitude,
             season=season,
-            settings=self.settings,  # Now explicitly passed
+            settings=self.settings,
         )
         self._moisture_cache[coord] = moist
         return moist
@@ -1167,7 +1252,6 @@ def adjust_settings(settings: WorldSettings, **kwargs: Any) -> None:
         "temperature",
         "moisture",
         "rainfall_intensity",
-        "plate_activity",
         "plate_activity",
         "fantasy_level",
         "wind_strength",
