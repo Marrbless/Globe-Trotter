@@ -127,6 +127,7 @@ def serialize_factions(factions: List["Faction"]) -> Dict[str, Any]:
         result[fac.name] = {
             "citizens": fac.citizens.count,
             "workers": fac.workers.assigned,
+            "units": fac.units,
             "buildings": [{"name": b.name, "level": b.level} for b in fac.buildings],
             "projects": [{"name": p.name, "progress": p.progress} for p in fac.projects],
         }
@@ -144,6 +145,7 @@ def deserialize_factions(data: Any) -> Dict[str, Any]:
         result[name] = {
             "citizens": int(info.get("citizens", 0)),
             "workers": int(info.get("workers", 0)),
+            "units": int(info.get("units", 0)),
             "buildings": info.get("buildings", []),
             "projects": info.get("projects", []),
         }
