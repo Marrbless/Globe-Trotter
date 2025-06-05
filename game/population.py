@@ -36,6 +36,7 @@ class FactionManager:
     auto_assign: bool = True
     assign_strategy: Callable[[Faction], None] | None = None
     strategies: Dict[str, Callable[[Faction], None]] = field(default_factory=dict)
+    auto_efficiency: float = 0.8
 
     def __post_init__(self) -> None:
         if self.assign_strategy is None:
@@ -85,10 +86,13 @@ class FactionManager:
         for faction in self.factions:
             self._update_population(faction)
             if self.auto_assign and not getattr(faction, "manual_assignment", False):
+                faction.worker_efficiency = self.auto_efficiency
                 level = getattr(faction, "automation_level", "mid")
                 strategy = self.strategies.get(level, self.assign_strategy)
                 if strategy:
                     strategy(faction)
+            else:
+                faction.worker_efficiency = 1.0
 
     def _update_population(self, faction: Faction) -> None:
         """Apply births, deaths and migration to a faction."""

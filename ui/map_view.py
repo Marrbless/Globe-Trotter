@@ -195,5 +195,28 @@ class MapView:
         return self.result
 
 
+def worker_assignment_dialog(faction) -> int:
+    """Simple slider window allowing manual worker assignment."""
+    dpg.create_context()
+    dpg.create_viewport(title="Assign Workers", width=250, height=100)
+    with dpg.window(label="Assign Workers", width=250, height=100, no_resize=True, no_move=True):
+        dpg.add_slider_int(
+            label="Workers",
+            tag="_workers",
+            default_value=faction.workers.assigned,
+            min_value=0,
+            max_value=faction.citizens.count,
+        )
+        dpg.add_button(label="Confirm", callback=lambda s, a: dpg.stop_dearpygui())
+    dpg.set_primary_window(dpg.last_container(), True)
+    dpg.setup_dearpygui()
+    dpg.show_viewport()
+    while dpg.is_dearpygui_running():
+        dpg.render_dearpygui_frame()
+    value = dpg.get_value("_workers")
+    dpg.destroy_context()
+    return int(value)
+
+
 def terrain_color(name):
     return BIOME_COLORS.get(name, (200, 200, 200, 255))

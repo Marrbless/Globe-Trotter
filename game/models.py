@@ -75,6 +75,7 @@ class Faction:
     unlocked_actions: List[str] = field(default_factory=list)
     manual_assignment: bool = False
     automation_level: str = "mid"
+    worker_efficiency: float = 1.0
 
     def toggle_manual_assignment(self, manual: bool, level: str | None = None) -> None:
         self.manual_assignment = manual
