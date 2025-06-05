@@ -91,7 +91,9 @@ def test_disaster_intensity_affects_flood_damage():
     state_high = SettlementState(location=loc, buildings=10)
     Flood().apply(state_low, world_low)
     Flood().apply(state_high, world_high)
-    assert state_high.buildings < state_low.buildings
+    loss_low = 10 - state_low.buildings
+    loss_high = 10 - state_high.buildings
+    assert loss_high > loss_low
 
 
 def test_world_changes_disabled(monkeypatch):
