@@ -84,16 +84,6 @@ class WorldSettings:
     seed: int = 0
     width: int = 50
     height: int = 50
-    biome_distribution: Dict[str, float] = field(
-        default_factory=lambda: {
-            "plains": 0.3,
-            "forest": 0.25,
-            "hills": 0.2,
-            "desert": 0.15,
-            "mountains": 0.05,
-            "water": 0.05,
-        }
-    )
     weather_patterns: Dict[str, float] = field(
         default_factory=lambda: {"rain": 0.3, "dry": 0.5, "snow": 0.2}
     )
@@ -135,13 +125,6 @@ class Hex:
 def initialize_random(settings: WorldSettings) -> random.Random:
     """Create a random generator based on the provided seed."""
     return random.Random(settings.seed)
-
-
-def generate_terrain_type(rng: random.Random, settings: WorldSettings) -> str:
-    """Choose a biome based on distribution weights."""
-    biomes = list(settings.biome_distribution.keys())
-    weights = list(settings.biome_distribution.values())
-    return rng.choices(biomes, weights=weights, k=1)[0]
 
 
 def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, int]:
