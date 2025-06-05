@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple, Optional, Iterable
 
 from .generation import (
     perlin_noise,
@@ -418,13 +418,25 @@ class World:
             while current and current not in visited:
                 visited.add(current)
                 nxt = self._downhill_neighbor(*current)
-                if (
-                    not nxt
-                    or nxt == current
-                    or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height)
-                ):
-                    self.lakes.append(current)
-                    self.get(*current).lake = True
+                if not nxt or nxt == current:
+                    cur_hex = self.get(*current)
+                    if cur_hex is None:
+                        break
+                    # merge into nearby water or lakes if possible
+                    merged = False
+                    for n in self._neighbors(*current):
+                        nh = self.get(*n)
+                        if nh and (nh.lake or nh.elevation <= self.settings.sea_level):
+                            self.rivers.append(RiverSegment(current, n))
+                            cur_hex.river = True
+                            merged = True
+                            # create delta when entering the sea
+                            if nh.elevation <= self.settings.sea_level:
+                                nh.river = True
+                            break
+                    if not merged:
+                        self.lakes.append(current)
+                        cur_hex.lake = True
                     break
                 self.rivers.append(RiverSegment(current, nxt))
                 self.get(*current).river = True
@@ -442,6 +454,14 @@ class World:
         if chunk is None:
             return None
         return chunk[r % self.CHUNK_SIZE][q % self.CHUNK_SIZE]
+
+    def all_hexes(self) -> Iterable[Hex]:
+        """Iterate over every generated hex in the world."""
+        for r in range(self.settings.height):
+            for q in range(self.settings.width):
+                h = self.get(q, r)
+                if h:
+                    yield h
 
     def resources_near(
         self, x: int, y: int, radius: int = 1

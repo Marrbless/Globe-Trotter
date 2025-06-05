@@ -4,10 +4,24 @@ from __future__ import annotations
 
 import random
 import math
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Dict, Tuple
 
 if TYPE_CHECKING:
     from .world import WorldSettings
+
+
+# -- Visualization -----------------------------------------------------------
+
+BIOME_COLORS: Dict[str, Tuple[int, int, int, int]] = {
+    "plains": (110, 205, 88, 255),
+    "forest": (34, 139, 34, 255),
+    "mountains": (139, 137, 137, 255),
+    "hills": (107, 142, 35, 255),
+    "desert": (237, 201, 175, 255),
+    "tundra": (220, 220, 220, 255),
+    "rainforest": (0, 100, 0, 255),
+    "water": (65, 105, 225, 255),
+}
 
 
 # -- Noise utilities ---------------------------------------------------------
@@ -269,4 +283,5 @@ __all__ = [
     "generate_rainfall",
     "determine_biome",
     "generate_biome_map",
+    "BIOME_COLORS",
 ]
