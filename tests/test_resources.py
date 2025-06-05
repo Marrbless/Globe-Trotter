@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from world.world import World, ResourceType
+from world.world import World, WorldSettings, ResourceType
 from game.resources import ResourceManager
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
@@ -173,3 +173,19 @@ def test_register_uses_faction_resources():
     manager.register(faction)
 
     assert manager.data[faction.name][ResourceType.FOOD] == expected_food
+
+
+def test_advanced_resources_generated():
+    """World generation should include some rare resources."""
+    settings = WorldSettings(seed=42, width=5, height=5)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+
+    advanced = {ResourceType.IRON, ResourceType.GOLD, ResourceType.WHEAT, ResourceType.WOOL}
+    found: set[ResourceType] = set()
+    for row in world.hexes:
+        for hex_ in row:
+            for res in hex_.resources:
+                if res in advanced:
+                    found.add(res)
+
+    assert any(res in found for res in advanced)
