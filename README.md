@@ -107,6 +107,12 @@ Call `game.save()` from your own scripts to persist the current state to
 `save.json`. The next time you run the game, `load_state()` will apply offline
 progress based on the timestamp stored in this file.
 
+## Recommended World Sizes
+
+World generation is chunk-based. For good performance, keep finite maps under
+about **100×100** tiles. When using infinite mode, limit `max_active_chunks`
+to roughly **100** so river generation and caching remain fast.
+
 ## Running Tests
 
 Execute the unit tests with:
