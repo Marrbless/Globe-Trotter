@@ -131,6 +131,7 @@ class Earthquake(Event):
         if state.location and world.settings.world_changes:
             hex_ = world.get(*state.location)
             if hex_ and sev > 1.3:
+                # severe quakes raise the land into mountains
                 hex_.terrain = "mountains"
 
 
@@ -148,6 +149,16 @@ class Hurricane(Event):
             if hex_:
                 hex_.flooded = True
                 if sev > 1.3:
+                    if hex_.river:
+                        # intense storms can swell rivers into lakes
+                        hex_.river = False
+                        world.rivers = [
+                            seg
+                            for seg in world.rivers
+                            if seg.start != hex_.coord and seg.end != hex_.coord
+                        ]
+                        if hex_.coord not in world.lakes:
+                            world.lakes.append(hex_.coord)
                     hex_.terrain = "water"
                     hex_.lake = True
 
