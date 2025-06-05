@@ -1,7 +1,7 @@
 import random
 import time
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 
 from .persistence import (
     GameState,
@@ -23,13 +23,18 @@ from .buildings import (
 )
 from .population import Citizen, Worker, FactionManager
 from . import settings
-from world.world import World, ResourceType, WorldSettings
+from world.world import World, ResourceType, WorldSettings, Road
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject, Faction
 from .god_powers import ALL_POWERS, GodPower
 
 logger = logging.getLogger("mygame.Game")
 logger.addHandler(logging.NullHandler())
+
+# Type aliases for clarity
+FactionName = str
+ResourceDict = Dict[ResourceType, int]
+SavedFactionsData = Dict[FactionName, Dict[str, Any]]
 
 
 # Predefined templates for special high-cost projects
@@ -49,7 +54,7 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
 }
 
 # Mapping of project names to new actions unlocked upon completion
-PROJECT_UNLOCKS = {
+PROJECT_UNLOCKS: Dict[str, str] = {
     "Grand Cathedral": "celebrate_festival",
     "Sky Fortress": "air_strike",
 }
@@ -83,13 +88,13 @@ class Map:
     def distance(self, pos1: Position, pos2: Position) -> int:
         """
         Return axial hex distance between two positions.
-        (dx + dy + |dx+dy|)/2 formula for cube coords derived distance.
+        (dx + dy + |dx+dy|)//2 formula for cube coords derived distance.
         """
         dq = pos1.x - pos2.x
         dr = pos1.y - pos2.y
         return (abs(dq) + abs(dr) + abs(dq + dr)) // 2
 
-    def add_faction(self, faction: Faction):
+    def add_faction(self, faction: Faction) -> None:
         if not self.is_occupied(faction.settlement.position):
             self.factions.append(faction)
         else:
@@ -101,10 +106,11 @@ class Map:
         at random positions that are at least MIN_DISTANCE_FROM_PLAYER
         hexes away from `player_settlement`.
         """
-        count = settings.AI_FACTION_COUNT
+        count: int = settings.AI_FACTION_COUNT
         spawned = 0
         attempts = 0
         new_factions: List[Faction] = []
+
         while spawned < count and attempts < count * 10:
             attempts += 1
             x = random.randint(0, self.width - 1)
@@ -115,14 +121,16 @@ class Map:
                 and self.distance(pos, player_settlement.position)
                 >= settings.MIN_DISTANCE_FROM_PLAYER
             ):
+                ai_name = f"AI #{spawned + 1}"
                 ai = Faction(
-                    name=f"AI #{spawned + 1}",
+                    name=ai_name,
                     settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
                     citizens=Citizen(count=random.randint(8, 15)),
                 )
                 self.add_faction(ai)
                 new_factions.append(ai)
                 spawned += 1
+
         return new_factions
 
 
@@ -130,13 +138,13 @@ class Game:
     """
     Core game class handling world, factions, resources, buildings, diplomacy, and turns.
     """
-    def __init__(self, state: GameState | None = None, world: World | None = None):
+    def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None):
         # Initialize map and world
         self.map = Map(*settings.MAP_SIZE)
         self.world = world or World(*settings.MAP_SIZE)
 
         # Prepare state container; actual saved data will be loaded in begin()
-        self.state = state or GameState(
+        self.state: GameState = state or GameState(
             timestamp=time.time(), resources={}, population=0, claimed_projects=[]
         )
 
@@ -144,54 +152,73 @@ class Game:
         self.resources = ResourceManager(self.world, self.state.resources)
         self.faction_manager = FactionManager()
 
-        self.population = self.state.population
+        self.population: int = self.state.population
         self.claimed_projects: set[str] = set(self.state.claimed_projects)
-        self.player_faction: Faction | None = None
+        self.player_faction: Optional[Faction] = None
         self.player_buildings: List[Building] = []
-        self.turn = 0
+        self.turn: int = 0
 
         # Diplomacy & conflict tracking
         self.trade_deals: List[TradeDeal] = []
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
+        self.event_turn_counters: Dict[str, int] = {}
 
         # Leaders for largest army & longest road
-        self.leaders: Dict[str, str | None] = {"largest_army": None, "longest_road": None}
+        self.leaders: Dict[str, Optional[str]] = {"largest_army": None, "longest_road": None}
 
         # God powers & alliances
         self.god_powers: Dict[str, GodPower] = {p.name: p for p in ALL_POWERS}
         self.alliances: List[Alliance] = []
 
-    def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
+        # Track which factions have already been registered
+        self._registered_factions: set[str] = set()
+
+    def place_initial_settlement(self, x: int, y: int, name: str = "Player") -> None:
         """
         Place the player's settlement at (x, y). Raises ValueError if
-        that position is already occupied.
+        that position is already occupied. Registers the player faction once.
         """
         pos = Position(x, y)
         if self.map.is_occupied(pos):
             raise ValueError("Cannot place settlement on occupied location")
+
         settlement = Settlement(name="Home", position=pos)
         self.player_faction = Faction(name=name, settlement=settlement)
         self.map.add_faction(self.player_faction)
+
         # Register resources and population management for the new faction
-        self.resources.register(self.player_faction)
-        self.faction_manager.add_faction(self.player_faction)
+        self._register_faction(self.player_faction)
         self.population = self.player_faction.citizens.count
 
-    def add_building(self, building: Building):
-        """Add a defensive building to the player's settlement (for mitigate calculations)."""
-        self.player_buildings.append(building)
+    def _register_faction(self, faction: Faction) -> None:
+        """
+        Helper to register a faction with ResourceManager and FactionManager,
+        ensuring no duplicates. Updates _registered_factions.
+        """
+        if faction.name in self._registered_factions:
+            return
 
-    def begin(self):
+        try:
+            self.resources.register(faction)
+        except ValueError:
+            logger.debug("Faction %s already registered with ResourceManager", faction.name)
+        try:
+            self.faction_manager.add_faction(faction)
+        except ValueError:
+            logger.debug("Faction %s already registered with FactionManager", faction.name)
+
+        self._registered_factions.add(faction.name)
+
+    def begin(self) -> None:
         """
         Initialize or restore a saved game state. Steps:
           1. Ensure player settlement is placed.
-          2. Spawn AI factions (no registration yet).
-          3. Attempt to load GameState from disk (with error handling).
-          4. Apply offline gains if a valid state was loaded.
-          5. Register all factions exactly once (ResourceManager & FactionManager).
-          6. Restore saved resources, populations, buildings, and projects.
-          7. Initialize turn, leaders, and log starting information.
+          2. Spawn AI factions.
+          3. Load and deserialize world & roads if state exists.
+          4. Apply offline gains.
+          5. Register all factions and restore per-faction state.
+          6. Initialize turn, population, leaders, and log information.
         """
         if not self.player_faction:
             raise RuntimeError("Player settlement not placed")
@@ -200,68 +227,24 @@ class Game:
         ai_factions = self.map.spawn_ai_factions(self.player_faction.settlement)
 
         # 2. Attempt to load saved state
-        loaded_state: GameState | None = None
-        try:
-            loaded_state, _ = load_state()
-        except (IOError, ValueError) as e:
-            logger.warning("Failed to load saved state: %s. Starting new game.", e)
+        loaded_state = self._load_and_deserialize_world()
 
-        # 3. If loaded_state exists & has world data, attempt to reconstruct
-        if loaded_state and loaded_state.world:
-            try:
-                settings_obj = WorldSettings(**loaded_state.world.get("settings", {}))
-                self.world = World(
-                    width=settings_obj.width,
-                    height=settings_obj.height,
-                    settings=settings_obj,
-                )
-                deserialize_world(loaded_state.world, self.world)
-            except (KeyError, TypeError) as e:
-                logger.warning("Failed to deserialize world: %s. Using fresh world.", e)
-                loaded_state = None
-
-        # 4. Apply offline gains or default to empty
+        # 3. Apply offline gains if we have a loaded state
+        updated_pops: Dict[str, Dict[str, int]] = {}
         if loaded_state:
-            self.state = loaded_state
             updated_pops = apply_offline_gains(self.state, self.world, self.map.factions)
-        else:
-            updated_pops = {}
 
-        # 5. Single pass: register factions and restore state
-        for faction in self.map.factions:
-            # Register with ResourceManager and FactionManager (once)
-            try:
-                self.resources.register(faction)
-            except ValueError:
-                logger.debug("Faction %s already registered with ResourceManager", faction.name)
-            try:
-                self.faction_manager.add_faction(faction)
-            except ValueError:
-                logger.debug("Faction %s already registered with FactionManager", faction.name)
+        # 4. Register all factions and restore state
+        self._initialize_and_restore_factions(updated_pops, bool(loaded_state))
 
-            # 6a. Restore saved resources (if present)
-            if loaded_state:
-                saved_res = self.state.resources.get(faction.name, {})
-                faction.resources.update(saved_res)
+        # 5. Initialize turn counter
+        self.turn = self.state.turn if loaded_state else 0
 
-            # 6b. Restore population & units if offline_gains or saved data exist
-            if faction.name in updated_pops:
-                self.state.factions.setdefault(faction.name, {}).update(updated_pops[faction.name])
-
-            if loaded_state:
-                fdata = self.state.factions.get(faction.name, {})
-                faction.citizens.count = fdata.get("citizens", faction.citizens.count)
-                faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
-                faction.units = fdata.get("units", getattr(faction, "units", 0))
-                self._restore_buildings(faction, fdata.get("buildings", []))
-                self._restore_projects(faction, fdata.get("projects", []))
-
-        self.turn = (self.state.turn if loaded_state else 0)
-
+        # 6. Update player population if available
         if self.player_faction:
             self.population = self.player_faction.citizens.count
 
-        # 7. Final initialization logging
+        # 7. Log initial state
         logger.info("Game started with factions:")
         for faction in self.map.factions:
             pos = faction.settlement.position
@@ -270,11 +253,78 @@ class Game:
         logger.debug("Initial Resources: %s", self.state.resources)
         logger.debug("Initial Population: %d", self.state.population)
 
-        # Simulate a sample event for demonstration
+        # 8. Demonstration event and leader update
         self.simulate_events()
         self.update_leaders()
 
-    def simulate_events(self):
+    def _load_and_deserialize_world(self) -> bool:
+        """
+        Attempt to load GameState from disk. If successful, assign to self.state,
+        reconstruct world and roads. Return True if loaded, False otherwise.
+        """
+        try:
+            loaded_state, _ = load_state()
+        except Exception as e:
+            logger.warning("Failed to load saved state: %s. Starting new game.", e)
+            return False
+
+        if not loaded_state:
+            return False
+
+        self.state = loaded_state
+
+        if self.state.world:
+            try:
+                settings_obj = WorldSettings(**self.state.world.get("settings", {}))
+                self.world = World(
+                    width=settings_obj.width,
+                    height=settings_obj.height,
+                    settings=settings_obj,
+                )
+                deserialize_world(self.state.world, self.world)
+            except (KeyError, TypeError, Exception) as e:
+                logger.warning("Failed to deserialize world: %s. Using fresh world.", e)
+
+            if getattr(self.state, "roads", None):
+                self.world.roads = [
+                    Road(tuple(r[:2]), tuple(r[2:]))
+                    for r in self.state.roads
+                    if isinstance(r, list) and len(r) == 4
+                ]
+
+        return True
+
+    def _initialize_and_restore_factions(
+        self, updated_pops: Dict[str, Dict[str, int]], has_loaded_state: bool
+    ) -> None:
+        """
+        Register factions with managers and restore per-faction state if present.
+        """
+        for faction in self.map.factions:
+            # Register faction only if not already registered
+            self._register_faction(faction)
+
+            if has_loaded_state:
+                # Restore saved resources
+                saved_res: ResourceDict = self.state.resources.get(faction.name, {})
+                for res_type, amount in saved_res.items():
+                    faction.resources[res_type] = amount
+
+                # If we applied offline gains, merge them into self.state.factions
+                if faction.name in updated_pops:
+                    self.state.factions.setdefault(faction.name, {}).update(updated_pops[faction.name])
+
+                # Restore detailed faction data
+                fdata: SavedFactionsData = self.state.factions.get(faction.name, {})
+                faction.citizens.count = fdata.get("citizens", faction.citizens.count)
+                faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
+                faction.units = fdata.get("units", getattr(faction, "units", 0))
+                faction.tech_level = fdata.get("tech_level", getattr(faction, "tech_level", 0))
+                faction.god_powers = fdata.get("god_powers", getattr(faction, "god_powers", {}))
+                self._restore_buildings(faction, fdata.get("buildings", []))
+                self._restore_projects(faction, fdata.get("projects", []))
+
+    def simulate_events(self) -> None:
         """
         Run a sample attack/disaster to demonstrate how defensive buildings mitigate
         population loss and building damage.
@@ -369,7 +419,11 @@ class Game:
           - state.world
           - state.factions
           - state.turn
-        Then calls `save_state(self.state)`.
+          - state.roads
+          - state.event_turn_counters
+          - state.tech_levels
+          - state.god_powers
+        Then calls `save_state(self.state)` safely.
         """
         # Ensure population is accurate
         self.population = sum(f.citizens.count for f in self.map.factions)
@@ -380,9 +434,24 @@ class Game:
         self.state.factions = serialize_factions(self.map.factions)
         self.state.turn = self.turn
 
+        # Persist roads if they exist
+        self.state.roads = [
+            list(r.start + r.end) for r in getattr(self.world, "roads", [])
+        ]
+        # Persist event turn counters
+        self.state.event_turn_counters = dict(self.event_turn_counters)
+        # Persist tech levels
+        self.state.tech_levels = {
+            f.name: getattr(f, "tech_level", 0) for f in self.map.factions
+        }
+        # Persist god powers
+        self.state.god_powers = {
+            f.name: getattr(f, "god_powers", {}) for f in self.map.factions
+        }
+
         try:
             save_state(self.state)
-        except IOError as e:
+        except Exception as e:
             logger.error("Failed to save game state: %s", e)
 
     def advance_turn(self) -> None:
@@ -415,15 +484,15 @@ class Game:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _match_pair(pair: tuple[Faction, Faction], a: Faction, b: Faction) -> bool:
+    def _match_pair(pair: Tuple[Faction, Faction], a: Faction, b: Faction) -> bool:
         return (pair[0] is a and pair[1] is b) or (pair[0] is b and pair[1] is a)
 
     def form_trade_deal(
         self,
         faction_a: Faction,
         faction_b: Faction,
-        resources_a_to_b: Dict[ResourceType, int] | None = None,
-        resources_b_to_a: Dict[ResourceType, int] | None = None,
+        resources_a_to_b: Optional[ResourceDict] = None,
+        resources_b_to_a: Optional[ResourceDict] = None,
         duration: int = 0,
     ) -> TradeDeal:
         """
@@ -534,14 +603,19 @@ class Game:
         """
         Compute the longest continuous road chain starting from the faction’s
         settlement position via DFS over `self.world.roads` adjacency.
+        Returns 0 if no roads exist.
         """
+        roads_list = getattr(self.world, "roads", [])
+        if not roads_list:
+            return 0
+
         start = (faction.settlement.position.x, faction.settlement.position.y)
-        adjacency: Dict[tuple[int, int], List[tuple[int, int]]] = {}
-        for r in self.world.roads:
+        adjacency: Dict[Tuple[int, int], List[Tuple[int, int]]] = {}
+        for r in roads_list:
             adjacency.setdefault(r.start, []).append(r.end)
             adjacency.setdefault(r.end, []).append(r.start)
 
-        def dfs(node: tuple[int, int], visited: set[tuple[tuple[int, int], tuple[int, int]]]) -> int:
+        def dfs(node: Tuple[int, int], visited: set[Tuple[Tuple[int, int], Tuple[int, int]]]) -> int:
             best = 0
             for neigh in adjacency.get(node, []):
                 edge = tuple(sorted((node, neigh)))
@@ -559,14 +633,14 @@ class Game:
         Determine which faction has the largest army and which has the
         longest road, storing their names in `self.leaders`.
         """
-        armies = {f.name: f.units for f in self.map.factions}
+        armies: Dict[str, int] = {f.name: getattr(f, "units", 0) for f in self.map.factions}
         if armies:
             max_units = max(armies.values())
             self.leaders["largest_army"] = (
                 next((name for name, u in armies.items() if u == max_units and max_units > 0), None)
             )
 
-        roads = {f.name: self._longest_road_for(f) for f in self.map.factions}
+        roads: Dict[str, int] = {f.name: self._longest_road_for(f) for f in self.map.factions}
         if roads:
             max_len = max(roads.values())
             self.leaders["longest_road"] = (
@@ -589,7 +663,7 @@ class Game:
     # Building & Project Restoration Helpers
     # ------------------------------------------------------------------
 
-    def _restore_buildings(self, faction: Faction, data: List[Dict[str, Any]]):
+    def _restore_buildings(self, faction: Faction, data: List[Dict[str, Any]]) -> None:
         """
         Restore `faction.buildings` from serialized data.
         Each building dictionary must have:
@@ -597,20 +671,20 @@ class Game:
           - "level"
         Any unknown CLASS_ID will be skipped with a warning.
         """
-        cls_map = {cls.CLASS_ID: cls for cls in ALL_BUILDING_CLASSES}
+        cls_map: Dict[str, type[Building]] = {cls.CLASS_ID: cls for cls in ALL_BUILDING_CLASSES}
 
         faction.buildings.clear()
         for b in data:
             cls_id = b.get("id")
-            cls = cls_map.get(cls_id)
-            if not cls:
+            cls_type = cls_map.get(cls_id)
+            if not cls_type:
                 logger.warning("Unknown building CLASS_ID %r for faction %r – skipping", cls_id, faction.name)
                 continue
-            inst = cls()
+            inst = cls_type()
             inst.level = int(b.get("level", 1))
             faction.buildings.append(inst)
 
-    def _restore_projects(self, faction: Faction, data: List[Dict[str, Any]]):
+    def _restore_projects(self, faction: Faction, data: List[Dict[str, Any]]) -> None:
         """
         Restore `faction.projects` from serialized data.
         Each project dictionary must have:
@@ -658,7 +732,7 @@ class Game:
         power.apply(self)
 
 
-def main():
+def main() -> None:
     """
     Entry point: create a new Game, place a settlement, begin, and save.
     Logging configuration should be done by the caller (e.g., if __name__ == "__main__").
