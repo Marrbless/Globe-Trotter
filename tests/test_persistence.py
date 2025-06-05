@@ -219,3 +219,51 @@ def test_extended_state_roundtrip(tmp_path, monkeypatch):
     assert new_game.event_turn_counters == {"raid": 5}
     assert new_game.player_faction.tech_level == 3
     assert new_game.player_faction.god_powers == {"smite": 1}
+
+
+def test_offline_progress_after_reload(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
+
+    world = make_world()
+    for dq, dr in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]:
+        tile = world.get(1 + dq, 1 + dr)
+        if tile:
+            tile.resources = {}
+
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+
+    faction.resources = {
+        ResourceType.ORE: 4,
+        ResourceType.METAL: 0,
+        ResourceType.FOOD: 0,
+    }
+    game.resources.data[faction.name] = faction.resources.copy()
+
+    from game.buildings import Smeltery
+    from copy import deepcopy
+
+    faction.buildings.append(Smeltery())
+    template = GREAT_PROJECT_TEMPLATES["Grand Cathedral"]
+    project = deepcopy(template)
+    faction.start_project(project, claimed_projects=game.claimed_projects)
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    offline_time = 1000.0 + project.build_time * persistence.TICK_DURATION
+    monkeypatch.setattr(persistence.time, "time", lambda: offline_time)
+    monkeypatch.setattr("random.randint", lambda a, b: 0)
+
+    loaded_state, _ = persistence.load_state(world=world, factions=[faction])
+
+    player = faction.name
+    assert faction.resources[ResourceType.METAL] == 4
+    assert faction.resources[ResourceType.ORE] == 0
+    assert faction.projects[0].progress == project.build_time
+    assert loaded_state.resources[player][ResourceType.METAL] == 4
+    assert loaded_state.factions[player]["projects"][0]["progress"] == project.build_time

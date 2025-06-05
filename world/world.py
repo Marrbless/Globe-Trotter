@@ -231,7 +231,7 @@ class World:
         for c in coords:
             d = downhill[c]
             if d:
-                flow[d] += flow[c]
+                flow[d] = flow.get(d, 0.0) + flow[c]
 
         for c, f in flow.items():
             self.get(*c).water_flow = f
