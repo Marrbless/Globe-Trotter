@@ -80,6 +80,7 @@ class Building:
 
 @dataclass
 class Farm(Building):
+    CLASS_ID = "Farm"
     name: str = "Farm"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(100 * settings.SCALE_FACTOR)}
@@ -92,6 +93,7 @@ class Farm(Building):
 
 @dataclass
 class Mine(Building):
+    CLASS_ID = "Mine"
     name: str = "Mine"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(150 * settings.SCALE_FACTOR)}
@@ -104,6 +106,7 @@ class Mine(Building):
 
 @dataclass
 class IronMine(Building):
+    CLASS_ID = "IronMine"
     name: str = "IronMine"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(180 * settings.SCALE_FACTOR)}
@@ -116,6 +119,7 @@ class IronMine(Building):
 
 @dataclass
 class GoldMine(Building):
+    CLASS_ID = "GoldMine"
     name: str = "GoldMine"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
@@ -128,6 +132,7 @@ class GoldMine(Building):
 
 @dataclass
 class House(Building):
+    CLASS_ID = "House"
     name: str = "House"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(50 * settings.SCALE_FACTOR)}
@@ -140,6 +145,7 @@ class House(Building):
 
 @dataclass
 class LumberMill(Building):
+    CLASS_ID = "LumberMill"
     name: str = "LumberMill"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(120 * settings.SCALE_FACTOR)}
@@ -152,6 +158,7 @@ class LumberMill(Building):
 
 @dataclass
 class Quarry(Building):
+    CLASS_ID = "Quarry"
     name: str = "Quarry"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(130 * settings.SCALE_FACTOR)}
@@ -181,6 +188,7 @@ class ProcessingBuilding(Building):
 
 @dataclass
 class Smeltery(ProcessingBuilding):
+    CLASS_ID = "Smeltery"
     name: str = "Smeltery"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(200 * settings.SCALE_FACTOR)}
@@ -194,6 +202,7 @@ class Smeltery(ProcessingBuilding):
 
 @dataclass
 class TextileMill(ProcessingBuilding):
+    CLASS_ID = "TextileMill"
     name: str = "TextileMill"
     construction_cost: Dict[ResourceType, int] = field(
         default_factory=lambda: {ResourceType.WOOD: int(160 * settings.SCALE_FACTOR)}
@@ -207,6 +216,7 @@ class TextileMill(ProcessingBuilding):
 
 @dataclass
 class Mill(ProcessingBuilding):
+    CLASS_ID = "Mill"
     """Grinds wheat into flour."""
 
     name: str = "Mill"
@@ -222,6 +232,7 @@ class Mill(ProcessingBuilding):
 
 @dataclass
 class Bakery(ProcessingBuilding):
+    CLASS_ID = "Bakery"
     """Bakes flour into bread."""
 
     name: str = "Bakery"
@@ -237,6 +248,7 @@ class Bakery(ProcessingBuilding):
 
 @dataclass
 class Forge(ProcessingBuilding):
+    CLASS_ID = "Forge"
     """Forges iron into weapons."""
 
     name: str = "Forge"
@@ -252,6 +264,7 @@ class Forge(ProcessingBuilding):
 
 @dataclass
 class Tailor(ProcessingBuilding):
+    CLASS_ID = "Tailor"
     """Turns wool into clothes."""
 
     name: str = "Tailor"
@@ -267,6 +280,7 @@ class Tailor(ProcessingBuilding):
 
 @dataclass
 class Sawmill(ProcessingBuilding):
+    CLASS_ID = "Sawmill"
     """Cuts wood into planks."""
 
     name: str = "Sawmill"
@@ -282,6 +296,7 @@ class Sawmill(ProcessingBuilding):
 
 @dataclass
 class Mason(ProcessingBuilding):
+    CLASS_ID = "Mason"
     """Cuts stone into blocks."""
 
     name: str = "Mason"
@@ -297,6 +312,7 @@ class Mason(ProcessingBuilding):
 
 @dataclass
 class SoupKitchen(ProcessingBuilding):
+    CLASS_ID = "SoupKitchen"
     """Turns vegetables into soup."""
 
     name: str = "SoupKitchen"
@@ -308,3 +324,28 @@ class SoupKitchen(ProcessingBuilding):
     output_resource: ResourceType = ResourceType.SOUP
     conversion_rate: int = 2
     tech_level: TechLevel = TechLevel.PRIMITIVE
+
+
+# ---------------------------------------------------------------------------
+# Convenience list of all buildable structures
+# ---------------------------------------------------------------------------
+
+ALL_BUILDING_CLASSES: List[type[Building]] = [
+    Farm,
+    Mine,
+    IronMine,
+    GoldMine,
+    House,
+    LumberMill,
+    Quarry,
+    Smeltery,
+    TextileMill,
+    Mill,
+    Bakery,
+    Forge,
+    Tailor,
+    Sawmill,
+    Mason,
+    SoupKitchen,
+]
+

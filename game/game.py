@@ -53,12 +53,19 @@ GREAT_PROJECT_TEMPLATES: Dict[str, GreatProject] = {
         victory_points=15,
         bonus="Provides unmatched military power",
     ),
+    "Great Dam": GreatProject(
+        name="Great Dam",
+        build_time=int(6 * settings.SCALE_FACTOR),
+        victory_points=12,
+        bonus="Controls flooding and provides power",
+    ),
 }
 
 # Mapping from project name → unlocked “god power” action key
 PROJECT_UNLOCKS: Dict[str, str] = {
     "Grand Cathedral": "celebrate_festival",
     "Sky Fortress": "air_strike",
+    "Great Dam": "control_floods",
 }
 
 
@@ -71,6 +78,23 @@ def apply_project_bonus(faction: Faction, project: GreatProject) -> None:
     if action and action not in faction.unlocked_actions:
         faction.unlocked_actions.append(action)
 
+    if project.name == "Great Dam" and faction.world is not None:
+        pos = faction.settlement.position
+        for nq, nr in faction.world._neighbors(pos.x, pos.y):
+            hex_ = faction.world.get(nq, nr)
+            if hex_ and hex_.river:
+                hex_.river = False
+                hex_.lake = True
+                hex_.terrain = "water"
+                faction.world.rivers = [
+                    seg
+                    for seg in faction.world.rivers
+                    if seg.start != (nq, nr) and seg.end != (nq, nr)
+                ]
+                if (nq, nr) not in faction.world.lakes:
+                    faction.world.lakes.append((nq, nr))
+                break
+
 
 # --------------------------------------------------------------------
 # “Map” Class: Manages hex-based placement of factions & distance logic
@@ -79,9 +103,10 @@ class Map:
     """
     Manages placement of factions on a hex map and computes distances.
     """
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, world: Optional[World] = None):
         self.width = width
         self.height = height
+        self.world = world
         self.factions: List[Faction] = []
 
     def is_occupied(self, position: Position) -> bool:
@@ -134,6 +159,7 @@ class Map:
                     name=ai_name,
                     settlement=Settlement(name=f"AI Town {spawned + 1}", position=pos),
                     citizens=Citizen(count=random.randint(8, 15)),
+                    world=self.world,
                 )
                 self.add_faction(ai_faction)
                 new_factions.append(ai_faction)
@@ -164,8 +190,8 @@ class Game:
     """
     def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None):
         # 1) Initialize map- and world-level data
-        self.map = Map(*settings.MAP_SIZE)
         self.world = world or World(*settings.MAP_SIZE)
+        self.map = Map(self.world.width, self.world.height, world=self.world)
         # Guarantee a clean slate of factions on initialization
         self.map.factions = []
 
@@ -226,7 +252,7 @@ class Game:
             raise ValueError("Cannot place settlement on occupied location")
 
         settlement = Settlement(name=name, position=pos)
-        self.player_faction = Faction(name=name, settlement=settlement)
+        self.player_faction = Faction(name=name, settlement=settlement, world=self.world)
         self.map.add_faction(self.player_faction)
         self._register_faction(self.player_faction)
         self.population = self.player_faction.citizens.count
@@ -302,6 +328,9 @@ class Game:
         if self.player_faction:
             self.population = self.player_faction.citizens.count
 
+        if loaded_state:
+            self.event_turn_counters = dict(self.state.event_turn_counters)
+
         # 9) Logging
         logger.info("Game started with factions:")
         for faction in self.map.factions:
@@ -369,8 +398,17 @@ class Game:
             # 1) Rebuild settlement
             sdata = fdata.get("settlement")
             if not sdata:
-                logger.warning("Faction %r missing settlement data; skipping.", fname)
-                continue
+                existing = next((f for f in self.map.factions if f.name == fname), None)
+                if not existing and self.player_faction and self.player_faction.name == fname:
+                    existing = self.player_faction
+                if existing:
+                    sdata = {
+                        "name": existing.settlement.name,
+                        "position": {"x": existing.settlement.position.x, "y": existing.settlement.position.y},
+                    }
+                else:
+                    logger.warning("Faction %r missing settlement data; skipping.", fname)
+                    continue
 
             try:
                 sx = int(sdata["position"]["x"])
@@ -391,7 +429,7 @@ class Game:
                 sy = max(0, min(self.world.height - 1, sy))
 
             restored_settlement = Settlement(name=sdata.get("name", fname), position=Position(sx, sy))
-            restored_faction = Faction(name=fname, settlement=restored_settlement)
+            restored_faction = Faction(name=fname, settlement=restored_settlement, world=self.world)
 
             # 2) Citizen & worker counts
             restored_faction.citizens.count = int(fdata.get("citizens", 0))
@@ -630,7 +668,10 @@ class Game:
 
         # 4) Event counters, tech levels, god powers, cooldowns
         self.state.event_turn_counters = dict(self.event_turn_counters)
-        self.state.tech_levels = {f.name: getattr(f, "tech_level", 0) for f in self.map.factions}
+        self.state.tech_levels = {
+            f.name: (f.tech_level.value if hasattr(f.tech_level, "value") else int(f.tech_level))
+            for f in self.map.factions
+        }
         self.state.god_powers = {f.name: getattr(f, "god_powers", {}) for f in self.map.factions}
         self.state.cooldowns = self.power_cooldowns
 

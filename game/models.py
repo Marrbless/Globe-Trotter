@@ -12,6 +12,7 @@ from . import settings
 if TYPE_CHECKING:
     from .diplomacy import TradeDeal
     from .game import Game
+    from world.world import World
 
 
 @dataclass
@@ -50,6 +51,7 @@ class Faction:
 
     name: str
     settlement: Settlement
+    world: "World" | None = None
     citizens: Citizen = field(default_factory=lambda: Citizen(count=10))
     resources: Dict[ResourceType, int] = field(
         default_factory=lambda: {
