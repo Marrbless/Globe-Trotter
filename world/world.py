@@ -7,15 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Tuple, Optional
 
-from .generation import (
-    perlin_noise,
-    terrain_from_elevation,
-    determine_biome,
-    generate_elevation_map,
-    generate_temperature_map,
-    generate_rainfall,
-    generate_biome_map,
-)
+from .generation import perlin_noise, determine_biome
 
 Coordinate = Tuple[int, int]
 
@@ -114,6 +106,8 @@ class WorldSettings:
     plate_activity: float = 0.5
     base_height: float = 0.5
     world_changes: bool = True
+    noise_scale: float = 0.1
+    noise_octaves: int = 4
 
 
 @dataclass
@@ -288,25 +282,11 @@ class World:
     ) -> None:
         self.settings = settings or WorldSettings(seed=seed, width=width, height=height)
         self.chunks: Dict[Tuple[int, int], List[List[Hex]]] = {}
-        self.hexes: List[List[Hex]] = []
         self.roads: List[Road] = []
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
         self.rng = initialize_random(self.settings)
 
-        # Precompute world data maps
-        self.elevation_map = generate_elevation_map(
-            self.settings.width, self.settings.height, self.settings
-        )
-        self.temperature_map = generate_temperature_map(self.settings, self.rng)
-        self.rainfall_map = generate_rainfall(
-            self.elevation_map, self.settings, self.rng
-        )
-        self.biome_map = generate_biome_map(
-            self.elevation_map, self.temperature_map, self.rainfall_map
-        )
-
-        self._initialize_base_area()
         self._generate_rivers()
 
     @property
@@ -317,21 +297,20 @@ class World:
     def height(self) -> int:
         return self.settings.height
 
-    def _initialize_base_area(self) -> None:
-        """Populate hexes for the entire world by lazily generating each chunk."""
-        for r in range(self.settings.height):
-            row: List[Hex] = []
-            for q in range(self.settings.width):
-                row.append(self.get(q, r))
-            self.hexes.append(row)
 
     def _generate_hex(self, q: int, r: int) -> Hex:
-        """Generate a single hex tile using precomputed climate maps."""
+        """Generate a single hex tile using noise functions."""
         rng = random.Random(hash((q, r, self.settings.seed)))
 
-        elevation = self.elevation_map[r][q]
-        temperature = self.temperature_map[r][q]
-        moisture = self.rainfall_map[r][q]
+        scale = self.settings.noise_scale
+        octaves = self.settings.noise_octaves
+        elevation = perlin_noise(q, r, self.settings.seed, octaves=octaves, scale=scale)
+        temperature = perlin_noise(
+            q + 1000, r + 1000, self.settings.seed + 1, octaves=octaves, scale=scale
+        )
+        moisture = perlin_noise(
+            q + 2000, r + 2000, self.settings.seed + 2, octaves=octaves, scale=scale
+        )
         terrain = determine_biome(elevation, temperature, moisture)
         resources = generate_resources(rng, terrain)
 
