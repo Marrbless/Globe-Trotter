@@ -82,6 +82,7 @@ class Faction:
     automation_level: str = "mid"
     tech_level: TechLevel = TechLevel.PRIMITIVE
     research_points: int = 0
+    worker_efficiency: float = 1.0
 
     def toggle_manual_assignment(self, manual: bool, level: str | None = None) -> None:
         self.manual_assignment = manual
