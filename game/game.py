@@ -129,6 +129,7 @@ class Game:
         self.trade_deals: List[TradeDeal] = []
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
+        self.event_turn_counters: Dict[str, int] = {}
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -166,6 +167,11 @@ class Game:
                 settings=settings_obj,
             )
             deserialize_world(self.state.world, self.world)
+        if self.state.roads and not getattr(self.world, "roads", None):
+            from world.world import Road
+            self.world.roads = [
+                Road(tuple(r[:2]), tuple(r[2:])) for r in self.state.roads if isinstance(r, list) and len(r) == 4
+            ]
 
         # Apply offline gains now that the world and factions exist
         updated_pops = apply_offline_gains(self.state, self.world, self.map.factions)
@@ -233,8 +239,11 @@ class Game:
             faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
             restore_buildings(faction, fdata.get("buildings", []))
             restore_projects(faction, fdata.get("projects", []))
+            faction.tech_level = fdata.get("tech_level", getattr(faction, "tech_level", 0))
+            faction.god_powers = fdata.get("god_powers", getattr(faction, "god_powers", {}))
 
         self.turn = self.state.turn
+        self.event_turn_counters = self.state.event_turn_counters
         if self.player_faction:
             self.population = self.player_faction.citizens.count
 
@@ -326,6 +335,14 @@ class Game:
         self.state.world = serialize_world(self.world)
         self.state.factions = serialize_factions(self.map.factions)
         self.state.turn = self.turn
+        self.state.roads = [list(r.start + r.end) for r in getattr(self.world, "roads", [])]
+        self.state.event_turn_counters = dict(self.event_turn_counters)
+        self.state.tech_levels = {
+            f.name: getattr(f, "tech_level", 0) for f in self.map.factions
+        }
+        self.state.god_powers = {
+            f.name: getattr(f, "god_powers", {}) for f in self.map.factions
+        }
         save_state(self.state)
 
     def advance_turn(self) -> None:

@@ -75,6 +75,8 @@ class Faction:
     unlocked_actions: List[str] = field(default_factory=list)
     manual_assignment: bool = False
     automation_level: str = "mid"
+    tech_level: int = 0
+    god_powers: Dict[str, int] = field(default_factory=dict)
 
     def toggle_manual_assignment(self, manual: bool, level: str | None = None) -> None:
         self.manual_assignment = manual

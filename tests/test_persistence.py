@@ -192,3 +192,30 @@ def test_population_persists_between_sessions(tmp_path, monkeypatch):
     new_game.begin()
 
     assert new_game.player_faction.citizens.count == initial_pop + ticks
+
+
+def test_extended_state_roundtrip(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
+
+    world = make_world()
+    world.add_road((0, 0), (1, 1))
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    faction = game.player_faction
+    assert faction is not None
+    faction.tech_level = 3
+    faction.god_powers = {"smite": 1}
+    game.event_turn_counters = {"raid": 5}
+
+    game.save()
+
+    new_game = Game(world=world)
+    new_game.place_initial_settlement(1, 1)
+    new_game.begin()
+
+    assert any(r.start == (0, 0) and r.end == (1, 1) for r in new_game.world.roads)
+    assert new_game.event_turn_counters == {"raid": 5}
+    assert new_game.player_faction.tech_level == 3
+    assert new_game.player_faction.god_powers == {"smite": 1}
