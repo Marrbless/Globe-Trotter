@@ -8,6 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from game.game import Game
 from world.world import World, ResourceType
 import game.persistence as persistence
+from game import settings
 
 
 def make_world():
@@ -30,7 +31,7 @@ def test_save_and_load(tmp_path, monkeypatch):
     game.resources.data[player][ResourceType.FOOD] = 7
     game.save()
 
-    loaded = persistence.load_state()
+    loaded, _ = persistence.load_state()
     assert loaded.resources[player][ResourceType.FOOD] == 7
 
 
@@ -57,7 +58,7 @@ def test_offline_gains(tmp_path, monkeypatch):
     ticks = int((1005.0 - 1000.0) // persistence.TICK_DURATION)
     values = [1, 0, 0] * ticks
     monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
-    loaded = persistence.load_state(world=world, factions=[game.player_faction])
+    loaded, _ = persistence.load_state(world=world, factions=[game.player_faction])
     assert loaded.population == initial_pop + ticks
     assert loaded.resources[player][ResourceType.ORE] == 30
 
@@ -96,3 +97,28 @@ def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
 
     assert new_game.player_faction.resources[ResourceType.FOOD] == 10
     assert new_game.player_faction.citizens.count == 12
+
+
+def test_population_persists_between_sessions(tmp_path, monkeypatch):
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
+
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    initial_pop = game.player_faction.citizens.count
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1005.0)
+    ticks = int((1005.0 - 1000.0) // persistence.TICK_DURATION)
+    values = [1, 0, 0] * ticks
+    monkeypatch.setattr("random.randint", lambda a, b: values.pop(0))
+
+    new_game = Game(world=world)
+    new_game.place_initial_settlement(1, 1)
+    new_game.begin()
+
+    assert new_game.player_faction.citizens.count == initial_pop + ticks

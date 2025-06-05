@@ -243,7 +243,7 @@ class Game:
             self.faction_manager.add_faction(faction)
 
         # Peek saved state to rebuild world and faction data
-        initial_state = load_state()
+        initial_state, _ = load_state()
         if initial_state.world:
             from world.world import WorldSettings
 
@@ -256,7 +256,7 @@ class Game:
             deserialize_world(initial_state.world, self.world)
 
         # Apply offline gains now that the world and factions exist
-        self.state = load_state(world=self.world, factions=self.map.factions)
+        self.state, updated_pops = load_state(world=self.world, factions=self.map.factions)
         self.resources = ResourceManager(self.world, self.state.resources)
         self.claimed_projects = set(self.state.claimed_projects)
 
@@ -311,6 +311,9 @@ class Game:
             saved = self.state.resources.get(faction.name)
             if saved is not None:
                 faction.resources.update(saved)
+            # Merge offline population updates before applying saved data
+            if faction.name in updated_pops:
+                self.state.factions.setdefault(faction.name, {}).update(updated_pops[faction.name])
             fdata = self.state.factions.get(faction.name, {})
             faction.citizens.count = fdata.get("citizens", faction.citizens.count)
             faction.workers.assigned = fdata.get("workers", faction.workers.assigned)
