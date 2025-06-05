@@ -23,13 +23,29 @@ class WorldSetupUI:
         self.result: WorldSettings | None = None
 
         # Sliders window layered on top of the MapView viewport
-        with dpg.window(label="World Setup", pos=(10, 10), width=250, height=300):
+        with dpg.window(label="World Setup", pos=(10, 10), width=250, height=450):
             dpg.add_slider_int(
                 label="Seed",
                 tag="seed",
                 min_value=0,
                 max_value=99999,
                 default_value=self.settings.seed,
+                callback=self._update_world,
+            )
+            dpg.add_slider_int(
+                label="Width",
+                tag="width",
+                min_value=10,
+                max_value=200,
+                default_value=self.settings.width,
+                callback=self._update_world,
+            )
+            dpg.add_slider_int(
+                label="Height",
+                tag="height",
+                min_value=10,
+                max_value=200,
+                default_value=self.settings.height,
                 callback=self._update_world,
             )
             dpg.add_slider_float(
@@ -64,6 +80,30 @@ class WorldSetupUI:
                 default_value=self.settings.plate_activity,
                 callback=self._update_world,
             )
+            dpg.add_slider_float(
+                label="Rainfall Intensity",
+                tag="rainfall_intensity",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.rainfall_intensity,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Disaster Intensity",
+                tag="disaster_intensity",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.disaster_intensity,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Base Height",
+                tag="base_height",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.base_height,
+                callback=self._update_world,
+            )
             dpg.add_checkbox(
                 label="World Changes",
                 tag="world_changes",
@@ -76,10 +116,21 @@ class WorldSetupUI:
         """Regenerate world when any slider changes."""
 
         self.settings.seed = dpg.get_value("seed")
+        self.settings.width = dpg.get_value("width")
+        self.settings.height = dpg.get_value("height")
         self.settings.sea_level = dpg.get_value("sea_level")
         self.settings.temperature = dpg.get_value("temperature")
         self.settings.moisture = dpg.get_value("moisture")
         self.settings.plate_activity = dpg.get_value("tectonic")
+        self.settings.rainfall_intensity = max(
+            0.0, min(1.0, dpg.get_value("rainfall_intensity"))
+        )
+        self.settings.disaster_intensity = max(
+            0.0, min(1.0, dpg.get_value("disaster_intensity"))
+        )
+        self.settings.base_height = max(
+            0.0, min(1.0, dpg.get_value("base_height"))
+        )
         self.settings.world_changes = dpg.get_value("world_changes")
 
         self.world = World(
