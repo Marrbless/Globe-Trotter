@@ -24,6 +24,8 @@ class WorldSettings:
     plate_activity: float = 0.5
     base_height: float = 0.5
     wind_strength: float = 0.5
+    wind_dir: int = 1  # 0=N,1=E,2=S,3=W
+    lapse_rate: float = 0.3
     world_changes: bool = True
     mountain_elev: float = 0.8
     hill_elev: float = 0.6
