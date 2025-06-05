@@ -2,7 +2,7 @@
 
 from .game import Game
 from .models import Faction
-from .diplomacy import TradeDeal, Truce, DeclarationOfWar
+from .diplomacy import TradeDeal, Truce, DeclarationOfWar, Alliance
 from .models import Settlement, Position
 from .buildings import (
     Building,
@@ -43,6 +43,7 @@ __all__ = [
     "TradeDeal",
     "Truce",
     "DeclarationOfWar",
+    "Alliance",
 ]
 
 # Expose the world package as a submodule to allow `import game.world`
