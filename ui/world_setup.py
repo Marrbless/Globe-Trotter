@@ -129,6 +129,22 @@ class WorldSetupUI:
                 callback=self._update_world,
             )
             dpg.add_slider_float(
+                label="Seasonal Amplitude",
+                tag="seasonal_amplitude",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.seasonal_amplitude,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Wind Strength",
+                tag="wind_strength",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.wind_strength,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
                 label="Base Height",
                 tag="base_height",
                 min_value=0.0,
@@ -163,6 +179,12 @@ class WorldSetupUI:
         )
         self.settings.disaster_intensity = max(
             0.0, min(1.0, dpg.get_value("disaster_intensity"))
+        )
+        self.settings.seasonal_amplitude = max(
+            0.0, min(1.0, dpg.get_value("seasonal_amplitude"))
+        )
+        self.settings.wind_strength = max(
+            0.0, min(1.0, dpg.get_value("wind_strength"))
         )
         self.settings.base_height = max(
             0.0, min(1.0, dpg.get_value("base_height"))
