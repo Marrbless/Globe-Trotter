@@ -5,7 +5,13 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from world.world import World, WorldSettings, ResourceType
+from world.world import (
+    World,
+    WorldSettings,
+    ResourceType,
+    STRATEGIC_RESOURCES,
+    LUXURY_RESOURCES,
+)
 from game.resources import ResourceManager
 from game.buildings import Farm, LumberMill, Quarry, Mine
 
@@ -193,3 +199,23 @@ def test_advanced_resources_generated():
                     found.add(res)
 
     assert any(res in found for res in advanced)
+
+
+def test_strategic_and_luxury_resources_generated():
+    """World generation should include strategic and luxury resources."""
+    settings = WorldSettings(seed=99, width=10, height=10)
+    world = World(width=settings.width, height=settings.height, settings=settings)
+
+    strategic_found: set[ResourceType] = set()
+    luxury_found: set[ResourceType] = set()
+
+    for row in world.hexes:
+        for hex_ in row:
+            for res in hex_.resources:
+                if res in STRATEGIC_RESOURCES:
+                    strategic_found.add(res)
+                if res in LUXURY_RESOURCES:
+                    luxury_found.add(res)
+
+    assert strategic_found
+    assert luxury_found
