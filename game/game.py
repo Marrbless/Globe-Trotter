@@ -23,6 +23,7 @@ from . import settings
 from world.world import World, ResourceType
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject, Faction
+from .god_powers import ALL_POWERS, GodPower
 
 
 # Predefined templates for special high-cost projects
@@ -129,6 +130,12 @@ class Game:
         self.trade_deals: List[TradeDeal] = []
         self.truces: List[Truce] = []
         self.wars: List[DeclarationOfWar] = []
+        self.god_powers: Dict[str, GodPower] = {p.name: p for p in ALL_POWERS}
+        self.power_cooldowns: Dict[str, int] = {
+            name: 0 for name in self.god_powers
+        }
+        if self.state.cooldowns:
+            self.power_cooldowns.update(self.state.cooldowns)
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player"):
         pos = Position(x, y)
@@ -173,6 +180,7 @@ class Game:
         # Replace resource manager with data from the loaded state
         self.resources = ResourceManager(self.world, self.state.resources)
         self.claimed_projects = set(self.state.claimed_projects)
+        self.power_cooldowns.update(self.state.cooldowns)
 
         def restore_buildings(faction: Faction, data: List[Dict[str, Any]]):
             from .buildings import (
@@ -308,6 +316,10 @@ class Game:
         self.population = sum(f.citizens.count for f in self.map.factions)
         self.resources.tick(self.map.factions)
 
+        for name in list(self.power_cooldowns.keys()):
+            if self.power_cooldowns[name] > 0:
+                self.power_cooldowns[name] -= 1
+
         # Debug output for the player faction
         if self.player_faction:
             res = self.player_faction.resources
@@ -326,6 +338,7 @@ class Game:
         self.state.world = serialize_world(self.world)
         self.state.factions = serialize_factions(self.map.factions)
         self.state.turn = self.turn
+        self.state.cooldowns = self.power_cooldowns
         save_state(self.state)
 
     def advance_turn(self) -> None:
@@ -333,6 +346,9 @@ class Game:
         self.turn += 1
         for faction in self.map.factions:
             faction.progress_projects()
+        for name in list(self.power_cooldowns.keys()):
+            if self.power_cooldowns[name] > 0:
+                self.power_cooldowns[name] -= 1
 
     def calculate_scores(self) -> Dict[str, int]:
         """Return victory points for all factions."""
@@ -394,6 +410,29 @@ class Game:
         # transfer from B to A
         if deal.resources_b_to_a:
             deal.faction_b.transfer_resources(deal.faction_a, deal.resources_b_to_a)
+
+    # ------------------------------------------------------------------
+    # God power utilities
+    # ------------------------------------------------------------------
+    def available_powers(self) -> List[GodPower]:
+        if not self.player_faction:
+            return []
+        completed = {p.name for p in self.player_faction.completed_projects()}
+        return [
+            p
+            for p in self.god_powers.values()
+            if p.is_unlocked(self.player_faction, completed)
+            and self.power_cooldowns.get(p.name, 0) <= 0
+        ]
+
+    def use_power(self, name: str) -> None:
+        if name not in self.god_powers:
+            raise ValueError("Unknown power")
+        power = self.god_powers[name]
+        if self.power_cooldowns.get(name, 0) > 0:
+            raise ValueError(f"{name} is on cooldown")
+        power.apply(self)
+        self.power_cooldowns[name] = power.cooldown
 
 
 def main():
