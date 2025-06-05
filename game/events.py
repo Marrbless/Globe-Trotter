@@ -125,9 +125,19 @@ ALL_EVENTS: List[type[Event]] = [Flood, Drought, Raid]
 class EventSystem:
     """Schedules and triggers events based on world settings."""
 
-    def __init__(self, settings: WorldSettings, rng: Optional[random.Random] = None):
+    def __init__(
+        self,
+        settings: WorldSettings,
+        rng: Optional[random.Random] = None,
+        event_weights: Optional[dict[str, float]] = None,
+    ) -> None:
         self.settings = settings
         self.rng = rng or random.Random()
+        self.event_weights = event_weights or {
+            "flood": 1.0,
+            "drought": 1.0,
+            "raid": 1.0,
+        }
         self.turn_counter = 0
         self.next_event_turn = self._schedule_next()
 
@@ -140,9 +150,14 @@ class EventSystem:
         return self.turn_counter + delay
 
     def _choose_event(self) -> Event:
-        flood_w = self.settings.weather_patterns.get("rain", 0.1) * self.settings.moisture
-        drought_w = self.settings.weather_patterns.get("dry", 0.1) * (1 - self.settings.moisture)
-        raid_w = 0.2 + self.settings.biome_distribution.get("plains", 0)
+        flood_base = self.event_weights.get("flood", 1.0)
+        drought_base = self.event_weights.get("drought", 1.0)
+        raid_base = self.event_weights.get("raid", 1.0)
+
+        flood_w = flood_base * self.settings.weather_patterns.get("rain", 0.1) * self.settings.moisture
+        drought_w = drought_base * self.settings.weather_patterns.get("dry", 0.1) * (1 - self.settings.moisture)
+        raid_w = raid_base
+
         weights = [flood_w, drought_w, raid_w]
         event_cls = self.rng.choices(ALL_EVENTS, weights=weights, k=1)[0]
         return event_cls()
