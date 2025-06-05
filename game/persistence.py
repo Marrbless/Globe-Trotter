@@ -28,6 +28,20 @@ class GameState:
     turn: int = 0
 
 
+@dataclass
+class LoadResult:
+    """Wrapper to allow unpacking ``load_state`` results flexibly."""
+
+    state: GameState
+    updates: Dict[str, Dict[str, int]]
+
+    def __getattr__(self, item):
+        return getattr(self.state, item)
+
+    def __iter__(self):
+        return iter((self.state, self.updates))
+
+
 def serialize_resources(data: Dict[str, Dict[ResourceType, int]]) -> dict:
     """Prepare nested resource data for JSON serialization."""
     return {f: {k.value: v for k, v in res.items()} for f, res in data.items()}
@@ -144,7 +158,7 @@ def load_state(
     *,
     world: Optional["World"] = None,
     factions: Optional[List["Faction"]] = None,
-) -> tuple[GameState, Dict[str, Dict[str, int]]]:
+) -> LoadResult:
     """Load the saved game state and optionally apply offline gains.
 
     Returns a tuple containing the ``GameState`` and a mapping of faction names
@@ -204,7 +218,7 @@ def load_state(
         state.factions = serialize_factions(factions)
 
     state.timestamp = now
-    return state, population_updates
+    return LoadResult(state=state, updates=population_updates)
 
 
 def save_state(state: GameState) -> None:

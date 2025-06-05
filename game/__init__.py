@@ -1,6 +1,7 @@
 """Game package exposing core classes."""
 
 from .game import Game, Faction
+from .diplomacy import TradeDeal, Truce, DeclarationOfWar
 from .models import Settlement, Position
 from .buildings import (
     Building,
@@ -38,6 +39,9 @@ __all__ = [
     "FIREBREAK",
     "mitigate_population_loss",
     "mitigate_building_damage",
+    "TradeDeal",
+    "Truce",
+    "DeclarationOfWar",
 ]
 
 # Expose the world package as a submodule to allow `import game.world`
