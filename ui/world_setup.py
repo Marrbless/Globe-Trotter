@@ -144,6 +144,22 @@ class WorldSetupUI:
                 default_value=self.settings.wind_strength,
                 callback=self._update_world,
             )
+            dpg.add_slider_int(
+                label="Wind Dir",
+                tag="wind_dir",
+                min_value=0,
+                max_value=3,
+                default_value=self.settings.wind_dir,
+                callback=self._update_world,
+            )
+            dpg.add_slider_float(
+                label="Lapse Rate",
+                tag="lapse_rate",
+                min_value=0.0,
+                max_value=1.0,
+                default_value=self.settings.lapse_rate,
+                callback=self._update_world,
+            )
             dpg.add_slider_float(
                 label="Base Height",
                 tag="base_height",
@@ -193,6 +209,10 @@ class WorldSetupUI:
         )
         self.settings.wind_strength = max(
             0.0, min(1.0, dpg.get_value("wind_strength"))
+        )
+        self.settings.wind_dir = int(dpg.get_value("wind_dir"))
+        self.settings.lapse_rate = max(
+            0.0, min(1.0, dpg.get_value("lapse_rate"))
         )
         self.settings.base_height = max(
             0.0, min(1.0, dpg.get_value("base_height"))

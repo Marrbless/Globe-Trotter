@@ -31,7 +31,6 @@ from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
-from .generation import _compute_moisture_orographic  # Required for moisture calculations
 
 # ─────────────────────────────────────────────────────────────────────────────
 # == TYPE ALIASES & CUSTOM EXCEPTIONS ==
@@ -761,7 +760,7 @@ class World:
 
         lat = float(r) / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
         base_temp = 1.0 - abs(lat - 0.5) * 2.0  # 1.0 at equator, 0.0 at poles
-        base_temp -= elevation * 0.3
+        base_temp -= elevation * self.settings.lapse_rate
 
         tile_rng = self._tile_rng(q, r, 0xABCD)  # “temperature” tag
         variation = tile_rng.uniform(-0.1, 0.1) * self.settings.temperature
@@ -788,20 +787,36 @@ class World:
         if coord in self._moisture_cache:
             return self._moisture_cache[coord]
 
-        moist = _compute_moisture_orographic(
-            q=q,
-            r=r,
-            elevation=elevation,
-            elevation_cache=self._elevation_cache,
-            width=self.settings.width,
-            height=self.settings.height,
-            seed=self.settings.seed,
-            moisture_setting=self.settings.moisture,
-            wind_strength=self.settings.wind_strength,
-            seasonal_amplitude=self.settings.seasonal_amplitude,
-            season=season,
-            settings=self.settings,
-        )
+        lat = float(r) / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
+        base_moist = 1.0 - abs(lat - 0.5) * 2.0
+        base_moist *= self.settings.moisture
+
+        tile_rng = self._tile_rng(q, r, 0xBEEF)
+        variation = tile_rng.uniform(-0.1, 0.1) * self.settings.moisture
+        moist = base_moist + variation
+
+        dq = dr = 0
+        wd = self.settings.wind_dir
+        if wd == 0:  # N
+            dr = 1
+        elif wd == 1:  # E
+            dq = -1
+        elif wd == 2:  # S
+            dr = -1
+        elif wd == 3:  # W
+            dq = 1
+
+        prev_q, prev_r = q + dq, r + dr
+        if (
+            dq != 0 or dr != 0
+        ) and not self.settings.infinite and 0 <= prev_q < self.settings.width and 0 <= prev_r < self.settings.height:
+            prev_elev = self._elevation(prev_q, prev_r)
+            prev_moist = self._moisture(prev_q, prev_r, prev_elev, season)
+            barrier = max(0.0, elevation - prev_elev) * self.settings.wind_strength
+            carried = max(0.0, prev_moist - barrier)
+            moist = (moist + carried) / 2.0
+
+        moist = max(0.0, min(1.0, moist))
         self._moisture_cache[coord] = moist
         return moist
 
