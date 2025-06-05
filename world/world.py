@@ -79,6 +79,7 @@ class WorldSettings:
     elevation: float = 0.5
     temperature: float = 0.5
     rainfall_intensity: float = 0.5
+    disaster_intensity: float = 0.0
     sea_level: float = 0.3
     plate_activity: float = 0.5
     base_height: float = 0.5
@@ -381,6 +382,7 @@ def adjust_settings(
     elevation: float | None = None,
     temperature: float | None = None,
     rainfall_intensity: float | None = None,
+    disaster_intensity: float | None = None,
     sea_level: float | None = None,
     plate_activity: float | None = None,
     base_height: float | None = None,
@@ -394,6 +396,8 @@ def adjust_settings(
         settings.temperature = max(0.0, min(1.0, temperature))
     if rainfall_intensity is not None:
         settings.rainfall_intensity = max(0.0, min(1.0, rainfall_intensity))
+    if disaster_intensity is not None:
+        settings.disaster_intensity = max(0.0, min(1.0, disaster_intensity))
     if sea_level is not None:
         settings.sea_level = max(0.0, min(1.0, sea_level))
     if plate_activity is not None:
