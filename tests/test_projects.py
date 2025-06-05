@@ -18,7 +18,11 @@ def test_project_completion_unlocks_actions_and_scores():
         faction.progress_projects()
     assert project.is_complete()
     assert "celebrate_festival" in faction.unlocked_actions
-    assert faction.get_victory_points() == project.victory_points
+    expected = (settings.AI_FACTION_COUNT + 1) * 10
+    expected += 1  # settlement
+    expected += faction.city_count * 2
+    expected += project.victory_points
+    assert faction.get_victory_points() == expected
 
 
 def test_projects_can_only_be_claimed_once():
