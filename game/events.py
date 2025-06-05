@@ -4,8 +4,7 @@ import random
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-from world.world import WorldSettings, World
-from world.generation import perlin_noise
+from world.world import WorldSettings, World, perlin_noise
 
 
 @dataclass
