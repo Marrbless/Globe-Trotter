@@ -388,13 +388,17 @@ class World:
         """Create simple rivers flowing downhill based on precomputed elevation."""
         density = max(0.0, min(1.0, self.settings.rainfall_intensity))
         seeds = max(1, int(density * 5))
+        avg_elev = sum(sum(row) for row in self.elevation_map) / (
+            self.width * self.height
+        )
+        threshold = max(self.settings.sea_level, avg_elev)
         for _ in range(seeds):
             # choose a random high-elevation starting hex
             for _ in range(100):
                 q = self.rng.randint(0, self.width - 1)
                 r = self.rng.randint(0, self.height - 1)
                 h = self.get(q, r)
-                if h and h.elevation > self.settings.elevation * 0.7:
+                if h and h.elevation > threshold:
                     break
             else:
                 continue
