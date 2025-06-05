@@ -11,16 +11,6 @@ class WorldSettings:
     seed: int = 0
     width: int = 50
     height: int = 50
-    biome_distribution: Dict[str, float] = field(
-        default_factory=lambda: {
-            "plains": 0.3,
-            "forest": 0.25,
-            "hills": 0.2,
-            "desert": 0.15,
-            "mountains": 0.05,
-            "water": 0.05,
-        }
-    )
     weather_patterns: Dict[str, float] = field(
         default_factory=lambda: {"rain": 0.3, "dry": 0.5, "snow": 0.2}
     )
