@@ -36,3 +36,10 @@ class DeclarationOfWar:
 
     factions: Tuple["Faction", "Faction"]
 
+
+@dataclass
+class Alliance:
+    """Represents a lasting alliance between two factions."""
+
+    factions: Tuple["Faction", "Faction"]
+

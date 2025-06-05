@@ -1,9 +1,8 @@
 """Game package exposing core classes."""
 
 from .game import Game
-from .models import Faction
-from .diplomacy import TradeDeal, Truce, DeclarationOfWar
-from .models import Settlement, Position
+from .models import Faction, Settlement, Position
+from .diplomacy import TradeDeal, Truce, DeclarationOfWar, Alliance
 from .technology import TechLevel
 from .buildings import (
     Building,
@@ -44,6 +43,7 @@ __all__ = [
     "TradeDeal",
     "Truce",
     "DeclarationOfWar",
+    "Alliance",
     "TechLevel",
 ]
 
