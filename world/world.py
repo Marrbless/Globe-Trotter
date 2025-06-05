@@ -143,18 +143,29 @@ class World:
         )
 
     def _generate_chunk(self, cx: int, cy: int) -> None:
-        chunk = []
+        chunk: List[List[Hex]] = []
         base_q, base_r = cx * self.CHUNK_SIZE, cy * self.CHUNK_SIZE
-        for r_off in range(min(self.CHUNK_SIZE, self.height - base_r)):
-            row = []
-            for q_off in range(min(self.CHUNK_SIZE, self.width - base_q)):
+        rows = (
+            self.CHUNK_SIZE
+            if self.settings.infinite
+            else min(self.CHUNK_SIZE, self.height - base_r)
+        )
+        cols = (
+            self.CHUNK_SIZE
+            if self.settings.infinite
+            else min(self.CHUNK_SIZE, self.width - base_q)
+        )
+
+        for r_off in range(rows):
+            row: List[Hex] = []
+            for q_off in range(cols):
                 q, r = base_q + q_off, base_r + r_off
                 row.append(self._generate_hex(q, r))
             row and chunk.append(row)
         self.chunks[(cx, cy)] = chunk
 
     def get(self, q: int, r: int) -> Optional[Hex]:
-        if not (0 <= q < self.width and 0 <= r < self.height):
+        if not self.settings.infinite and not (0 <= q < self.width and 0 <= r < self.height):
             return None
         cx, cy = q // self.CHUNK_SIZE, r // self.CHUNK_SIZE
         if (cx, cy) not in self.chunks:
@@ -167,7 +178,13 @@ class World:
 
     def _neighbors(self, q: int, r: int) -> List[Coordinate]:
         directions = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, -1), (-1, 1)]
-        return [(q + dq, r + dr) for dq, dr in directions if 0 <= q + dq < self.width and 0 <= r + dr < self.height]
+        if self.settings.infinite:
+            return [(q + dq, r + dr) for dq, dr in directions]
+        return [
+            (q + dq, r + dr)
+            for dq, dr in directions
+            if 0 <= q + dq < self.width and 0 <= r + dr < self.height
+        ]
 
     def _downhill_neighbor(self, q: int, r: int) -> Optional[Coordinate]:
         current = self.get(q, r)
