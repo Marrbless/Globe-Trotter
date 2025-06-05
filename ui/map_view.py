@@ -98,6 +98,8 @@ class MapView:
         self.road_start = None
         self.selected = None
         self.result = None
+        self.layers = ["terrain", "elevation", "temperature", "rainfall"]
+        self.layer_index = 0
 
         dpg.create_context()
         dpg.create_viewport(title="Map View", width=size[0], height=size[1])
@@ -145,6 +147,16 @@ class MapView:
         elif app_data == dpg.mvKey_R:
             self.road_mode = not self.road_mode
             self.road_start = None
+        elif app_data == dpg.mvKey_Tab:
+            self.layer_index = (self.layer_index + 1) % len(self.layers)
+        elif app_data == dpg.mvKey_F1:
+            self.layer_index = 0
+        elif app_data == dpg.mvKey_F2:
+            self.layer_index = 1
+        elif app_data == dpg.mvKey_F3:
+            self.layer_index = 2
+        elif app_data == dpg.mvKey_F4:
+            self.layer_index = 3
 
     def draw_hex(self, q, r, color, width=0):
         x, y = hex_to_pixel(q, r)
@@ -178,7 +190,17 @@ class MapView:
             for q in range(qmin - 2, qmax + 3):
                 hex_data = self.world.get(q, r)
                 if hex_data:
-                    color = terrain_color("water" if hex_data.lake else hex_data.terrain)
+                    layer = self.layers[self.layer_index]
+                    if layer == "terrain":
+                        color = terrain_color(
+                            "water" if hex_data.lake else hex_data.terrain
+                        )
+                    elif layer == "elevation":
+                        color = grayscale_color(hex_data.elevation)
+                    elif layer == "temperature":
+                        color = grayscale_color(hex_data.temperature)
+                    else:  # rainfall/moisture
+                        color = grayscale_color(hex_data.moisture)
                     self.draw_hex(q, r, color, 0)
         self.draw_roads()
         self.draw_rivers()
@@ -233,3 +255,8 @@ def worker_assignment_dialog(faction) -> int:
 
 def terrain_color(name):
     return BIOME_COLORS.get(name, (200, 200, 200, 255))
+
+
+def grayscale_color(value: float) -> tuple[int, int, int, int]:
+    level = int(max(0.0, min(1.0, value)) * 255)
+    return (level, level, level, 255)
