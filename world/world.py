@@ -231,6 +231,9 @@ class World:
         for c in coords:
             d = downhill[c]
             if d:
+                # In infinite worlds, `d` may lie outside the initially
+                # generated grid, so ensure a default entry exists.
+                flow.setdefault(d, 0.0)
                 flow[d] += flow[c]
 
         for c, f in flow.items():
