@@ -511,7 +511,7 @@ class World:
         coords = sorted(flow.keys(), key=lambda c: self.get(*c).elevation, reverse=True)
         for c in coords:
             d = downhill[c]
-            if d:
+            if d and d in flow:
                 flow[d] += flow[c]
 
         for c, f in flow.items():
@@ -534,6 +534,9 @@ class World:
                     if not hex_c.lake:
                         self.lakes.append(c)
                         hex_c.lake = True
+                        hex_c.terrain = "water"
+                        rng = random.Random(hash((c, self.settings.seed, "water")))
+                        hex_c.resources = generate_resources(rng, "water")
 
     def all_hexes(self) -> Iterable[Hex]:
         for r in range(self.height):

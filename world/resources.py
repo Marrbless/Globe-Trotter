@@ -19,6 +19,9 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.CLAY, 1, 2, 0.1),
         (ResourceType.SPICE, 1, 1, 0.05),
         (ResourceType.TEA, 1, 1, 0.05),
+        (ResourceType.COPPER, 1, 1, 0.05),
+        (ResourceType.VEGETABLE, 1, 2, 0.05),
+        (ResourceType.COFFEE, 1, 1, 0.05),
     ],
     "mountains": [
         (ResourceType.STONE, 5, 15, 1.0),
@@ -27,6 +30,9 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.GOLD, 1, 2, 0.2),
         (ResourceType.GEMS, 1, 2, 0.2),
         (ResourceType.CLAY, 1, 2, 0.1),
+        (ResourceType.COAL, 1, 3, 0.3),
+        (ResourceType.COPPER, 1, 3, 0.4),
+        (ResourceType.SILVER, 1, 2, 0.2),
     ],
     "hills": [
         (ResourceType.WOOD, 1, 5, 0.5),
@@ -37,6 +43,9 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.CLAY, 1, 3, 0.1),
         (ResourceType.HORSES, 1, 2, 0.05),
         (ResourceType.GEMS, 1, 1, 0.05),
+        (ResourceType.COAL, 1, 2, 0.2),
+        (ResourceType.COPPER, 1, 3, 0.3),
+        (ResourceType.SILVER, 1, 1, 0.1),
     ],
     "plains": [
         (ResourceType.WOOD, 1, 5, 0.5),
@@ -50,6 +59,9 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.CHICKENS, 1, 3, 0.25),
         (ResourceType.CLAY, 1, 2, 0.1),
         (ResourceType.ELEPHANTS, 1, 1, 0.05),
+        (ResourceType.SALT, 1, 1, 0.05),
+        (ResourceType.COPPER, 1, 2, 0.1),
+        (ResourceType.VEGETABLE, 1, 2, 0.05),
     ],
     "desert": [
         (ResourceType.STONE, 1, 3, 0.2),
@@ -57,6 +69,7 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.GOLD, 1, 1, 0.05),
         (ResourceType.SPICE, 1, 2, 0.1),
         (ResourceType.CLAY, 1, 2, 0.05),
+        (ResourceType.SALT, 1, 2, 0.15),
     ],
     "tundra": [
         (ResourceType.STONE, 1, 4, 0.3),
@@ -75,6 +88,7 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.PIGS, 1, 2, 0.15),
         (ResourceType.CHICKENS, 1, 2, 0.1),
         (ResourceType.CLAY, 1, 2, 0.1),
+        (ResourceType.COFFEE, 1, 2, 0.2),
     ],
     "water": [
         (ResourceType.FISH, 1, 5, 0.5),
