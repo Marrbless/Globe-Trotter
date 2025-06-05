@@ -107,6 +107,12 @@ class MapView:
             if show_progress:
                 self.progress = dpg.add_progress_bar(label="0%", width=size[0], default_value=0.0)
             self.canvas = dpg.add_drawlist(width=size[0], height=size[1], tag="_canvas")
+        with dpg.window(tag="_layer_window", pos=(10, 10), width=120, height=110, no_resize=True, no_move=True, no_title_bar=True):
+            dpg.add_text("Layers")
+            dpg.add_button(label="Terrain (F1)", callback=self._select_layer, user_data=0)
+            dpg.add_button(label="Elevation (F2)", callback=self._select_layer, user_data=1)
+            dpg.add_button(label="Temperature (F3)", callback=self._select_layer, user_data=2)
+            dpg.add_button(label="Rainfall (F4)", callback=self._select_layer, user_data=3)
         dpg.set_primary_window("_map_window", True)
         with dpg.handler_registry():
             dpg.add_mouse_click_handler(callback=self._on_click)
@@ -158,6 +164,10 @@ class MapView:
         elif app_data == dpg.mvKey_F4:
             self.layer_index = 3
 
+    def _select_layer(self, sender, app_data, user_data):
+        """Callback from layer buttons to change the active layer."""
+        self.layer_index = int(user_data)
+
     def draw_hex(self, q, r, color, width=0):
         x, y = hex_to_pixel(q, r)
         x, y = self.camera.apply((x, y))
@@ -202,6 +212,23 @@ class MapView:
                     else:  # rainfall/moisture
                         color = grayscale_color(hex_data.moisture)
                     self.draw_hex(q, r, color, 0)
+                    if layer != "terrain":
+                        x, y = hex_to_pixel(q, r)
+                        x, y = self.camera.apply((x, y))
+                        value = (
+                            hex_data.elevation
+                            if layer == "elevation"
+                            else hex_data.temperature
+                            if layer == "temperature"
+                            else hex_data.moisture
+                        )
+                        dpg.draw_text(
+                            (x - HEX_SIZE / 2, y - 6),
+                            f"{value:.2f}",
+                            color=(0, 0, 0, 255),
+                            size=10,
+                            parent=self.canvas,
+                        )
         self.draw_roads()
         self.draw_rivers()
         if self.selected:
