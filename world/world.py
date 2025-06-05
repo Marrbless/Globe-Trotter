@@ -40,6 +40,36 @@ class ResourceType(Enum):
     GOLD = "gold"
     IRON = "iron"
     WEAPON = "weapon"
+    RICE = "rice"
+    CRABS = "crabs"
+    FISH = "fish"
+    CATTLE = "cattle"
+    HORSES = "horses"
+    PIGS = "pigs"
+    CLAY = "clay"
+    CHICKENS = "chickens"
+    PEARLS = "pearls"
+    SPICE = "spice"
+    GEMS = "gems"
+    TEA = "tea"
+    ELEPHANTS = "elephants"
+
+
+# Categorization helpers for resource types
+STRATEGIC_RESOURCES = {
+    ResourceType.IRON,
+    ResourceType.WEAPON,
+    ResourceType.HORSES,
+    ResourceType.ELEPHANTS,
+}
+
+LUXURY_RESOURCES = {
+    ResourceType.GOLD,
+    ResourceType.GEMS,
+    ResourceType.PEARLS,
+    ResourceType.SPICE,
+    ResourceType.TEA,
+}
 
 
 @dataclass(frozen=True)
@@ -83,6 +113,7 @@ class WorldSettings:
     sea_level: float = 0.3
     plate_activity: float = 0.5
     base_height: float = 0.5
+    world_changes: bool = True
 
 
 @dataclass
@@ -129,6 +160,16 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.STONE] = rng.randint(1, 4)
         if rng.random() < 0.1:
             resources[ResourceType.WOOL] = rng.randint(1, 3)
+        if rng.random() < 0.2:
+            resources[ResourceType.PIGS] = rng.randint(1, 3)
+        if rng.random() < 0.15:
+            resources[ResourceType.CHICKENS] = rng.randint(1, 3)
+        if rng.random() < 0.1:
+            resources[ResourceType.CLAY] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.SPICE] = rng.randint(1, 1)
+        if rng.random() < 0.05:
+            resources[ResourceType.TEA] = rng.randint(1, 1)
     elif terrain == "mountains":
         resources[ResourceType.STONE] = rng.randint(5, 15)
         if rng.random() < 0.7:
@@ -137,6 +178,10 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.IRON] = rng.randint(1, 3)
         if rng.random() < 0.2:
             resources[ResourceType.GOLD] = rng.randint(1, 2)
+        if rng.random() < 0.2:
+            resources[ResourceType.GEMS] = rng.randint(1, 2)
+        if rng.random() < 0.1:
+            resources[ResourceType.CLAY] = rng.randint(1, 2)
     elif terrain == "hills":
         if rng.random() < 0.5:
             resources[ResourceType.WOOD] = rng.randint(1, 5)
@@ -148,6 +193,12 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.IRON] = rng.randint(1, 2)
         if rng.random() < 0.05:
             resources[ResourceType.GOLD] = rng.randint(1, 1)
+        if rng.random() < 0.1:
+            resources[ResourceType.CLAY] = rng.randint(1, 3)
+        if rng.random() < 0.05:
+            resources[ResourceType.HORSES] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.GEMS] = rng.randint(1, 1)
     elif terrain == "plains":
         if rng.random() < 0.5:
             resources[ResourceType.WOOD] = rng.randint(1, 5)
@@ -157,6 +208,20 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.WHEAT] = rng.randint(1, 4)
         if rng.random() < 0.2:
             resources[ResourceType.WOOL] = rng.randint(1, 2)
+        if rng.random() < 0.4:
+            resources[ResourceType.RICE] = rng.randint(1, 3)
+        if rng.random() < 0.25:
+            resources[ResourceType.CATTLE] = rng.randint(1, 3)
+        if rng.random() < 0.15:
+            resources[ResourceType.HORSES] = rng.randint(1, 2)
+        if rng.random() < 0.2:
+            resources[ResourceType.PIGS] = rng.randint(1, 2)
+        if rng.random() < 0.25:
+            resources[ResourceType.CHICKENS] = rng.randint(1, 3)
+        if rng.random() < 0.1:
+            resources[ResourceType.CLAY] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.ELEPHANTS] = rng.randint(1, 1)
     elif terrain == "desert":
         if rng.random() < 0.2:
             resources[ResourceType.STONE] = rng.randint(1, 3)
@@ -164,6 +229,10 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.ORE] = rng.randint(1, 2)
         if rng.random() < 0.05:
             resources[ResourceType.GOLD] = rng.randint(1, 1)
+        if rng.random() < 0.1:
+            resources[ResourceType.SPICE] = rng.randint(1, 2)
+        if rng.random() < 0.05:
+            resources[ResourceType.CLAY] = rng.randint(1, 2)
     elif terrain == "tundra":
         if rng.random() < 0.3:
             resources[ResourceType.STONE] = rng.randint(1, 4)
@@ -171,6 +240,8 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.WOOD] = rng.randint(1, 3)
         if rng.random() < 0.25:
             resources[ResourceType.WOOL] = rng.randint(1, 3)
+        if rng.random() < 0.05:
+            resources[ResourceType.CATTLE] = rng.randint(1, 2)
     elif terrain == "rainforest":
         resources[ResourceType.WOOD] = rng.randint(8, 20)
         if rng.random() < 0.3:
@@ -179,8 +250,25 @@ def generate_resources(rng: random.Random, terrain: str) -> Dict[ResourceType, i
             resources[ResourceType.WHEAT] = rng.randint(1, 2)
         if rng.random() < 0.1:
             resources[ResourceType.WOOL] = rng.randint(1, 2)
+        if rng.random() < 0.25:
+            resources[ResourceType.SPICE] = rng.randint(1, 2)
+        if rng.random() < 0.2:
+            resources[ResourceType.TEA] = rng.randint(1, 2)
+        if rng.random() < 0.1:
+            resources[ResourceType.ELEPHANTS] = rng.randint(1, 1)
+        if rng.random() < 0.15:
+            resources[ResourceType.PIGS] = rng.randint(1, 2)
+        if rng.random() < 0.1:
+            resources[ResourceType.CHICKENS] = rng.randint(1, 2)
+        if rng.random() < 0.1:
+            resources[ResourceType.CLAY] = rng.randint(1, 2)
     elif terrain == "water":
-        pass
+        if rng.random() < 0.5:
+            resources[ResourceType.FISH] = rng.randint(1, 5)
+        if rng.random() < 0.3:
+            resources[ResourceType.CRABS] = rng.randint(1, 3)
+        if rng.random() < 0.05:
+            resources[ResourceType.PEARLS] = rng.randint(1, 1)
 
     return resources
 
@@ -414,4 +502,6 @@ __all__ = [
     "RiverSegment",
     "World",
     "adjust_settings",
+    "STRATEGIC_RESOURCES",
+    "LUXURY_RESOURCES",
 ]

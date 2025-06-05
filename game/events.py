@@ -49,7 +49,7 @@ class Flood(Event):
         # Resources lost proportional to building loss
         res_loss = min(state.resources, int(loss * 2 * sev))
         state.resources -= res_loss
-        if state.location:
+        if state.location and world.settings.world_changes:
             hex_ = world.get(*state.location)
             if hex_:
                 hex_.flooded = True
@@ -83,7 +83,7 @@ class Drought(Event):
         state.resources = max(0, state.resources - res_loss)
         pop_loss = int(0.1 * state.population * sev)
         state.population = max(0, state.population - pop_loss)
-        if state.location:
+        if state.location and world.settings.world_changes:
             hex_ = world.get(*state.location)
             if hex_:
                 hex_.moisture = max(0.0, hex_.moisture - 0.1 * sev)
@@ -108,7 +108,7 @@ class Raid(Event):
         bld_loss = max(0, effective - 1)
         state.resources -= res_loss
         state.buildings = max(0, state.buildings - bld_loss)
-        if state.location:
+        if state.location and world.settings.world_changes:
             hex_ = world.get(*state.location)
             if hex_:
                 hex_.ruined = True
