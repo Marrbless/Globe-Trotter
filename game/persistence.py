@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 SAVE_FILE: Path = Path("save.json")
 TEMP_SAVE_FILE: Path = SAVE_FILE.with_suffix(".json.tmp")
 MAX_TICKS_BATCH: int = 10_000  # Max ticks to simulate iteratively before switching to batched math
+TICK_DURATION: int = 1  # Seconds per game tick
 
 
 # -----------------------------------------------------------------------------
