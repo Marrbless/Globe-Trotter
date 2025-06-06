@@ -429,6 +429,7 @@ class World:
         "_moisture_cache",
         "_biome_cache",
         "_dirty_rivers",
+        "_basin_volume_map",
     )
 
     def __init__(
@@ -471,6 +472,7 @@ class World:
         self.roads: List[Road] = []
         self.rivers: List[RiverSegment] = []
         self.lakes: List[Coordinate] = []
+        self._basin_volume_map: Dict[Coordinate, float] = {}
 
         # Deterministic RNG for global uses (plate centers, etc.)
         self.rng = random.Random(self.settings.seed)
@@ -521,6 +523,16 @@ class World:
             delta (float): Fractional increment (e.g., 1/365 for one day).
         """
         self.season = (self._season + delta) % 1.0
+
+    @property
+    def width(self) -> int:
+        """World width in hex columns."""
+        return self.settings.width
+
+    @property
+    def height(self) -> int:
+        """World height in hex rows."""
+        return self.settings.height
 
     def mark_dirty(self) -> None:
         """
@@ -1021,11 +1033,19 @@ class World:
         for (q, r) in coords:
             if not self.settings.infinite and not (0 <= q < self.settings.width and 0 <= r < self.settings.height):
                 continue
-            h = self.get(q, r)
-            if h:
-                h.river = False
-                h.lake = False
-                h.water_flow = 0.0
+            cx = q // self.chunk_width
+            cy = r // self.chunk_height
+            chunk = self.chunks.get((cx, cy))
+            if not chunk:
+                continue
+            r_idx = r % self.chunk_height
+            q_idx = q % self.chunk_width
+            if r_idx >= len(chunk) or q_idx >= len(chunk[r_idx]):
+                continue
+            h = chunk[r_idx][q_idx]
+            h.river = False
+            h.lake = False
+            h.water_flow = 0.0
 
     def _identify_and_flag_rivers_lakes(
         self,
@@ -1050,7 +1070,7 @@ class World:
             if not self.settings.infinite and not (0 <= c[0] < self.settings.width and 0 <= c[1] < self.settings.height):
                 continue
             fval = flow_map[c]
-            d = downhill_map[c]
+            d = downhill_map.get(c)
             h_c = self.get(*c)
             if not h_c:
                 continue
@@ -1074,11 +1094,16 @@ class World:
 
         return new_rivers, new_lakes
 
-    def _lake_outflow(self, new_lakes: List[Coordinate]) -> None:
+    def _lake_outflow(self, new_lakes: List[Coordinate], overflow_thresh: float) -> None:
         """
-        Step E(iv): For each new lake, find the lowest neighbor (if any) and create a river segment from lake → neighbor.
+        Step E(iv): For each new lake over the overflow threshold, create a river
+        segment from the lake to its lowest neighbor.
         """
         for lake_coord in new_lakes:
+            h_lake = self.get(*lake_coord)
+            if not h_lake or h_lake.water_flow <= overflow_thresh:
+                continue
+
             q0, r0 = lake_coord
             lake_elev = self._elevation(q0, r0)
             lowest_neighbor: Optional[Coordinate] = None
@@ -1089,13 +1114,20 @@ class World:
                     low_elev = nelev
                     lowest_neighbor = n
             if lowest_neighbor:
-                h_lake = self.get(q0, r0)
                 h_out = self.get(*lowest_neighbor)
-                if h_lake and h_out:
-                    strength = self.get(*lake_coord).water_flow if self.get(*lake_coord) else 0.0
+                if h_out:
+                    strength = h_lake.water_flow - overflow_thresh
                     self.rivers.append(RiverSegment(lake_coord, lowest_neighbor, strength))
                     h_lake.river = True
                     h_out.river = True
+
+    def _merge_river_segments(self) -> None:
+        """Combine duplicate river segments so merged rivers have accumulated strength."""
+        merged: Dict[Tuple[Coordinate, Coordinate], float] = {}
+        for seg in self.rivers:
+            key = (seg.start, seg.end)
+            merged[key] = merged.get(key, 0.0) + seg.strength
+        self.rivers = [RiverSegment(s, e, st) for (s, e), st in merged.items()]
 
     def generate_water_features(self) -> None:
         """
@@ -1123,20 +1155,31 @@ class World:
 
         self._accumulate_flows(flow_map, downhill_map)
         river_thresh, lake_thresh = self._determine_thresholds(flow_map.values())
+        overflow_thresh = lake_thresh * self.settings.lake_overflow_fraction
+        persistent_thresh = lake_thresh * self.settings.persistent_lake_fraction
         all_coords = flow_map.keys()
 
+        self._clear_old_water_flags(all_coords)
         for (q, r), fval in flow_map.items():
             h = self.get(q, r)
             if h:
                 h.water_flow = fval
-
-        self._clear_old_water_flags(all_coords)
         new_rivers, new_lakes = self._identify_and_flag_rivers_lakes(
             flow_map, downhill_map, river_thresh, lake_thresh
         )
+        self._basin_volume_map = {
+            c: flow_map[c] for c, dn in downhill_map.items() if dn is None
+        }
         self.rivers = new_rivers
         self.lakes = new_lakes
-        self._lake_outflow(new_lakes)
+        for c in new_lakes:
+            h = self.get(*c)
+            if h:
+                h.persistent_lake = h.water_flow >= persistent_thresh
+        self._lake_outflow(new_lakes, overflow_thresh)
+
+        # Combine duplicate segments to allow merged rivers
+        self._merge_river_segments()
 
         self._dirty_rivers = False
 

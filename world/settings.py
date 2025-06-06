@@ -35,6 +35,8 @@ class WorldSettings:
     infinite: bool = False
     river_branch_threshold: float = 0.3
     river_branch_chance: float = 0.05
+    lake_overflow_fraction: float = 1.5
+    persistent_lake_fraction: float = 1.7
 
 
 __all__ = ["WorldSettings"]

@@ -23,6 +23,7 @@ class Hex:
     river: bool = False
     lake: bool = False
     water_flow: float = 0.0
+    persistent_lake: bool = False
 
     def __getitem__(self, key: str):
         return getattr(self, key)
