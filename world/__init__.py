@@ -2,6 +2,8 @@ from .export import export_resources_json, export_resources_xml
 from .fantasy import (
     add_crystal_forests,
     add_floating_islands,
+    add_ley_lines,
+    add_mythic_biomes,
     apply_fantasy_overlays,
 )
 from .generation import (
@@ -33,6 +35,8 @@ __all__ = [
     "WorldSettings",
     "add_crystal_forests",
     "add_floating_islands",
+    "add_ley_lines",
+    "add_mythic_biomes",
     "adjust_settings",
     "apply_fantasy_overlays",
     "compute_temperature",
