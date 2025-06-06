@@ -30,6 +30,7 @@ from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
+from .generation import determine_biome as _base_determine_biome
 from .fantasy import apply_fantasy_overlays
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -283,23 +284,20 @@ def _determine_biome_tile(
     tile_rng: random.Random,
 ) -> str:
     """
-    Classify the biome for a single tile (given elevation, temperature, rainfall). Applies
-    realistic rules first; if none match, defaults to "plains". Then, if fantasy_level > 0.0,
-    checks fantasy rules in order (with possible random chance).
+    Classify the biome for a single tile using settings thresholds.
+    The base biome is computed first and fantasy overrides applied if enabled.
     """
-    # 1) Realistic rules
-    for rule in _REALISTIC_BIOME_RULES:
-        if (
-            rule.min_elev <= elevation <= rule.max_elev
-            and rule.min_temp <= temperature <= rule.max_temp
-            and rule.min_rain <= rainfall <= rule.max_rain
-        ):
-            return rule.name
+    base_biome = _base_determine_biome(
+        elevation=elevation,
+        temperature=temperature,
+        rainfall=rainfall,
+        mountain_elev=settings.mountain_elev,
+        hill_elev=settings.hill_elev,
+        tundra_temp=settings.tundra_temp,
+        desert_rain=settings.desert_rain,
+    )
 
-    # 2) Fallback default
-    base_biome = "plains"
-
-    # 3) Fantasy overrides (only if fantasy_level > 0)
+    # Fantasy overrides (only if fantasy_level > 0)
     if settings.fantasy_level > 0.0:
         for rule in _FANTASY_BIOME_RULES:
             if (
