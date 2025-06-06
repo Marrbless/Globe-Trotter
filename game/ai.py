@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 """Basic AI heuristics for diplomacy between factions."""
 
 import random
