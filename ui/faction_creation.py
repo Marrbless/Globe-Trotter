@@ -1,4 +1,6 @@
 import dearpygui.dearpygui as dpg
+from game.models import Faction, Settlement, Position
+from world.world import World
 
 class FactionCreationUI:
     """Faction creation window implemented with DearPyGui."""
@@ -33,6 +35,18 @@ class FactionCreationUI:
         while dpg.is_dearpygui_running():
             dpg.render_dearpygui_frame()
         dpg.destroy_context()
+
+    def to_faction(self, x: int, y: int, world: World) -> Faction:
+        """Return a ``Faction`` using the values chosen by the player."""
+        if not self.result:
+            raise ValueError("Faction data not confirmed")
+        name = self.result.get("name") or "Player"
+        settlement = Settlement(name=name, position=Position(x, y))
+        faction = Faction(name=name, settlement=settlement, world=world)
+        # Store optional values for potential future use
+        faction.race = self.result.get("race")
+        faction.color = self.result.get("color")
+        return faction
 
 if __name__ == "__main__":
     ui = FactionCreationUI()
