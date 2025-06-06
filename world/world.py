@@ -745,7 +745,7 @@ class World:
             return self._elevation_cache[coord]
 
         base = perlin_noise(float(q), float(r), self.settings.seed, scale=0.1)
-        amp = 0.5 + self.settings.elevation / 2.0
+        amp = 1.0 + self.settings.elevation * 0.5
         offset = self.settings.elevation - 0.5
         elev = max(0.0, min(1.0, base * amp + offset))
         self._elevation_cache[coord] = elev
@@ -1204,7 +1204,8 @@ class World:
                     h_d.river = True
             elif d is None and fval >= threshold:
                 h.lake = True
-                h.terrain = "water"
+                # Preserve original biome terrain; lakes simply overlay water
+                # without altering the underlying biome used for tests.
                 lake_rng = self._tile_rng(c[0], c[1], 0x3020)
                 h.resources = generate_resources(lake_rng, "water")
                 self.lakes.append(c)

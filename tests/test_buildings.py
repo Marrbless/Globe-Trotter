@@ -23,6 +23,7 @@ def make_world():
         tile = w.get(center[0] + dq, center[1] + dr)
         if tile:
             tile.terrain = "plains"
+            tile.resources.clear()
     return w
 
 
