@@ -49,20 +49,19 @@ def initialized_game(tmp_path, monkeypatch):
     """
     Pytest fixture that does the repeated setup:
     - Creates a temporary save file
-    - Patches persistence.SAVE_FILE → tmp_path/"save.json"
-    - Creates a 3×3 world, places an initial settlement, and returns (game, faction_name).
+    - Creates a 3×3 world, places an initial settlement, and returns (game, faction_name, file_path).
     """
+
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
 
     # Suppress AI factions unless explicitly needed
     monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
 
     world = make_world()
-    game = Game(world=world)
+    game = Game(world=world, save_file=tmp_file)
     game.place_initial_settlement(1, 1)
     faction_name = game.player_faction.name
-    return game, faction_name
+    return game, faction_name, tmp_file
 
 
 # --- Tests --------------------------------------------------------------------
@@ -70,14 +69,14 @@ def initialized_game(tmp_path, monkeypatch):
 
 def test_save_and_load_returns_same_food_count(initialized_game):
     """Saving a game and reloading it should restore FOOD exactly as it was."""
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Add 7 units of FOOD to the player faction, then save
     game.resources.data[player][ResourceType.FOOD] = 7
     game.save()
 
     # Load from disk
-    loaded_state, _ = persistence.load_state()
+    loaded_state, _ = persistence.load_state(file_path=path)
     assert loaded_state.resources[player][ResourceType.FOOD] == 7
 
 
@@ -86,7 +85,7 @@ def test_offline_gains_increase_population_and_ore(initialized_game, monkeypatch
     If we go offline for a few ticks and each tick yields 1 ORE 1/3 of the time,
     population should increase by ticks, and total ORE should be 25 after 5 seconds.
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Populate neighbor tiles with exactly 1 ORE each
     resource_map = {ResourceType.ORE: 1}
@@ -110,7 +109,7 @@ def test_offline_gains_increase_population_and_ore(initialized_game, monkeypatch
     values = [1, 0, 0] * ticks
     monkeypatch.setattr(random, "randint", lambda a, b: values.pop(0))
 
-    loaded_state, _ = persistence.load_state(world=world, factions=[game.player_faction])
+    loaded_state, _ = persistence.load_state(world=world, factions=[game.player_faction], file_path=path)
 
     # Population: initial_pop + ticks
     assert loaded_state.population == initial_pop + ticks
@@ -126,7 +125,7 @@ def test_offline_processing_buildings_convert_all_ore_to_metal(initialized_game,
     If the player has a Smeltery and starts with 4 ORE, after 3 offline ticks with random.randint→0,
     all 4 ORE should convert to 4 METAL and ORE should go to zero.
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Create a pristine world (no resources on neighbors)
     world = make_world(resource_per_tile={})
@@ -157,7 +156,7 @@ def test_offline_processing_buildings_convert_all_ore_to_metal(initialized_game,
     # Make random.randint always return 0 → no new ORE from neighbors
     monkeypatch.setattr(random, "randint", lambda a, b: 0)
 
-    loaded_state, _ = persistence.load_state(world=world, factions=[faction])
+    loaded_state, _ = persistence.load_state(world=world, factions=[faction], file_path=path)
 
     # After processing, all initial 4 ORE must have been smelted into 4 METAL
     assert faction.resources[ResourceType.METAL] == 4
@@ -171,12 +170,11 @@ def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
     """
     # --- Setup and patching ---
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
     monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
 
     # Build a world and initial game
     world = make_world()
-    game = Game(world=world)
+    game = Game(world=world, save_file=tmp_file)
     game.place_initial_settlement(1, 1)
     player = game.player_faction.name
 
@@ -203,7 +201,7 @@ def test_begin_applies_saved_state_to_faction(tmp_path, monkeypatch):
 
     # Create a brand‐new Game, place the settlement, then call begin() to load saved state
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
-    new_game = Game(world=world)
+    new_game = Game(world=world, save_file=tmp_file)
     new_game.place_initial_settlement(1, 1)
     new_game.begin()
 
@@ -217,7 +215,7 @@ def test_offline_project_completion(initialized_game, monkeypatch):
     If a faction starts a Great Project (Grand Cathedral) and then goes offline for enough ticks,
     upon loading, that project's progress should be at full build_time and get marked complete.
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Start a Great Project called "Grand Cathedral"
     from copy import deepcopy
@@ -237,7 +235,7 @@ def test_offline_project_completion(initialized_game, monkeypatch):
     # Make random.randint always 0 (no extra resources)
     monkeypatch.setattr(random, "randint", lambda a, b: 0)
 
-    loaded_state, _ = persistence.load_state(world=game.world, factions=[faction])
+    loaded_state, _ = persistence.load_state(world=game.world, factions=[faction], file_path=path)
 
     # Confirm that the in‐memory faction’s project is complete
     assert faction.projects[0].is_complete()
@@ -251,7 +249,7 @@ def test_population_persists_between_sessions(initialized_game, monkeypatch):
     If AI_FACTION_COUNT=0, then population increments should persist from one Game session
     to the next via Game.begin().
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
     initial_pop = game.player_faction.citizens.count
 
     # Save at t=1000.0
@@ -265,7 +263,7 @@ def test_population_persists_between_sessions(initialized_game, monkeypatch):
     monkeypatch.setattr(random, "randint", lambda a, b: values.pop(0))
 
     # Start a new Game instance
-    new_game = Game(world=game.world)
+    new_game = Game(world=game.world, save_file=path)
     new_game.place_initial_settlement(1, 1)
     new_game.begin()
 
@@ -277,7 +275,7 @@ def test_extended_state_roundtrip(initialized_game):
     """
     Confirm that roads, event_turn_counters, tech_level, god_powers all survive a save/load cycle.
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Add a road: from (0,0) to (1,1)
     game.world.add_road((0, 0), (1, 1))
@@ -294,7 +292,7 @@ def test_extended_state_roundtrip(initialized_game):
     game.save()
 
     # Create new Game and call begin()
-    new_game = Game(world=game.world)
+    new_game = Game(world=game.world, save_file=path)
     new_game.place_initial_settlement(1, 1)
     new_game.begin()
 
@@ -317,7 +315,7 @@ def test_buildings_persist_across_save(initialized_game):
     Given a faction that builds a Farm and a House, after save/load,
     those buildings should still exist, and their resource counts persist.
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     from game.buildings import Farm, House
 
@@ -330,7 +328,7 @@ def test_buildings_persist_across_save(initialized_game):
 
     game.save()
 
-    new_game = Game(world=game.world)
+    new_game = Game(world=game.world, save_file=path)
     new_game.place_initial_settlement(1, 1)
     new_game.begin()
 
@@ -348,7 +346,7 @@ def test_offline_progress_after_reload(initialized_game, monkeypatch):
       - The Great Project’s progress should be at build_time
       - The persisted state in loaded_state should match in-memory changes
     """
-    game, player = initialized_game
+    game, player, path = initialized_game
 
     # Setup a world with no extra ORE on neighbor tiles
     world = make_world(resource_per_tile={})
@@ -385,7 +383,7 @@ def test_offline_progress_after_reload(initialized_game, monkeypatch):
     # Force random.randint→0 so no new ORE from neighbors
     monkeypatch.setattr(random, "randint", lambda a, b: 0)
 
-    loaded_state, _ = persistence.load_state(world=world, factions=[faction])
+    loaded_state, _ = persistence.load_state(world=world, factions=[faction], file_path=path)
 
     # In‐memory faction: ORE→0, METAL→4, project fully progressed
     assert faction.resources[ResourceType.METAL] == 4
@@ -402,14 +400,12 @@ def test_save_load_empty_world(tmp_path, monkeypatch):
     If we save a Game whose World is 0×0 (no tiles), loading it back should not error.
     """
 
-    # Patch SAVE_FILE
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
     monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
 
     # Create an “empty” world
     empty_world = World(width=0, height=0)
-    game = Game(world=empty_world)
+    game = Game(world=empty_world, save_file=tmp_file)
     game.place_initial_settlement(0, 0)  # This may create a 1×1 “default” tile, depending on implementation
 
     # Save and reload
@@ -417,7 +413,7 @@ def test_save_load_empty_world(tmp_path, monkeypatch):
     game.save()
 
     # On load, ensure no exceptions, and world is still empty or minimal
-    loaded_state, _ = persistence.load_state(world=empty_world, factions=[game.player_faction])
+    loaded_state, _ = persistence.load_state(world=empty_world, factions=[game.player_faction], file_path=tmp_file)
 
     # If the implementation creates at least one tile at (0, 0), verify that coordinates match
     if empty_world.get(0, 0):

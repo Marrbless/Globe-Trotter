@@ -2,6 +2,7 @@ import argparse
 import random
 import time
 import logging
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 
 from .persistence import (
@@ -12,6 +13,7 @@ from .persistence import (
     serialize_factions,
     deserialize_world,
     apply_offline_gains,
+    SAVE_FILE,
 )
 from .diplomacy import TradeDeal, Truce, DeclarationOfWar, Alliance
 from . import ai
@@ -189,12 +191,15 @@ class Game:
       - “God Powers” (unlocking, cooldown tracking, application)
       - Turn advancement, scoring, & event simulation
     """
-    def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None):
+    def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None, save_file: Optional[str | Path] = None):
         # 1) Initialize map- and world-level data
         self._world = world or World(*settings.MAP_SIZE)
         self.map = Map(self._world.width, self._world.height, world=self._world)
         # Guarantee a clean slate of factions on initialization
         self.map.factions = []
+
+        # Path to persist/load state
+        self.save_file: Path = Path(save_file) if save_file else Path(SAVE_FILE)
 
         # 2) Load or create fresh GameState container
         self.state: GameState = state or GameState(
@@ -363,7 +368,7 @@ class Game:
         Returns True if a valid saved state was loaded, False otherwise.
         """
         try:
-            loaded_state, _ = load_state()
+            loaded_state, _ = load_state(file_path=self.save_file)
         except Exception as e:
             logger.warning("Failed to load saved state: %s. Starting fresh.", e)
             return False
@@ -674,7 +679,8 @@ class Game:
           • state.factions (via serialize_factions)
           • state.turn, state.event_turn_counters, state.tech_levels,
             state.god_powers, state.wars, state.truces, state.alliances, state.cooldowns
-        Then calls `save_state(self.state)` (catching any exception).
+        Then calls `save_state(self.state, file_path=self.save_file)`
+        (catching any exception).
         """
         # 1) Recompute actual total population
         self.population = sum(f.citizens.count for f in self.map.factions)
@@ -714,7 +720,7 @@ class Game:
 
         # 6) Finally, call save_state (with error-logging)
         try:
-            save_state(self.state)
+            save_state(self.state, file_path=self.save_file)
         except Exception as e:
             logger.error("Failed to save game state: %s", e)
 
@@ -1077,7 +1083,7 @@ def main() -> int:
     initial_state: Optional[GameState] = None
     if args.load_file:
         try:
-            loaded_state, _ = load_state()
+            loaded_state, _ = load_state(file_path=args.load_file)
             if loaded_state:
                 initial_state = loaded_state
                 logger.info("Loaded saved game from %r", args.load_file)
@@ -1087,7 +1093,7 @@ def main() -> int:
             logger.error("Error loading save file %r: %s. Starting fresh.", args.load_file, e)
 
     # 2) Instantiate Game (with or without a loaded state)
-    game = Game(state=initial_state)
+    game = Game(state=initial_state, save_file=args.load_file or SAVE_FILE)
 
     # 3) If no loaded state or if the loaded state lacked a player faction, place a new one
     if not initial_state or not game.player_faction:
