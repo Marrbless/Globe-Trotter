@@ -261,6 +261,16 @@ _FANTASY_BIOME_RULES: List[BiomeRule] = [
         max_rain=1.0,
         is_fantasy=True,
     ),
+    BiomeRule(
+        name="faerie_forest",
+        min_elev=0.3,
+        max_elev=0.8,
+        min_temp=0.4,
+        max_temp=1.0,
+        min_rain=0.3,
+        max_rain=1.0,
+        is_fantasy=True,
+    ),
 ]
 
 
@@ -376,6 +386,7 @@ BIOME_COLORS: Dict[str, Tuple[int, int, int, int]] = {
     "water": (65, 105, 225, 255),
     "floating_island": (186, 85, 211, 255),
     "crystal_forest": (0, 255, 255, 255),
+    "faerie_forest": (255, 105, 180, 255),
 }
 
 
@@ -495,6 +506,16 @@ class World:
 
     # ─────────────────────────────────────────────────────────────────────────
     # == PROPERTIES & SETTINGS MANAGEMENT ==
+
+    @property
+    def width(self) -> int:
+        """Width of the world in hex columns."""
+        return self.settings.width
+
+    @property
+    def height(self) -> int:
+        """Height of the world in hex rows."""
+        return self.settings.height
 
     @property
     def season(self) -> float:
