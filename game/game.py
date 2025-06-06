@@ -190,8 +190,8 @@ class Game:
     """
     def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None):
         # 1) Initialize map- and world-level data
-        self.world = world or World(*settings.MAP_SIZE)
-        self.map = Map(self.world.width, self.world.height, world=self.world)
+        self._world = world or World(*settings.MAP_SIZE)
+        self.map = Map(self._world.width, self._world.height, world=self._world)
         # Guarantee a clean slate of factions on initialization
         self.map.factions = []
 
@@ -241,6 +241,16 @@ class Game:
         # 13) If loading from saved state, restore any stored cooldowns
         if getattr(self.state, "cooldowns", None):
             self.power_cooldowns.update(self.state.cooldowns)
+
+    @property
+    def world(self) -> World:
+        return self._world
+
+    @world.setter
+    def world(self, value: World) -> None:
+        self._world = value
+        self.map = Map(self._world.width, self._world.height, world=self._world)
+        self.map.factions = []
 
     def place_initial_settlement(self, x: int, y: int, name: str = "Player") -> None:
         """
