@@ -427,4 +427,42 @@ def test_save_load_empty_world(tmp_path, monkeypatch):
         assert all(loaded_state.world.width == 0 and loaded_state.world.height == 0 for _ in [empty_world])
 
 
+def test_offline_gains_batched_large_elapsed(tmp_path, monkeypatch):
+    """Offline gains should use batched calculation when elapsed ticks are large."""
+
+    tmp_file = tmp_path / "save.json"
+    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
+    monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
+    monkeypatch.setattr(persistence, "MAX_TICKS_BATCH", 3)
+
+    world = make_world({ResourceType.WOOD: 1})
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    player = game.player_faction.name
+
+    monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
+    game.save()
+
+    offline_ticks = persistence.MAX_TICKS_BATCH + 5
+    new_time = 1000.0 + offline_ticks * persistence.TICK_DURATION
+    monkeypatch.setattr(persistence.time, "time", lambda: new_time)
+    monkeypatch.setattr(random, "randint", lambda a, b: 0)
+
+    from game.resources import ResourceManager
+    original = ResourceManager.get_per_tick_output
+    call_count = {"n": 0}
+
+    def wrapped(self, fac):
+        call_count["n"] += 1
+        return original(self, fac)
+
+    monkeypatch.setattr(ResourceManager, "get_per_tick_output", wrapped)
+
+    loaded_state, _ = persistence.load_state(world=world, factions=[game.player_faction])
+
+    assert call_count["n"] > 0
+    expected = 50 + offline_ticks * 5
+    assert loaded_state.resources[player][ResourceType.WOOD] == expected
+
+
 # End of test_persistence.py
