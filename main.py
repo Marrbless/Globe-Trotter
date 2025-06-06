@@ -22,7 +22,7 @@ def main():
         game.place_initial_settlement(q, r)
 
         for b in buildings:
-            game.add_building(b)
+            game.build_for_player(b)
 
         game.begin()
     else:
