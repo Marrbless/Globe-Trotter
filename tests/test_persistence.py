@@ -8,7 +8,7 @@ import pytest
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from game.game import Game
-from game.game import GREAT_PROJECT_TEMPLATES
+from game.game import GREAT_PROJECT_TEMPLATES, main as game_main
 from world.world import World, ResourceType
 import game.persistence as persistence
 from game import settings
@@ -63,6 +63,15 @@ def initialized_game(tmp_path, monkeypatch):
     game.place_initial_settlement(1, 1)
     faction_name = game.player_faction.name
     return game, faction_name
+
+
+@pytest.fixture
+def param_game(tmp_path):
+    """Like initialized_game but returns a save path without patching globals."""
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    return game, game.player_faction.name, tmp_path / "save.json"
 
 
 # --- Tests --------------------------------------------------------------------
@@ -426,5 +435,36 @@ def test_save_load_empty_world(tmp_path, monkeypatch):
         # Truly empty world: assert loaded_state.world has no tiles
         assert all(loaded_state.world.width == 0 and loaded_state.world.height == 0 for _ in [empty_world])
 
+
+# ---------------------------------------------------------------------------
+# New parameter-based save/load tests
+# ---------------------------------------------------------------------------
+
+def test_save_and_load_with_explicit_path(param_game):
+    game, player, path = param_game
+
+    game.resources.data[player][ResourceType.FOOD] = 5
+    game.save(path=path)
+
+    loaded_state, _ = persistence.load_state(path=path)
+    assert loaded_state.resources[player][ResourceType.FOOD] == 5
+
+
+def test_cli_roundtrip_with_paths(tmp_path, monkeypatch):
+    save_file = tmp_path / "state.json"
+
+    monkeypatch.setattr(sys, "argv", [
+        "prog", "--player-x", "1", "--player-y", "1", "--save-file", str(save_file),
+    ])
+    assert game_main() == 0
+    assert save_file.exists()
+
+    monkeypatch.setattr(sys, "argv", [
+        "prog", "--load-file", str(save_file), "--save-file", str(save_file)
+    ])
+    assert game_main() == 0
+
+    state, _ = persistence.load_state(path=save_file)
+    assert state.factions
 
 # End of test_persistence.py

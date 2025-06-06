@@ -506,6 +506,7 @@ def load_state(
     world: Optional["World"] = None,
     factions: Optional[List[FactionModel]] = None,
     strict: bool = False,
+    path: Union[str, Path, None] = None,
 ) -> LoadResult:
     """
     Load the saved game state and optionally apply offline gains.
@@ -520,9 +521,10 @@ def load_state(
         A LoadResult containing (GameState, population_updates).
     """
     now = time.time()
-    if SAVE_FILE.exists():
+    load_path = Path(path) if path is not None else SAVE_FILE
+    if load_path.exists():
         try:
-            with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            with open(load_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             raise GameLoadError(f"Failed to read or parse save file: {e}") from e
@@ -680,7 +682,12 @@ def load_state(
         return LoadResult(state=state, updates=population_updates)
 
 
-def save_state(state: GameState) -> None:
+def save_state(
+    state: GameState,
+    *,
+    path: Union[str, Path, None] = None,
+    temp_path: Union[str, Path, None] = None,
+) -> None:
     """
     Persist the current game state to disk in an atomic manner.
 
@@ -705,9 +712,16 @@ def save_state(state: GameState) -> None:
         "god_powers": state.god_powers,
     }
 
+    save_file = Path(path) if path is not None else SAVE_FILE
+    tmp_file = (
+        Path(temp_path)
+        if temp_path is not None
+        else save_file.with_suffix(save_file.suffix + ".tmp")
+    )
+
     # Write to a temporary file first
     try:
-        with open(TEMP_SAVE_FILE, "w", encoding="utf-8") as f:
+        with open(tmp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
             f.flush()
             f.truncate()
@@ -716,11 +730,11 @@ def save_state(state: GameState) -> None:
 
     # Atomically move temp -> final
     try:
-        shutil.move(str(TEMP_SAVE_FILE), str(SAVE_FILE))
+        shutil.move(str(tmp_file), str(save_file))
     except OSError as e:
         # Attempt to remove leftover temp file, but do not mask original error
         try:
-            TEMP_SAVE_FILE.unlink(missing_ok=True)
+            tmp_file.unlink(missing_ok=True)
         except OSError:
             pass
         raise GameSaveError(f"Failed to rename temporary save file to final: {e}") from e

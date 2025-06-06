@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .export import export_resources_json, export_resources_xml
 from .fantasy import (
     add_crystal_forests,
@@ -20,8 +22,12 @@ from .world import (
     Road,
     RiverSegment,
     World,
-    adjust_settings,
 )
+
+# ``adjust_settings`` is provided for backward compatibility as a module-level
+# helper that forwards to ``World.adjust_settings``.
+def adjust_settings(settings: WorldSettings, world: "World" | None = None, **kwargs):
+    return World.adjust_settings(settings, world, **kwargs)
 
 __all__ = [
     "BIOME_COLORS",
