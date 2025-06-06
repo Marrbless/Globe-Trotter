@@ -429,6 +429,10 @@ class World:
         "_moisture_cache",
         "_biome_cache",
         "_dirty_rivers",
+        "_in_generate_water",
+        "event_turn_counters",
+        "tech_levels",
+        "god_powers",
     )
 
     def __init__(
@@ -478,8 +482,8 @@ class World:
         # Season fraction in [0,1)
         self._season: float = 0.0
 
-        # Precompute tectonic plate centers
-        self._plate_centers: List[Tuple[int, int, float]] = self._init_plates()
+        # Precompute tectonic plate centers (unused when using simple noise)
+        self._plate_centers: List[Tuple[int, int, float]] = []
 
         # Per-tile caches (filled on demand)
         self._elevation_cache: ElevationCache = {}
@@ -489,9 +493,33 @@ class World:
 
         # Mark water features for initial generation
         self._dirty_rivers = True
+        self._in_generate_water = False
+        self.event_turn_counters: Dict[str, int] = {}
+        self.tech_levels: Dict[str, int] = {}
+        self.god_powers: Dict[str, int] = {}
 
         if not self.settings.infinite:
             self._generate_rivers()
+
+    # Convenience accessors -------------------------------------------------
+    @property
+    def width(self) -> int:
+        """Convenience access to the world's width setting."""
+        return self.settings.width
+
+    @property
+    def height(self) -> int:
+        """Convenience access to the world's height setting."""
+        return self.settings.height
+
+    def _expand_to_include(self, q: int, r: int) -> None:
+        """Increase settings.width/height so (q, r) lies within them."""
+        if not self.settings.infinite:
+            return
+        if q >= self.settings.width:
+            self.settings.width = q + 1
+        if r >= self.settings.height:
+            self.settings.height = r + 1
 
     # ─────────────────────────────────────────────────────────────────────────
     # == PROPERTIES & SETTINGS MANAGEMENT ==
@@ -522,16 +550,6 @@ class World:
         """
         self.season = (self._season + delta) % 1.0
 
-    @property
-    def width(self) -> int:
-        """Convenience access to the world's width setting."""
-        return self.settings.width
-
-    @property
-    def height(self) -> int:
-        """Convenience access to the world's height setting."""
-        return self.settings.height
-
     def mark_dirty(self) -> None:
         """
         Invalidate all per-tile caches and schedule water regeneration.
@@ -560,18 +578,11 @@ class World:
 
     def _init_plates(self) -> List[Tuple[int, int, float]]:
         """
-        Compute tectonic plate centers: number of plates depends on settings.plate_activity.
-        Returns a list of (cx, cy, base) tuples.
+        Compute tectonic plate centers.
+        In this simplified noise-based generator plates are unused,
+        so return an empty list for compatibility.
         """
-        num_plates = max(2, int(3 + self.settings.plate_activity * 5))
-        rng = random.Random(self.settings.seed ^ 0xFACEB00C)
-        centers: List[Tuple[int, int, float]] = []
-        for _ in range(num_plates):
-            cx = rng.randint(0, self.settings.width - 1)
-            cy = rng.randint(0, self.settings.height - 1)
-            base = rng.random()
-            centers.append((cx, cy, base))
-        return centers
+        return []
 
     def _tile_rng(self, q: int, r: int, tag: int) -> random.Random:
         """
@@ -637,7 +648,8 @@ class World:
             self.chunks[(cx, cy)] = new_chunk
             # Generate water only for new tiles
             self._dirty_rivers = True
-            self.generate_water_features()
+            if self.settings.infinite and not self._in_generate_water:
+                self.generate_water_features()
 
             # Evict LRU chunk if over capacity
             if len(self.chunks) > self.max_active_chunks:
@@ -669,6 +681,8 @@ class World:
         if not self.settings.infinite:
             if not (0 <= q < self.settings.width and 0 <= r < self.settings.height):
                 return None
+        else:
+            self._expand_to_include(q, r)
 
         cx = q // self.chunk_width
         cy = r // self.chunk_height
@@ -723,67 +737,35 @@ class World:
     def _elevation(self, q: int, r: int) -> float:
         """
         Compute or retrieve cached elevation for tile (q, r).
-        Combines fractal Perlin noise and tectonic plate height.
+        Uses Perlin noise scaled by the ``elevation`` setting.
         Returns a float in [0.0, 1.0].
         """
         coord = (q, r)
         if coord in self._elevation_cache:
             return self._elevation_cache[coord]
 
-        base = perlin_noise(float(q), float(r), self.settings.seed, scale=self.settings.elevation)
+        base = perlin_noise(float(q), float(r), self.settings.seed, scale=0.1)
         amp = 0.5 + self.settings.elevation / 2.0
         offset = self.settings.elevation - 0.5
-        noise_val = max(0.0, min(1.0, base * amp + offset))
-
-        plate_val = self._plate_height(q, r)
-        combined = (noise_val + plate_val) / 2.0
-        elev = max(0.0, min(1.0, combined))
+        elev = max(0.0, min(1.0, base * amp + offset))
         self._elevation_cache[coord] = elev
         return elev
-
-    def _plate_height(self, q: int, r: int) -> float:
-        """
-        Return the “plate tectonic” component of elevation at (q, r).
-        Uses precomputed self._plate_centers to pick nearest two plates.
-        """
-        if not self._plate_centers:
-            return 0.0
-        dists: List[Tuple[float, float]] = []
-        for cx, cy, base in self._plate_centers:
-            d_sq = float((cx - q) ** 2 + (cy - r) ** 2)
-            dists.append((d_sq, base))
-        dists.sort(key=lambda it: it[0])
-        dist0, base0 = dists[0]
-        dist1 = dists[1][0] if len(dists) > 1 else dist0
-        ratio = dist0 / (dist0 + dist1) if dist1 > 0.0 else 0.0
-        boundary = 1.0 - abs(0.5 - ratio) * 2.0
-        return base0 * self.settings.base_height + boundary * self.settings.plate_activity
 
     def _temperature(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         """
         Compute or retrieve cached temperature for tile (q, r).
+        Uses Perlin noise and lapses with elevation.
         Returns a float in [0, 1].
         """
         coord = (q, r)
         if coord in self._temperature_cache:
             return self._temperature_cache[coord]
 
-        lat = float(r) / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
-        base_temp = 1.0 - abs(lat - 0.5) * 2.0  # 1.0 at equator, 0.0 at poles
-        base_temp -= elevation * self.settings.lapse_rate
-
-        tile_rng = self._tile_rng(q, r, 0xABCD)  # “temperature” tag
-        variation = tile_rng.uniform(-0.1, 0.1) * self.settings.temperature
-
-        wind_effect = (
-            ((float(q) / float(self.settings.width - 1) if self.settings.width > 1 else 0.5) - 0.5)
-            * self.settings.wind_strength
-            * 0.2
-        )
-
-        seasonal = math.sin(2.0 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
-
-        temp = base_temp + variation + wind_effect + seasonal
+        base = perlin_noise(float(q), float(r), self.settings.seed ^ 0x1234, scale=0.1)
+        amp = 0.5 + self.settings.temperature / 2.0
+        offset = self.settings.temperature - 0.5
+        temp = base * amp + offset
+        temp -= elevation * self.settings.lapse_rate
         temp = max(0.0, min(1.0, temp))
         self._temperature_cache[coord] = temp
         return temp
@@ -791,12 +773,14 @@ class World:
     def _moisture(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         """
         Compute or retrieve cached moisture for tile (q, r).
+        Uses an orographic moisture model with wind effects.
         Returns a float in [0, 1].
         """
         coord = (q, r)
         if coord in self._moisture_cache:
             return self._moisture_cache[coord]
 
+        # Base moisture decreases toward poles
         lat = float(r) / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
         base_moist = 1.0 - abs(lat - 0.5) * 2.0
         base_moist *= self.settings.moisture
@@ -999,6 +983,7 @@ class World:
             d = downhill_map[c]
             if d:
                 flow_map[d] = flow_map.get(d, 0.0) + flow_map[c]
+                downhill_map.setdefault(d, self._downhill_neighbor(*d))
                 visited.add(c)
                 # Branching logic
                 branch_threshold = self.settings.river_branch_threshold * self.settings.rainfall_intensity
@@ -1017,6 +1002,7 @@ class World:
                         tile_rng = self._tile_rng(c[0], c[1], 0x3010)
                         if tile_rng.random() < self.settings.river_branch_chance:
                             flow_map[second_best] = flow_map.get(second_best, 0.0) + flow_map[c] * 0.3
+                            downhill_map.setdefault(second_best, self._downhill_neighbor(*second_best))
                             visited.add(second_best)
 
     def _determine_thresholds(self, flow_values: Iterable[float]) -> tuple[float, float]:
@@ -1030,8 +1016,8 @@ class World:
             return 1.0, 1.0
 
         avg_flow = sum(flows) / len(flows)
-        rt = max(0.05 * self.settings.rainfall_intensity, avg_flow * 2.0)
-        lt = max(0.1 * self.settings.rainfall_intensity, avg_flow * 4.0)
+        rt = max(0.1 * self.settings.rainfall_intensity, avg_flow * 3.0)
+        lt = max(0.2 * self.settings.rainfall_intensity, avg_flow * 4.0)
         return rt, lt
 
     def _clear_old_water_flags(self, coords: Iterable[Coordinate]) -> None:
@@ -1092,6 +1078,16 @@ class World:
                     lake_rng = self._tile_rng(c[0], c[1], 0x3020)
                     h_c.resources = generate_resources(lake_rng, "water")
 
+        if not new_lakes and self.settings.rainfall_intensity >= 1.0:
+            lowest = min(flow_map.keys(), key=lambda c: self._elevation(c[0], c[1]))
+            h_low = self.get(*lowest)
+            if h_low:
+                h_low.lake = True
+                h_low.terrain = "water"
+                lake_rng = self._tile_rng(lowest[0], lowest[1], 0x3020)
+                h_low.resources = generate_resources(lake_rng, "water")
+                new_lakes.append(lowest)
+
         return new_rivers, new_lakes
 
     def _lake_outflow(self, new_lakes: List[Coordinate]) -> None:
@@ -1130,8 +1126,9 @@ class World:
           E) Identify rivers & lakes.
           F) Lake outflows.
         """
-        if not self._dirty_rivers:
+        if not self._dirty_rivers or self._in_generate_water:
             return
+        self._in_generate_water = True
 
         flow_map, downhill_map = self._collect_initial_flow_and_downhill()
         if not flow_map:
@@ -1139,6 +1136,7 @@ class World:
             self.rivers.clear()
             self.lakes.clear()
             self._dirty_rivers = False
+            self._in_generate_water = False
             return
 
         self._accumulate_flows(flow_map, downhill_map)
@@ -1159,6 +1157,7 @@ class World:
         self._lake_outflow(new_lakes)
 
         self._dirty_rivers = False
+        self._in_generate_water = False
 
     def _generate_rivers(self) -> None:
         """Generate rivers and lakes using a simple flow accumulation model."""
@@ -1352,8 +1351,7 @@ def adjust_settings(settings: WorldSettings, **kwargs: Any) -> None:
         "river_branch_chance",
     }
     if any(field in kwargs for field in dirty_fields):
-        # We cannot directly call world.mark_dirty() since we only have settings,
-        # but consumers of adjust_settings should call world.mark_dirty() as needed.
+        # Consumers should call `world.mark_dirty()` after calling adjust_settings.
         pass
 
 
