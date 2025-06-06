@@ -8,9 +8,6 @@ from .generation import (
     _compute_moisture_orographic,
     compute_temperature,
     determine_biome,
-    generate_elevation_map,
-    generate_rainfall,
-    generate_temperature_map,
     terrain_from_elevation,
 )
 from .hex import Hex
@@ -42,9 +39,6 @@ __all__ = [
     "determine_biome",
     "export_resources_json",
     "export_resources_xml",
-    "generate_elevation_map",
-    "generate_rainfall",
-    "generate_temperature_map",
     "terrain_from_elevation",
     "_compute_moisture_orographic",
 ]
