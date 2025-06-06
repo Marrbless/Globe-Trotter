@@ -493,6 +493,16 @@ class World:
         if not self.settings.infinite:
             self._generate_rivers()
 
+    @property
+    def width(self) -> int:
+        """World width in hex columns."""
+        return self.settings.width
+
+    @property
+    def height(self) -> int:
+        """World height in hex rows."""
+        return self.settings.height
+
     # ─────────────────────────────────────────────────────────────────────────
     # == PROPERTIES & SETTINGS MANAGEMENT ==
 
