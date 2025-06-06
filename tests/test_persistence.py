@@ -39,7 +39,7 @@ def make_world(resource_per_tile: dict[ResourceType, int] | None = None) -> Worl
         tile = w.get(center_x + dq, center_y + dr)
         if tile:
             tile.terrain = "plains"
-            if resource_per_tile:
+            if resource_per_tile is not None:
                 tile.resources = resource_per_tile.copy()
     return w
 
@@ -307,7 +307,8 @@ def test_extended_state_roundtrip(initialized_game):
     assert new_game.event_turn_counters == {"raid": 5}
 
     # Check that faction tech_level and god_powers survived
-    assert new_game.player_faction.tech_level == 3
+    from game.technology import TechLevel
+    assert new_game.player_faction.tech_level == TechLevel.INDUSTRIAL
     assert new_game.player_faction.god_powers == {"smite": 1}
 
 

@@ -906,7 +906,8 @@ class World:
             return self._elevation_cache[coord]
 
         elev = _elevation_value(
-            q, r,
+            q,
+            r,
             self.settings.seed or 0,
             self.settings.elevation,
         )
@@ -924,7 +925,8 @@ class World:
             return self._temperature_cache[coord]
 
         temp = _temperature_value(
-            q, r,
+            q,
+            r,
             (self.settings.seed or 0) ^ 0x1234,
             self.settings.temperature,
             self.settings.lapse_rate,
@@ -1366,7 +1368,6 @@ class World:
 
             self._lake_outflow(new_lakes, overflow_thresh)
             self._merge_river_segments()
-
             self._dirty_rivers = False
         finally:
             # Re-entrant lock end
@@ -1550,5 +1551,4 @@ __all__ = [
     "register_biome_rule",
     "InvalidCoordinateError",
     "World.adjust_settings",
-    "InvalidCoordinateError",
 ]

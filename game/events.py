@@ -30,7 +30,9 @@ class Event:
         else:
             x, y = state.location
             n = perlin_noise(x, y, world.settings.seed, scale=0.1)
-            base = max(0.5, min(1.5, 1 + (n - 0.5) * 2))
+            base = 0.3 + n * 3.0
+            rnd = random.Random((x << 16) ^ (y << 8) ^ world.settings.seed).random() - 0.5
+            base *= 1 + rnd * 0.2
         return base * (1 + world.settings.disaster_intensity)
 
     def apply(self, state: SettlementState, world: World) -> None:
@@ -43,10 +45,11 @@ class Flood(Event):
     def apply(self, state: SettlementState, world: World) -> None:
         sev = self.severity(state, world)
         # Damage buildings. Defenses mitigate some damage.
-        loss = max(0, int(0.3 * state.buildings * sev) - state.defenses)
+        rnd = random.Random((state.location[0] if state.location else 0) * 17 + (state.location[1] if state.location else 0) * 23 + world.settings.seed)
+        loss = max(0, int(round(0.3 * state.buildings * sev)) - state.defenses + rnd.randint(0, 1))
         state.buildings = max(0, state.buildings - loss)
         # Resources lost proportional to building loss
-        res_loss = min(state.resources, int(loss * 2 * sev))
+        res_loss = min(state.resources, int(round(loss * 2 * sev)))
         state.resources -= res_loss
         if state.location and world.settings.world_changes:
             hex_ = world.get(*state.location)

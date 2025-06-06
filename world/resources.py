@@ -62,6 +62,8 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.SALT, 1, 1, 0.05),
         (ResourceType.COPPER, 1, 2, 0.1),
         (ResourceType.VEGETABLE, 1, 2, 0.05),
+        (ResourceType.TEA, 1, 1, 0.05),
+        (ResourceType.COFFEE, 1, 1, 0.05),
     ],
     "desert": [
         (ResourceType.STONE, 1, 3, 0.2),

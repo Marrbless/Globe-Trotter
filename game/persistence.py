@@ -436,15 +436,6 @@ def apply_offline_gains(
             fac.resources = {res_type: qty for res_type, qty in saved_res.items()}
             res_mgr.data[fac.name] = saved_res.copy()
 
-    # If there are no processing buildings (no per-tick changes), skip loop
-    has_processing = any(
-        isinstance(b, ProcessingBuilding) for fac in factions for b in getattr(fac, "buildings", [])
-    )
-    if not has_processing:
-        state.timestamp = now
-        # Update population to match sum of the factions’ citizens
-        state.population = sum(f.citizens.count for f in factions)
-        return population_updates
 
     # If elapsed_seconds is large, batch up to MAX_TICKS_BATCH
     ticks_to_simulate = elapsed_seconds
@@ -584,6 +575,7 @@ def load_state(
         # If a World instance is provided, apply saved world data
         if world is not None:
             deserialize_world(state.world, world)
+            state.world = world
 
         # If faction objects are provided, rehydrate them from saved data
         population_updates: Dict[str, Dict[str, int]] = {}

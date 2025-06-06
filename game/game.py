@@ -27,6 +27,7 @@ from . import settings
 from world.world import World, ResourceType, WorldSettings, Road
 from .resources import ResourceManager
 from .models import Position, Settlement, GreatProject, Faction
+from .technology import TechLevel
 from .god_powers import ALL_POWERS, GodPower
 
 logger = logging.getLogger("mygame.Game")
@@ -452,7 +453,11 @@ class Game:
 
             # 3) Units & tech_level & god_powers
             restored_faction.units = int(fdata.get("units", 0))
-            restored_faction.tech_level = int(fdata.get("tech_level", 0))
+            tl_raw = fdata.get("tech_level", 0)
+            try:
+                restored_faction.tech_level = TechLevel(int(tl_raw))
+            except (ValueError, TypeError):
+                restored_faction.tech_level = TechLevel.PRIMITIVE
             restored_faction.god_powers = fdata.get("god_powers", {})
 
             # 4) Append to map & register
@@ -498,7 +503,11 @@ class Game:
                 faction.citizens.count = int(fdata.get("citizens", faction.citizens.count))
                 faction.workers.assigned = int(fdata.get("workers", faction.workers.assigned))
                 faction.units = int(fdata.get("units", getattr(faction, "units", 0)))
-                faction.tech_level = int(fdata.get("tech_level", getattr(faction, "tech_level", 0)))
+                tl_val = fdata.get("tech_level", getattr(faction, "tech_level", TechLevel.PRIMITIVE))
+                try:
+                    faction.tech_level = TechLevel(int(tl_val))
+                except (ValueError, TypeError):
+                    faction.tech_level = TechLevel.PRIMITIVE
                 faction.god_powers = fdata.get("god_powers", getattr(faction, "god_powers", {}))
 
                 # 4) Recreate each saved building & project
@@ -597,6 +606,9 @@ class Game:
         # 1) Advance population counts
         self.faction_manager.tick()
 
+        # 2) Gather resources before buildings process them
+        self.resources.tick(self.map.factions)
+
         for faction in self.map.factions:
             # 2a) Each 2 citizens → 1 FOOD (scaled)
             food_gain = int((faction.citizens.count // 2) * settings.SCALE_FACTOR)
@@ -624,9 +636,8 @@ class Game:
         # 4) AI relationship updates
         ai.evaluate_relations(self)
 
-        # 5) Refresh total population and tick ResourceManager
+        # 5) Refresh total population
         self.population = sum(f.citizens.count for f in self.map.factions)
-        self.resources.tick(self.map.factions)
 
         # 6) End-of-turn cleanup: decrement GodPower cooldowns, event counters, etc.
         self._end_of_turn_cleanup()
