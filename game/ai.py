@@ -28,9 +28,17 @@ def _resource_surpluses(faction: "Faction") -> set[ResourceType]:
     }
 
 
-def evaluate_relations(game: "Game") -> None:
-    """Evaluate diplomacy actions for all AI factions."""
-    factions = [f for f in game.map.factions if f is not game.player_faction]
+def evaluate_relations(game: "Game", consider_player: bool = False) -> None:
+    """Evaluate diplomacy actions for all AI factions.
+
+    Parameters
+    ----------
+    consider_player: bool
+        Include the player faction when evaluating diplomacy if True.
+    """
+    factions = [
+        f for f in game.map.factions if consider_player or f is not game.player_faction
+    ]
     for i, faction in enumerate(factions):
         for other in factions[i + 1 :]:
             _consider_trade(game, faction, other)
@@ -38,10 +46,18 @@ def evaluate_relations(game: "Game") -> None:
 
     for truce in list(game.truces):
         f1, f2 = truce.factions
+        if not consider_player and (
+            f1 is game.player_faction or f2 is game.player_faction
+        ):
+            continue
         _consider_break_truce(game, f1, f2)
 
     for alliance in list(game.alliances):
         f1, f2 = alliance.factions
+        if not consider_player and (
+            f1 is game.player_faction or f2 is game.player_faction
+        ):
+            continue
         _consider_betrayal(game, f1, f2)
 
 

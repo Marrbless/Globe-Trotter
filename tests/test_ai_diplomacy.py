@@ -96,3 +96,59 @@ def test_trade_and_alliance_over_ticks(monkeypatch):
     assert game.is_at_war(a, b)
     assert not game.is_allied(a, b)
 
+
+def _setup_player_vs_ai(game):
+    rival = Faction(
+        name="Rival",
+        settlement=Settlement(name="Riv", position=Position(0, 0)),
+        citizens=Citizen(count=10),
+    )
+    rival.workers.assigned = 0
+    rival.manual_assignment = True
+    game.map.add_faction(rival)
+    game.resources.register(rival)
+    game.faction_manager.add_faction(rival)
+    return rival
+
+
+def test_ai_can_propose_trade_with_player(monkeypatch):
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    rival = _setup_player_vs_ai(game)
+
+    player = game.player_faction
+    player.resources[ResourceType.FOOD] = 1
+    player.resources[ResourceType.WOOD] = 100
+    rival.resources[ResourceType.FOOD] = 100
+    rival.resources[ResourceType.WOOD] = 1
+
+    vals = iter([0.0, 1.0])
+    monkeypatch.setattr("random.random", lambda: next(vals))
+
+    ai.evaluate_relations(game, consider_player=True)
+    assert any(
+        (d.faction_a is rival and d.faction_b is player)
+        or (d.faction_b is rival and d.faction_a is player)
+        for d in game.trade_deals
+    )
+
+
+def test_ai_can_form_alliance_with_player(monkeypatch):
+    world = make_world()
+    game = Game(world=world)
+    game.place_initial_settlement(1, 1)
+    rival = _setup_player_vs_ai(game)
+
+    player = game.player_faction
+    player.resources[ResourceType.FOOD] = 1
+    player.resources[ResourceType.WOOD] = 100
+    rival.resources[ResourceType.FOOD] = 100
+    rival.resources[ResourceType.WOOD] = 1
+
+    vals = iter([0.0, 0.0, 1.0])
+    monkeypatch.setattr("random.random", lambda: next(vals))
+
+    ai.evaluate_relations(game, consider_player=True)
+    assert game.is_allied(player, rival)
+

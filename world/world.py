@@ -42,7 +42,7 @@ from typing import (
 
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .resources import generate_resources
-from .hex import Hex, Coordinate
+from .hex import Hex, Coordinate, TerrainType
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
 
@@ -546,6 +546,7 @@ class World:
         "god_powers",
         "_known_width",
         "_known_height",
+        "_dirty_rivers",
     )
 
     def __init__(
@@ -1035,7 +1036,7 @@ class World:
 
         h = Hex(
             coord=(q, r),
-            terrain=biome,
+            terrain=TerrainType(biome),
             elevation=elevation,
             temperature=temperature,
             moisture=rainfall,
@@ -1534,6 +1535,10 @@ class World:
         )
 
 
+# Expose static adjust_settings as module-level helper for legacy imports
+adjust_settings = World.adjust_settings
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # == PUBLIC API EXPOSURES ==
 
@@ -1551,4 +1556,5 @@ __all__ = [
     "register_biome_rule",
     "InvalidCoordinateError",
     "World.adjust_settings",
+    "adjust_settings",
 ]
