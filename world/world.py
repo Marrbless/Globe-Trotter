@@ -504,10 +504,12 @@ class World:
     # Convenience accessors -------------------------------------------------
     @property
     def width(self) -> int:
+        """Convenience access to the world's width setting."""
         return self.settings.width
 
     @property
     def height(self) -> int:
+        """Convenience access to the world's height setting."""
         return self.settings.height
 
     def _expand_to_include(self, q: int, r: int) -> None:
@@ -749,10 +751,6 @@ class World:
         self._elevation_cache[coord] = elev
         return elev
 
-    def _plate_height(self, q: int, r: int) -> float:
-        """Deprecated helper retained for backward compatibility."""
-        return 0.0
-
     def _temperature(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         """
         Compute or retrieve cached temperature for tile (q, r).
@@ -775,18 +773,54 @@ class World:
     def _moisture(self, q: int, r: int, elevation: float, season: float = 0.0) -> float:
         """
         Compute or retrieve cached moisture for tile (q, r).
-        Uses Perlin noise scaled by the ``moisture`` setting.
+        Uses an orographic moisture model with wind effects.
         Returns a float in [0, 1].
         """
         coord = (q, r)
         if coord in self._moisture_cache:
             return self._moisture_cache[coord]
 
-        base = perlin_noise(float(q), float(r), self.settings.seed ^ 0x5678, scale=0.1)
-        amp = 0.5 + self.settings.moisture / 2.0
-        offset = self.settings.moisture - 0.5
-        moist = (base * amp + offset) * self.settings.moisture * 0.5
-        moist = max(0.0, min(1.0, moist))
+        # Base moisture decreases toward poles
+        lat = float(r) / float(self.settings.height - 1) if self.settings.height > 1 else 0.5
+        base_moist = 1.0 - abs(lat - 0.5) * 2.0
+        base_moist *= self.settings.moisture
+
+        tile_rng = self._tile_rng(q, r, 0xBEEF)
+        variation = tile_rng.uniform(-0.1, 0.1) * self.settings.moisture
+        base_moist += variation
+        base_moist += math.sin(2.0 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
+        moisture = max(0.0, min(1.0, base_moist))
+
+        thresh = getattr(self.settings, "orographic_threshold", 0.6)
+        factor = getattr(self.settings, "orographic_factor", 0.3)
+        wind = self.settings.wind_dir
+
+        if wind in (1, 3):
+            start = 0 if wind == 1 else self.settings.width - 1
+            step = 1 if wind == 1 else -1
+            rng_range = range(start, q + step, step)
+            coord_func = lambda x: (x, r)
+        else:
+            start = 0 if wind == 2 else self.settings.height - 1
+            step = 1 if wind == 2 else -1
+            rng_range = range(start, r + step, step)
+            coord_func = lambda y: (q, y)
+
+        precip = 0.0
+        prev_elev = 0.0
+        for idx in rng_range:
+            cq, cr = coord_func(idx)
+            elev = elevation if (cq, cr) == (q, r) else self._elevation(cq, cr)
+            precip = max(0.0, moisture * (1.0 - elev))
+            if (cq, cr) == (q, r):
+                break
+            loss = precip * 0.5
+            if elev > thresh and elev > prev_elev:
+                loss += (elev - thresh) * factor * self.settings.wind_strength
+            moisture = max(0.0, moisture - loss)
+            prev_elev = elev
+
+        moist = max(0.0, min(1.0, precip))
         self._moisture_cache[coord] = moist
         return moist
 
@@ -1102,6 +1136,7 @@ class World:
             self.rivers.clear()
             self.lakes.clear()
             self._dirty_rivers = False
+            self._in_generate_water = False
             return
 
         self._accumulate_flows(flow_map, downhill_map)
@@ -1125,17 +1160,56 @@ class World:
         self._in_generate_water = False
 
     def _generate_rivers(self) -> None:
-        """Compatibility wrapper that generates water features for the whole map."""
-        if self.settings.infinite:
-            # Only operate on currently loaded tiles in infinite mode
-            self.generate_water_features()
-            return
+        """Generate rivers and lakes using a simple flow accumulation model."""
 
-        # Ensure all tiles are generated so flags can be set
+        # Ensure tiles are generated
         for coord in self.iter_all_coords():
             _ = self.get(*coord)
 
-        self.generate_water_features()
+        flow: FlowMap = {}
+        downhill: Dict[Coordinate, Optional[Coordinate]] = {}
+
+        for q, r in self.iter_all_coords():
+            elev = self._elevation(q, r)
+            rain = self._moisture(q, r, elev, self._season) * self.settings.rainfall_intensity
+            flow[(q, r)] = rain
+            dn = self._downhill_neighbor(q, r)
+            if dn and self._elevation(*dn) < elev:
+                downhill[(q, r)] = dn
+            else:
+                downhill[(q, r)] = None
+
+        coords_sorted = sorted(flow.keys(), key=lambda c: self._elevation(c[0], c[1]), reverse=True)
+        for c in coords_sorted:
+            d = downhill[c]
+            if d:
+                flow[d] = flow.get(d, 0.0) + flow[c]
+
+        self.rivers.clear()
+        self.lakes.clear()
+
+        threshold = getattr(self.settings, "river_threshold", 0.5)
+        for c in coords_sorted:
+            h = self.get(*c)
+            if not h:
+                continue
+            fval = flow.get(c, 0.0)
+            d = downhill[c]
+            if d and fval >= threshold:
+                self.rivers.append(RiverSegment(c, d, fval))
+                h.river = True
+                h.water_flow = fval
+                h_d = self.get(*d)
+                if h_d:
+                    h_d.river = True
+            elif d is None and fval >= threshold:
+                h.lake = True
+                h.terrain = "water"
+                lake_rng = self._tile_rng(c[0], c[1], 0x3020)
+                h.resources = generate_resources(lake_rng, "water")
+                self.lakes.append(c)
+
+        self._dirty_rivers = False
 
     # ─────────────────────────────────────────────────────────────────────────
     # == RESOURCES & ROADS ==
@@ -1277,8 +1351,7 @@ def adjust_settings(settings: WorldSettings, **kwargs: Any) -> None:
         "river_branch_chance",
     }
     if any(field in kwargs for field in dirty_fields):
-        # We cannot directly call world.mark_dirty() since we only have settings,
-        # but consumers of adjust_settings should call world.mark_dirty() as needed.
+        # Consumers should call `world.mark_dirty()` after calling adjust_settings.
         pass
 
 

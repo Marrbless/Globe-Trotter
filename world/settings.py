@@ -26,6 +26,12 @@ class WorldSettings:
     wind_strength: float = 0.5
     wind_dir: int = 1  # 0=N,1=E,2=S,3=W
     lapse_rate: float = 0.3
+    # Threshold above which mountains dramatically reduce moisture transport
+    orographic_threshold: float = 0.6
+    # Factor controlling how much moisture is lost when crossing that threshold
+    orographic_factor: float = 0.3
+    # Minimum accumulated flow volume required for a tile to be considered a river source
+    river_threshold: float = 0.1
     world_changes: bool = True
     mountain_elev: float = 0.8
     hill_elev: float = 0.6
