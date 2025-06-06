@@ -45,6 +45,7 @@ from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
+from .generation import perlin_noise as _perlin_noise, determine_biome as _determine_biome
 
 # ─────────────────────────────────────────────────────────────────────────────
 # == TYPE ALIASES & CUSTOM EXCEPTIONS ==
@@ -546,6 +547,7 @@ class World:
         "god_powers",
         "_known_width",
         "_known_height",
+        "_dirty_rivers",
     )
 
     def __init__(
@@ -1535,6 +1537,57 @@ class World:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# == COMPATIBILITY WRAPPERS ==
+
+def perlin_noise(
+    x: float,
+    y: float,
+    seed: int,
+    octaves: int = 4,
+    persistence: float = 0.5,
+    lacunarity: float = 2.0,
+    scale: float = 0.05,
+) -> float:
+    """Wrapper that exposes :func:`world.generation.perlin_noise`."""
+    return _perlin_noise(
+        x,
+        y,
+        seed,
+        octaves=octaves,
+        persistence=persistence,
+        lacunarity=lacunarity,
+        scale=scale,
+    )
+
+
+def determine_biome(
+    elevation: float,
+    temperature: float,
+    rainfall: float,
+    *,
+    mountain_elev: float = 0.8,
+    hill_elev: float = 0.6,
+    tundra_temp: float = 0.25,
+    desert_rain: float = 0.2,
+) -> str:
+    """Wrapper that exposes :func:`world.generation.determine_biome`."""
+    return _determine_biome(
+        elevation,
+        temperature,
+        rainfall,
+        mountain_elev=mountain_elev,
+        hill_elev=hill_elev,
+        tundra_temp=tundra_temp,
+        desert_rain=desert_rain,
+    )
+
+
+def adjust_settings(settings: WorldSettings, world: Optional["World"] = None, **kwargs: Any) -> None:
+    """Compatibility wrapper that calls :meth:`World.adjust_settings`."""
+    World.adjust_settings(settings, world=world, **kwargs)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # == PUBLIC API EXPOSURES ==
 
 __all__ = [
@@ -1543,6 +1596,8 @@ __all__ = [
     "RiverSegment",
     "_stable_hash",
     "determine_biome_at",
+    "determine_biome",
+    "perlin_noise",
     "ResourceType",
     "STRATEGIC_RESOURCES",
     "LUXURY_RESOURCES",
@@ -1551,4 +1606,5 @@ __all__ = [
     "register_biome_rule",
     "InvalidCoordinateError",
     "World.adjust_settings",
+    "adjust_settings",
 ]
