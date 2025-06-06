@@ -446,10 +446,10 @@ def apply_offline_gains(
             for fac in factions:
                 fac.progress_projects()
 
-        # Compute the “steady-state” per-tick gains for each faction
+        # Compute the per-tick resource gains for each faction without
+        # modifying their stored values.
         per_tick_production: Dict[str, Dict[ResourceType, int]] = {}
         for fac in factions:
-            # Assume ResourceManager has a method .get_per_tick_output(fac)
             gains: Dict[ResourceType, int] = res_mgr.get_per_tick_output(fac)
             per_tick_production[fac.name] = gains
 
