@@ -24,7 +24,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
 from .resources import generate_resources
@@ -283,9 +283,7 @@ def _determine_biome_tile(
     tile_rng: random.Random,
 ) -> str:
     """
-    Classify the biome for a single tile (given elevation, temperature, rainfall). Applies
-    realistic rules first; if none match, defaults to "plains". Then, if fantasy_level > 0.0,
-    checks fantasy rules in order (with possible random chance).
+    Classify the biome for a single tile using rule sets. Fantasy overrides apply probabilistically if enabled.
     """
     for rule in _REALISTIC_BIOME_RULES:
         if (
@@ -293,9 +291,10 @@ def _determine_biome_tile(
             and rule.min_temp <= temperature <= rule.max_temp
             and rule.min_rain <= rainfall <= rule.max_rain
         ):
-            return rule.name
-
-    base_biome = "plains"
+            base_biome = rule.name
+            break
+    else:
+        base_biome = "plains"
 
     if settings.fantasy_level > 0.0:
         for rule in _FANTASY_BIOME_RULES:
@@ -316,7 +315,7 @@ def determine_biome(
     rainfall: float,
     settings: WorldSettings | None = None,
 ) -> str:
-    """Public helper to classify a single tile's biome."""
+    """Public helper to classify a single tile's biome using default RNG."""
     rng = random.Random(0xBEEF)
     return _determine_biome_tile(
         elevation=elevation,
@@ -682,6 +681,7 @@ class World:
         cy = r // self.chunk_height
         if (cx, cy) not in self.chunks:
             self._generate_chunk(cx, cy)
+        # Mark chunk as recently used
         self.chunks.move_to_end((cx, cy))
         chunk = self.chunks.get((cx, cy))
         if not chunk:
@@ -1098,7 +1098,7 @@ class World:
                 h_lake = self.get(q0, r0)
                 h_out = self.get(*lowest_neighbor)
                 if h_lake and h_out:
-                    strength = h_lake.water_flow if hasattr(h_lake, "water_flow") else 0.0
+                    strength = getattr(h_lake, "water_flow", 0.0)
                     self.rivers.append(RiverSegment(lake_coord, lowest_neighbor, strength))
                     h_lake.river = True
                     h_out.river = True
@@ -1130,7 +1130,7 @@ class World:
 
         self._accumulate_flows(flow_map, downhill_map)
         river_thresh, lake_thresh = self._determine_thresholds(flow_map.values())
-        all_coords = flow_map.keys()
+        all_coords = list(flow_map.keys())
 
         for (q, r), fval in flow_map.items():
             h = self.get(q, r)
