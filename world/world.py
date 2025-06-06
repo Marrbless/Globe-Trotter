@@ -522,6 +522,16 @@ class World:
         """
         self.season = (self._season + delta) % 1.0
 
+    @property
+    def width(self) -> int:
+        """Convenience access to the world's width setting."""
+        return self.settings.width
+
+    @property
+    def height(self) -> int:
+        """Convenience access to the world's height setting."""
+        return self.settings.height
+
     def mark_dirty(self) -> None:
         """
         Invalidate all per-tile caches and schedule water regeneration.
@@ -793,30 +803,40 @@ class World:
 
         tile_rng = self._tile_rng(q, r, 0xBEEF)
         variation = tile_rng.uniform(-0.1, 0.1) * self.settings.moisture
-        moist = base_moist + variation
+        base_moist += variation
+        base_moist += math.sin(2.0 * math.pi * season) * self.settings.seasonal_amplitude * 0.5
+        moisture = max(0.0, min(1.0, base_moist))
 
-        dq = dr = 0
-        wd = self.settings.wind_dir
-        if wd == 0:  # N
-            dr = 1
-        elif wd == 1:  # E
-            dq = -1
-        elif wd == 2:  # S
-            dr = -1
-        elif wd == 3:  # W
-            dq = 1
+        thresh = getattr(self.settings, "orographic_threshold", 0.6)
+        factor = getattr(self.settings, "orographic_factor", 0.3)
+        wind = self.settings.wind_dir
 
-        prev_q, prev_r = q + dq, r + dr
-        if (
-            dq != 0 or dr != 0
-        ) and not self.settings.infinite and 0 <= prev_q < self.settings.width and 0 <= prev_r < self.settings.height:
-            prev_elev = self._elevation(prev_q, prev_r)
-            prev_moist = self._moisture(prev_q, prev_r, prev_elev, season)
-            barrier = max(0.0, elevation - prev_elev) * self.settings.wind_strength
-            carried = max(0.0, prev_moist - barrier)
-            moist = (moist + carried) / 2.0
+        if wind in (1, 3):
+            start = 0 if wind == 1 else self.settings.width - 1
+            step = 1 if wind == 1 else -1
+            rng_range = range(start, q + step, step)
+            coord_func = lambda x: (x, r)
+        else:
+            start = 0 if wind == 2 else self.settings.height - 1
+            step = 1 if wind == 2 else -1
+            rng_range = range(start, r + step, step)
+            coord_func = lambda y: (q, y)
 
-        moist = max(0.0, min(1.0, moist))
+        precip = 0.0
+        prev_elev = 0.0
+        for idx in rng_range:
+            cq, cr = coord_func(idx)
+            elev = elevation if (cq, cr) == (q, r) else self._elevation(cq, cr)
+            precip = max(0.0, moisture * (1.0 - elev))
+            if (cq, cr) == (q, r):
+                break
+            loss = precip * 0.5
+            if elev > thresh and elev > prev_elev:
+                loss += (elev - thresh) * factor * self.settings.wind_strength
+            moisture = max(0.0, moisture - loss)
+            prev_elev = elev
+
+        moist = max(0.0, min(1.0, precip))
         self._moisture_cache[coord] = moist
         return moist
 
@@ -1141,17 +1161,56 @@ class World:
         self._dirty_rivers = False
 
     def _generate_rivers(self) -> None:
-        """Compatibility wrapper that generates water features for the whole map."""
-        if self.settings.infinite:
-            # Only operate on currently loaded tiles in infinite mode
-            self.generate_water_features()
-            return
+        """Generate rivers and lakes using a simple flow accumulation model."""
 
-        # Ensure all tiles are generated so flags can be set
+        # Ensure tiles are generated
         for coord in self.iter_all_coords():
             _ = self.get(*coord)
 
-        self.generate_water_features()
+        flow: FlowMap = {}
+        downhill: Dict[Coordinate, Optional[Coordinate]] = {}
+
+        for q, r in self.iter_all_coords():
+            elev = self._elevation(q, r)
+            rain = self._moisture(q, r, elev, self._season) * self.settings.rainfall_intensity
+            flow[(q, r)] = rain
+            dn = self._downhill_neighbor(q, r)
+            if dn and self._elevation(*dn) < elev:
+                downhill[(q, r)] = dn
+            else:
+                downhill[(q, r)] = None
+
+        coords_sorted = sorted(flow.keys(), key=lambda c: self._elevation(c[0], c[1]), reverse=True)
+        for c in coords_sorted:
+            d = downhill[c]
+            if d:
+                flow[d] = flow.get(d, 0.0) + flow[c]
+
+        self.rivers.clear()
+        self.lakes.clear()
+
+        threshold = getattr(self.settings, "river_threshold", 0.5)
+        for c in coords_sorted:
+            h = self.get(*c)
+            if not h:
+                continue
+            fval = flow.get(c, 0.0)
+            d = downhill[c]
+            if d and fval >= threshold:
+                self.rivers.append(RiverSegment(c, d, fval))
+                h.river = True
+                h.water_flow = fval
+                h_d = self.get(*d)
+                if h_d:
+                    h_d.river = True
+            elif d is None and fval >= threshold:
+                h.lake = True
+                h.terrain = "water"
+                lake_rng = self._tile_rng(c[0], c[1], 0x3020)
+                h.resources = generate_resources(lake_rng, "water")
+                self.lakes.append(c)
+
+        self._dirty_rivers = False
 
     # ─────────────────────────────────────────────────────────────────────────
     # == RESOURCES & ROADS ==
