@@ -45,6 +45,7 @@ from .resources import generate_resources
 from .hex import Hex, Coordinate
 from .settings import WorldSettings
 from .fantasy import apply_fantasy_overlays
+from .generation import perlin_noise as _perlin_noise, determine_biome as _determine_biome
 
 # ─────────────────────────────────────────────────────────────────────────────
 # == TYPE ALIASES & CUSTOM EXCEPTIONS ==
@@ -546,6 +547,7 @@ class World:
         "god_powers",
         "_known_width",
         "_known_height",
+        "_dirty_rivers",
     )
 
     def __init__(
@@ -1534,6 +1536,15 @@ class World:
         )
 
 
+# Convenience wrappers so other modules can import from world.world
+def perlin_noise(*args: Any, **kwargs: Any) -> float:
+    return _perlin_noise(*args, **kwargs)
+
+
+def determine_biome(*args: Any, **kwargs: Any) -> str:
+    return _determine_biome(*args, **kwargs)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # == PUBLIC API EXPOSURES ==
 
@@ -1550,5 +1561,7 @@ __all__ = [
     "register_biome_color",
     "register_biome_rule",
     "InvalidCoordinateError",
+    "perlin_noise",
+    "determine_biome",
     "World.adjust_settings",
 ]
