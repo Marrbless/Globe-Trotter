@@ -2,15 +2,14 @@ from .export import export_resources_json, export_resources_xml
 from .fantasy import (
     add_crystal_forests,
     add_floating_islands,
+    add_ley_lines,
+    add_mythic_biomes,
     apply_fantasy_overlays,
 )
 from .generation import (
     _compute_moisture_orographic,
     compute_temperature,
     determine_biome,
-    generate_elevation_map,
-    generate_rainfall,
-    generate_temperature_map,
     terrain_from_elevation,
 )
 from .hex import Hex
@@ -36,15 +35,14 @@ __all__ = [
     "WorldSettings",
     "add_crystal_forests",
     "add_floating_islands",
+    "add_ley_lines",
+    "add_mythic_biomes",
     "adjust_settings",
     "apply_fantasy_overlays",
     "compute_temperature",
     "determine_biome",
     "export_resources_json",
     "export_resources_xml",
-    "generate_elevation_map",
-    "generate_rainfall",
-    "generate_temperature_map",
     "terrain_from_elevation",
     "_compute_moisture_orographic",
 ]

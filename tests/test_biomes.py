@@ -12,7 +12,8 @@ def test_temperature_and_rainfall_attributes():
 
 
 def test_biome_map_used_for_terrain():
-    settings = WorldSettings(seed=2, width=4, height=4)
+    # Disable water features so terrain is based solely on biome determination
+    settings = WorldSettings(seed=2, width=4, height=4, rainfall_intensity=0.0)
     world = World(width=settings.width, height=settings.height, settings=settings)
     for r in range(settings.height):
         for q in range(settings.width):

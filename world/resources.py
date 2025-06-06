@@ -107,6 +107,11 @@ RESOURCE_RULES: Dict[str, List[Tuple[ResourceType, int, int, float]]] = {
         (ResourceType.WOOD, 2, 6, 0.8),
         (ResourceType.SPICE, 1, 2, 0.1),
     ],
+    "faerie_forest": [
+        (ResourceType.WOOD, 3, 7, 1.0),
+        (ResourceType.GEMS, 1, 3, 0.3),
+        (ResourceType.SPICE, 1, 1, 0.1),
+    ],
 }
 
 
