@@ -506,6 +506,7 @@ def load_state(
     world: Optional["World"] = None,
     factions: Optional[List[FactionModel]] = None,
     strict: bool = False,
+    file_path: Optional[Path] = None,
 ) -> LoadResult:
     """
     Load the saved game state and optionally apply offline gains.
@@ -520,9 +521,11 @@ def load_state(
         A LoadResult containing (GameState, population_updates).
     """
     now = time.time()
-    if SAVE_FILE.exists():
+    path = file_path or SAVE_FILE
+
+    if path.exists():
         try:
-            with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             raise GameLoadError(f"Failed to read or parse save file: {e}") from e
@@ -680,7 +683,7 @@ def load_state(
         return LoadResult(state=state, updates=population_updates)
 
 
-def save_state(state: GameState) -> None:
+def save_state(state: GameState, *, file_path: Optional[Path] = None) -> None:
     """
     Persist the current game state to disk in an atomic manner.
 
@@ -688,6 +691,8 @@ def save_state(state: GameState) -> None:
         GameSaveError: if writing or renaming fails.
     """
     state.timestamp = time.time()
+    path = file_path or SAVE_FILE
+    temp_file = path.with_suffix(".json.tmp")
     # Prepare data dict
     data = {
         "version": state.version,
@@ -707,7 +712,7 @@ def save_state(state: GameState) -> None:
 
     # Write to a temporary file first
     try:
-        with open(TEMP_SAVE_FILE, "w", encoding="utf-8") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
             f.flush()
             f.truncate()
@@ -716,11 +721,11 @@ def save_state(state: GameState) -> None:
 
     # Atomically move temp -> final
     try:
-        shutil.move(str(TEMP_SAVE_FILE), str(SAVE_FILE))
+        shutil.move(str(temp_file), str(path))
     except OSError as e:
         # Attempt to remove leftover temp file, but do not mask original error
         try:
-            TEMP_SAVE_FILE.unlink(missing_ok=True)
+            temp_file.unlink(missing_ok=True)
         except OSError:
             pass
         raise GameSaveError(f"Failed to rename temporary save file to final: {e}") from e

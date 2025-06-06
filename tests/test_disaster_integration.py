@@ -38,13 +38,12 @@ def test_terrain_change_persists(tmp_path, monkeypatch):
     assert world.get(*coord).terrain == "water"
 
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
     gs = persistence.GameState(timestamp=0, resources={}, population=0)
     gs.world = persistence.serialize_world(world)
-    persistence.save_state(gs)
+    persistence.save_state(gs, file_path=tmp_file)
 
     new_world = World(width=settings.width, height=settings.height, settings=settings)
-    persistence.load_state(world=new_world)
+    persistence.load_state(world=new_world, file_path=tmp_file)
     assert new_world.get(*coord).terrain == "water"
 
 

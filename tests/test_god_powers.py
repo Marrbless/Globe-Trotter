@@ -73,11 +73,10 @@ def test_power_fails_without_requirements():
         game.use_power("Summon Harvest")
 
 
-def test_power_cooldown_and_persistence(tmp_path, monkeypatch):
+def test_power_cooldown_and_persistence(tmp_path):
     world = make_world()
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
-    game = Game(world=world, state=GameState(timestamp=time.time(), resources={}, population=0))
+    game = Game(world=world, state=GameState(timestamp=time.time(), resources={}, population=0), save_file=tmp_file)
     game.place_initial_settlement(1, 1)
     fac = game.player_faction
     fac.resources[ResourceType.WOOD] = 700
@@ -90,8 +89,8 @@ def test_power_cooldown_and_persistence(tmp_path, monkeypatch):
     game.save()
 
     # Load new game from saved state
-    new_state, _ = load_state()
-    new_game = Game(state=new_state, world=world)
+    new_state, _ = load_state(file_path=tmp_file)
+    new_game = Game(state=new_state, world=world, save_file=tmp_file)
     new_game.place_initial_settlement(1, 1)
     new_game.begin()
     assert new_game.power_cooldowns["Summon Harvest"] <= 2
