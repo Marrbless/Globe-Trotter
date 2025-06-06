@@ -287,7 +287,6 @@ def _determine_biome_tile(
     realistic rules first; if none match, defaults to "plains". Then, if fantasy_level > 0.0,
     checks fantasy rules in order (with possible random chance).
     """
-    # 1) Realistic rules
     for rule in _REALISTIC_BIOME_RULES:
         if (
             rule.min_elev <= elevation <= rule.max_elev
@@ -296,10 +295,8 @@ def _determine_biome_tile(
         ):
             return rule.name
 
-    # 2) Fallback default
     base_biome = "plains"
 
-    # 3) Fantasy overrides (only if fantasy_level > 0)
     if settings.fantasy_level > 0.0:
         for rule in _FANTASY_BIOME_RULES:
             if (
@@ -466,9 +463,9 @@ class World:
         self.chunk_height: int = getattr(self.settings, "chunk_height", 10)
         self.max_active_chunks: int = getattr(self.settings, "max_active_chunks", 100)
 
-        # Loaded chunks: OrderedDict[(cx,cy), List[List[Hex]]]
+        # Loaded chunks: OrderedDict[(cx, cy), List[List[Hex]]]
         self.chunks: OrderedDict[Tuple[int, int], List[List[Hex]]] = OrderedDict()
-        # On-disk evicted chunks: Map (cx,cy) → filepath
+        # On-disk evicted chunks: Map (cx, cy) → filepath
         self.evicted_chunks: Dict[Tuple[int, int], str] = {}
 
         # Structures
@@ -613,7 +610,6 @@ class World:
                 with open(filepath, "rb") as f:
                     loaded_chunk = pickle.load(f)
                 self.chunks[(cx, cy)] = loaded_chunk
-                # Remove the file from disk
                 os.remove(filepath)
             except Exception:
                 # If loading fails, fall back to regeneration
@@ -655,8 +651,6 @@ class World:
             if len(self.chunks) > self.max_active_chunks:
                 old_cx, old_cy = next(iter(self.chunks))
                 old_chunk = self.chunks.pop((old_cx, old_cy))
-
-                # Serialize to disk
                 filepath = f"/tmp/world_chunk_{self.settings.seed}_{old_cx}_{old_cy}.pkl"
                 try:
                     with open(filepath, "wb") as f:
@@ -688,7 +682,6 @@ class World:
         cy = r // self.chunk_height
         if (cx, cy) not in self.chunks:
             self._generate_chunk(cx, cy)
-        # Mark chunk as recently used
         self.chunks.move_to_end((cx, cy))
         chunk = self.chunks.get((cx, cy))
         if not chunk:
@@ -875,7 +868,6 @@ class World:
             resources=resources,
         )
 
-        # If fantasy overlays are desired, apply them here
         if self.settings.fantasy_level > 0.0:
             apply_fantasy_overlays([h], self.settings.fantasy_level)
 
@@ -940,7 +932,6 @@ class World:
         flow_map: FlowMap = {}
         downhill_map: Dict[Coordinate, Optional[Coordinate]] = {}
 
-        # Only process currently loaded chunks
         if not self.chunks:
             self.rivers.clear()
             self.lakes.clear()
@@ -985,7 +976,6 @@ class World:
                 flow_map[d] = flow_map.get(d, 0.0) + flow_map[c]
                 downhill_map.setdefault(d, self._downhill_neighbor(*d))
                 visited.add(c)
-                # Branching logic
                 branch_threshold = self.settings.river_branch_threshold * self.settings.rainfall_intensity
                 if flow_map[c] > branch_threshold:
                     neighbor_coords = self._neighbors_elevated(*c)
@@ -1108,7 +1098,7 @@ class World:
                 h_lake = self.get(q0, r0)
                 h_out = self.get(*lowest_neighbor)
                 if h_lake and h_out:
-                    strength = self.get(*lake_coord).water_flow if self.get(*lake_coord) else 0.0
+                    strength = h_lake.water_flow if hasattr(h_lake, "water_flow") else 0.0
                     self.rivers.append(RiverSegment(lake_coord, lowest_neighbor, strength))
                     h_lake.river = True
                     h_out.river = True
@@ -1132,7 +1122,6 @@ class World:
 
         flow_map, downhill_map = self._collect_initial_flow_and_downhill()
         if not flow_map:
-            # No loaded tiles ⇒ nothing to do
             self.rivers.clear()
             self.lakes.clear()
             self._dirty_rivers = False
@@ -1160,9 +1149,10 @@ class World:
         self._in_generate_water = False
 
     def _generate_rivers(self) -> None:
-        """Generate rivers and lakes using a simple flow accumulation model."""
-
-        # Ensure tiles are generated
+        """
+        Generate rivers and lakes using a simple flow accumulation model for finite worlds.
+        Deprecated in favor of `generate_water_features` for more sophisticated generation.
+        """
         for coord in self.iter_all_coords():
             _ = self.get(*coord)
 
@@ -1335,7 +1325,6 @@ def adjust_settings(settings: WorldSettings, **kwargs: Any) -> None:
         else:
             raise TypeError(f"Cannot assign value of type {type(val)} to setting '{key}'.")
 
-    # If any field that affects terrain/climate changed, mark caches dirty
     dirty_fields = {
         "elevation",
         "temperature",

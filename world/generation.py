@@ -170,26 +170,6 @@ def perlin_noise(
     return value / max_amp if max_amp > 0 else 0.0
 
 
-def generate_elevation_map(width: int, height: int, settings: WorldSettings) -> List[List[float]]:
-    """
-    Create a 2D elevation map using Perlin noise, then apply a simple tectonic plates overlay.
-    Each value is in [0, 1], where 0 is deepest water and 1 is highest mountain.
-    """
-    elev: List[List[float]] = []
-    for y in range(height):
-        row: List[float] = []
-        for x in range(width):
-            n = perlin_noise(x, y, settings.seed)
-            amp = 0.5 + settings.elevation / 2.0
-            offset = settings.elevation - 0.5
-            val = max(0.0, min(1.0, n * amp + offset))
-            row.append(val)
-        elev.append(row)
-
-    _apply_tectonic_plates(elev, settings)
-    return elev
-
-
 def _apply_tectonic_plates(elev: List[List[float]], settings: WorldSettings) -> None:
     """
     Modify the elevation map in-place to simulate tectonic plate boundaries.
@@ -267,52 +247,7 @@ def compute_temperature(
     return max(0.0, min(1.0, temp))
 
 
-def generate_temperature_map(
-    elevation_map: List[List[float]],
-    settings: WorldSettings,
-    rng: random.Random,
-    *,
-    season: float = 0.0,
-) -> List[List[float]]:
-    """
-    Build a 2D temperature map matching the layout of the elevation map.
-    """
-    temps: List[List[float]] = []
-    for r in range(settings.height):
-        row: List[float] = []
-        for q in range(settings.width):
-            elev = elevation_map[r][q]
-            row.append(compute_temperature(r, q, elev, settings, rng, season=season))
-        temps.append(row)
-    return temps
 
-
-def generate_rainfall(
-    elevation_map: List[List[float]],
-    settings: WorldSettings,
-    rng: random.Random,
-    *,
-    season: float = 0.0,
-) -> List[List[float]]:
-    """
-    Generate a simple rainfall map by scanning each latitude row from west to east,
-    decreasing moisture as elevation increases and wind removes moisture.
-    This version is less detailed than orographic but still accounts for elevation.
-    """
-    rain: List[List[float]] = [
-        [0.0 for _ in range(settings.width)] for _ in range(settings.height)
-    ]
-    for r in range(settings.height):
-        base = settings.moisture + rng.uniform(-0.1, 0.1)
-        base += math.sin(2.0 * math.pi * season) * settings.seasonal_amplitude * 0.5
-        moisture = max(0.0, min(1.0, base))
-        for q in range(settings.width):
-            elev = elevation_map[r][q]
-            precip = max(0.0, moisture * (1.0 - elev))
-            rain[r][q] = precip
-            loss = (precip * 0.5 + elev * 0.1) * (1.0 - settings.wind_strength)
-            moisture = max(0.0, moisture - loss)
-    return rain
 
 
 def determine_biome(
@@ -360,12 +295,9 @@ __all__ = [
     "_dot_grid_gradient",
     "_perlin",
     "perlin_noise",
-    "generate_elevation_map",
     "_apply_tectonic_plates",
     "terrain_from_elevation",
     "compute_temperature",
-    "generate_temperature_map",
-    "generate_rainfall",
     "determine_biome",
     "BIOME_COLORS",
 ]
