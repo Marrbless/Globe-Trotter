@@ -2,10 +2,18 @@ import time
 from world.world import World
 from ui.map_view import MapView, worker_assignment_dialog
 from ui.defense_building_ui import choose_defenses
+from ui.faction_creation import FactionCreationUI
 from game.game import Game
-from game.buildings import Building
+from game.models import Position
 
 def main():
+    # Gather faction details from the creation UI
+    creator = FactionCreationUI()
+    creator.mainloop()
+    if creator.result is None:
+        print("No faction created. Exiting.")
+        return
+
     # Let the player choose a settlement via the map UI
     world = World(width=20, height=20)
     view = MapView(world)
@@ -19,7 +27,14 @@ def main():
         # Let the player pick defensive structures
         buildings = choose_defenses()
         game = Game()
-        game.place_initial_settlement(q, r)
+
+        faction = creator.to_faction(q, r, game.world)
+        if game.map.is_occupied(Position(q, r)):
+            raise ValueError("Cannot place settlement on occupied location")
+        game.player_faction = faction
+        game.map.add_faction(faction)
+        game._register_faction(faction)
+        game.population = faction.citizens.count
 
         for b in buildings:
             game.add_building(b)
