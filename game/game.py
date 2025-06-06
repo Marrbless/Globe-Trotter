@@ -3,6 +3,7 @@ import random
 import time
 import logging
 from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
 
 from .persistence import (
     GameState,
@@ -666,7 +667,7 @@ class Game:
             if counter > 0:
                 self.event_turn_counters[evt] = counter - 1
 
-    def save(self) -> None:
+    def save(self, save_file: Optional[str] = None) -> None:
         """
         Persist **all** aspects of current game state to disk. This populates:
           • state.resources, state.population, state.claimed_projects
@@ -674,7 +675,8 @@ class Game:
           • state.factions (via serialize_factions)
           • state.turn, state.event_turn_counters, state.tech_levels,
             state.god_powers, state.wars, state.truces, state.alliances, state.cooldowns
-        Then calls `save_state(self.state)` (catching any exception).
+        Then calls ``save_state`` with the optional ``save_file`` path,
+        catching any exceptions.
         """
         # 1) Recompute actual total population
         self.population = sum(f.citizens.count for f in self.map.factions)
@@ -714,7 +716,8 @@ class Game:
 
         # 6) Finally, call save_state (with error-logging)
         try:
-            save_state(self.state)
+            sf_path = Path(save_file) if save_file else None
+            save_state(self.state, save_file=sf_path)
         except Exception as e:
             logger.error("Failed to save game state: %s", e)
 
@@ -1040,6 +1043,7 @@ def main() -> int:
     Supports options:
       --player-x, --player-y : initial player settlement coordinates
       --load-file            : path to an existing save file
+      --save-file            : where to write the save data on exit
       --no-save              : skip saving at end (for dry-runs/tests)
     Returns exit code 0 on success, nonzero on failure.
     """
@@ -1055,6 +1059,10 @@ def main() -> int:
     parser.add_argument(
         "--load-file", type=str, default="",
         help="Path to an existing saved game state (skip fresh start if provided)"
+    )
+    parser.add_argument(
+        "--save-file", type=str, default="",
+        help="Path to write the game state on exit (default: save.json)"
     )
     parser.add_argument(
         "--no-save", action="store_true",
@@ -1077,7 +1085,7 @@ def main() -> int:
     initial_state: Optional[GameState] = None
     if args.load_file:
         try:
-            loaded_state, _ = load_state()
+            loaded_state, _ = load_state(save_file=Path(args.load_file))
             if loaded_state:
                 initial_state = loaded_state
                 logger.info("Loaded saved game from %r", args.load_file)
@@ -1110,7 +1118,7 @@ def main() -> int:
     # 6) Save unless --no-save was specified
     if not args.no_save:
         try:
-            game.save()
+            game.save(save_file=args.save_file or None)
         except Exception as e:
             logger.error("Error while saving game: %s", e)
             return 3

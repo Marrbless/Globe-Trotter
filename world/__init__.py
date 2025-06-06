@@ -11,6 +11,7 @@ from .generation import (
     compute_temperature,
     determine_biome,
     terrain_from_elevation,
+    perlin_noise,
 )
 from .hex import Hex
 from .resource_types import ResourceType, STRATEGIC_RESOURCES, LUXURY_RESOURCES
@@ -20,8 +21,9 @@ from .world import (
     Road,
     RiverSegment,
     World,
-    adjust_settings,
 )
+
+adjust_settings = World.adjust_settings
 
 __all__ = [
     "BIOME_COLORS",
@@ -39,6 +41,7 @@ __all__ = [
     "add_mythic_biomes",
     "adjust_settings",
     "apply_fantasy_overlays",
+    "perlin_noise",
     "compute_temperature",
     "determine_biome",
     "export_resources_json",

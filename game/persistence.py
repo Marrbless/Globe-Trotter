@@ -506,6 +506,7 @@ def load_state(
     world: Optional["World"] = None,
     factions: Optional[List[FactionModel]] = None,
     strict: bool = False,
+    save_file: Optional[Path] = None,
 ) -> LoadResult:
     """
     Load the saved game state and optionally apply offline gains.
@@ -515,14 +516,16 @@ def load_state(
         factions: If provided, populate these faction objects from saved data,
                   then apply offline gains on them.
         strict: If True, treat missing or extra keys in save data as errors.
+        save_file: Optional path to load from instead of ``SAVE_FILE``.
 
     Returns:
         A LoadResult containing (GameState, population_updates).
     """
     now = time.time()
-    if SAVE_FILE.exists():
+    file_path = Path(save_file) if save_file else SAVE_FILE
+    if file_path.exists():
         try:
-            with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 raw_data = json.load(f)
         except (json.JSONDecodeError, OSError) as e:
             raise GameLoadError(f"Failed to read or parse save file: {e}") from e
@@ -680,14 +683,18 @@ def load_state(
         return LoadResult(state=state, updates=population_updates)
 
 
-def save_state(state: GameState) -> None:
+def save_state(state: GameState, save_file: Optional[Path] = None) -> None:
     """
     Persist the current game state to disk in an atomic manner.
+    If ``save_file`` is provided, write to that path instead of the
+    default ``SAVE_FILE`` constant.
 
     Raises:
         GameSaveError: if writing or renaming fails.
     """
     state.timestamp = time.time()
+    file_path = Path(save_file) if save_file else SAVE_FILE
+    temp_path = Path(str(file_path) + ".tmp")
     # Prepare data dict
     data = {
         "version": state.version,
@@ -707,7 +714,7 @@ def save_state(state: GameState) -> None:
 
     # Write to a temporary file first
     try:
-        with open(TEMP_SAVE_FILE, "w", encoding="utf-8") as f:
+        with open(temp_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
             f.flush()
             f.truncate()
@@ -716,11 +723,11 @@ def save_state(state: GameState) -> None:
 
     # Atomically move temp -> final
     try:
-        shutil.move(str(TEMP_SAVE_FILE), str(SAVE_FILE))
+        shutil.move(str(temp_path), str(file_path))
     except OSError as e:
         # Attempt to remove leftover temp file, but do not mask original error
         try:
-            TEMP_SAVE_FILE.unlink(missing_ok=True)
+            temp_path.unlink(missing_ok=True)
         except OSError:
             pass
         raise GameSaveError(f"Failed to rename temporary save file to final: {e}") from e

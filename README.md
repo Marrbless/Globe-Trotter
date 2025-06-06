@@ -92,7 +92,8 @@ python main.py
 ```
 
 This loads `save.json` if it exists, applying any resource gains that would have
-accumulated while the game was not running.
+accumulated while the game was not running. Pass `--save-file <path>` to write
+the session's progress to a custom location.
 
 ## Worker Assignment Efficiency
 
@@ -103,9 +104,10 @@ workers each tick. Automated assignment gathers resources at reduced efficiency
 
 ## Saving Progress
 
-Call `game.save()` from your own scripts to persist the current state to
-`save.json`. The next time you run the game, `load_state()` will apply offline
-progress based on the timestamp stored in this file.
+Call `game.save()` from your own scripts to persist the current state. Pass a
+file path to `game.save(path)` if you want to use a custom save file rather than
+the default `save.json`. The next time you run the game, `load_state(path)` will
+apply offline progress based on the timestamp stored in that file.
 
 ## Recommended World Sizes
 
