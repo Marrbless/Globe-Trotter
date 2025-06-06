@@ -282,11 +282,17 @@ def worker_assignment_dialog(faction) -> int:
     dpg.set_primary_window(dpg.last_container(), True)
     dpg.setup_dearpygui()
     dpg.show_viewport()
+    current_max = faction.citizens.count
     while dpg.is_dearpygui_running():
+        if faction.citizens.count != current_max:
+            current_max = faction.citizens.count
+            dpg.configure_item("_workers", max_value=current_max)
+            if dpg.get_value("_workers") > current_max:
+                dpg.set_value("_workers", current_max)
         dpg.render_dearpygui_frame()
-    value = dpg.get_value("_workers")
+    value = int(dpg.get_value("_workers"))
     dpg.destroy_context()
-    return int(value)
+    return max(0, min(faction.citizens.count, value))
 
 
 def terrain_color(name):
