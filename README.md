@@ -104,10 +104,10 @@ workers each tick. Automated assignment gathers resources at reduced efficiency
 
 ## Saving Progress
 
-Call `game.save()` from your own scripts to persist the current state. Pass a
-file path to `game.save(path)` if you want to use a custom save file rather than
-the default `save.json`. The next time you run the game, `load_state(path)` will
-apply offline progress based on the timestamp stored in that file.
+Saving Progress
+Call game.save() from your own scripts to persist the current state. By default, the data is written to save.json. 
+You can optionally pass a file path to game.save(path) to write to a custom location. 
+Similarly, load_state(path) will restore the game state from that file and apply offline progress based on the timestamp stored in it.
 
 ## Recommended World Sizes
 

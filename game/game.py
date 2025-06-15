@@ -2,8 +2,8 @@ import argparse
 import random
 import time
 import logging
-from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+from typing import List, Dict, Any, Optional, Tuple
 
 from .persistence import (
     GameState,
@@ -13,6 +13,7 @@ from .persistence import (
     serialize_factions,
     deserialize_world,
     apply_offline_gains,
+    SAVE_FILE,
 )
 from .diplomacy import TradeDeal, Truce, DeclarationOfWar, Alliance
 from . import ai
@@ -190,12 +191,20 @@ class Game:
       - “God Powers” (unlocking, cooldown tracking, application)
       - Turn advancement, scoring, & event simulation
     """
-    def __init__(self, state: Optional[GameState] = None, world: Optional[World] = None):
+    def __init__(
+        self,
+        state: Optional[GameState] = None,
+        world: Optional[World] = None,
+        save_file: Optional[str | Path] = None
+    ):
         # 1) Initialize map- and world-level data
         self._world = world or World(*settings.MAP_SIZE)
         self.map = Map(self._world.width, self._world.height, world=self._world)
         # Guarantee a clean slate of factions on initialization
         self.map.factions = []
+
+        # Path to persist/load state
+        self.save_file: Path = Path(save_file) if save_file else Path(SAVE_FILE)
 
         # 2) Load or create fresh GameState container
         self.state: GameState = state or GameState(
@@ -364,7 +373,7 @@ class Game:
         Returns True if a valid saved state was loaded, False otherwise.
         """
         try:
-            loaded_state, _ = load_state()
+            loaded_state, _ = load_state(file_path=self.save_file)
         except Exception as e:
             logger.warning("Failed to load saved state: %s. Starting fresh.", e)
             return False
@@ -416,7 +425,10 @@ class Game:
                 if existing:
                     sdata = {
                         "name": existing.settlement.name,
-                        "position": {"x": existing.settlement.position.x, "y": existing.settlement.position.y},
+                        "position": {
+                            "x": existing.settlement.position.x,
+                            "y": existing.settlement.position.y
+                        },
                     }
                 else:
                     logger.warning("Faction %r missing settlement data; skipping.", fname)
@@ -438,9 +450,7 @@ class Game:
             ):
                 logger.warning(
                     "Saved settlement for faction %r out of bounds: (%d, %d). Clamping.",
-                    fname,
-                    sx,
-                    sy,
+                    fname, sx, sy,
                 )
                 sx = max(0, min(self.world.width - 1, sx))
                 sy = max(0, min(self.world.height - 1, sy))
@@ -466,15 +476,13 @@ class Game:
             self._register_faction(restored_faction)
             logger.info("Restored faction %r at (%d, %d)", fname, sx, sy)
 
-        # 5) If a “player” entry exists in fdata, set self.player_faction to it
-        #    Otherwise, if we only have one faction named “Player”, that’s the default.
+        # 5) Determine player faction
         if "Player" in self.state.factions:
             for f in self.map.factions:
                 if f.name == "Player":
                     self.player_faction = f
                     break
         elif self.map.factions:
-            # If no explicitly named “Player” saved, pick the first faction as player
             self.player_faction = self.map.factions[0]
             logger.warning("No saved faction named 'Player'; using %r as player.", self.player_faction.name)
 
@@ -515,12 +523,10 @@ class Game:
                 self._restore_buildings(faction, fdata.get("buildings", []))
                 self._restore_projects(faction, fdata.get("projects", []))
 
-        # 5) If diplomacy (wars/truces/alliances) were serialized, restore those too:
-        #    (This requires that state includes serialized lists of wars, truces, alliances.)
+        # 5) Restore diplomacy
         if hasattr(self.state, "wars"):
             self.wars = []
             for wpair in getattr(self.state, "wars", []):
-                # wpair is [ "FactionA_name", "FactionB_name" ]
                 fa_name, fb_name = wpair
                 fa = next((f for f in self.map.factions if f.name == fa_name), None)
                 fb = next((f for f in self.map.factions if f.name == fb_name), None)
@@ -531,7 +537,6 @@ class Game:
         if hasattr(self.state, "truces"):
             self.truces = []
             for tpair in getattr(self.state, "truces", []):
-                # tpair is [ "FactionA_name", "FactionB_name", duration ]
                 fa_name, fb_name, dur = tpair
                 fa = next((f for f in self.map.factions if f.name == fa_name), None)
                 fb = next((f for f in self.map.factions if f.name == fb_name), None)
@@ -542,7 +547,6 @@ class Game:
         if hasattr(self.state, "alliances"):
             self.alliances = []
             for apair in getattr(self.state, "alliances", []):
-                # apair is [ "FactionA_name", "FactionB_name" ]
                 fa_name, fb_name = apair
                 fa = next((f for f in self.map.factions if f.name == fa_name), None)
                 fb = next((f for f in self.map.factions if f.name == fb_name), None)
@@ -675,8 +679,7 @@ class Game:
           • state.factions (via serialize_factions)
           • state.turn, state.event_turn_counters, state.tech_levels,
             state.god_powers, state.wars, state.truces, state.alliances, state.cooldowns
-        Then calls ``save_state`` with the optional ``save_file`` path,
-        catching any exceptions.
+        Then calls `save_state` with the appropriate file_path (catching any exceptions).
         """
         # 1) Recompute actual total population
         self.population = sum(f.citizens.count for f in self.map.factions)
@@ -714,10 +717,10 @@ class Game:
             [alliance.factions[0].name, alliance.factions[1].name] for alliance in self.alliances
         ]
 
-        # 6) Finally, call save_state (with error-logging)
+        # 6) Finally, call save_state
         try:
-            sf_path = Path(save_file) if save_file else None
-            save_state(self.state, save_file=sf_path)
+            target_path = Path(save_file) if save_file else self.save_file
+            save_state(self.state, file_path=target_path)
         except Exception as e:
             logger.error("Failed to save game state: %s", e)
 
@@ -948,92 +951,6 @@ class Game:
         if deal.resources_b_to_a:
             deal.faction_b.transfer_resources(deal.faction_a, deal.resources_b_to_a)
 
-    # ----------------------------------------------------------------
-    # Building & Project Restoration Helpers (invoked during load)
-    # ----------------------------------------------------------------
-    def _restore_buildings(self, faction: Faction, data: List[Dict[str, Any]]) -> None:
-        """
-        Given serialized building data for a Faction, clear their current
-        .buildings list and reinstantiate each building class by CLASS_ID,
-        setting its stored `level`. Skips unknown CLASS_IDs with a warning.
-        """
-        cls_map: Dict[str, type[Building]] = {cls.CLASS_ID: cls for cls in ALL_BUILDING_CLASSES}
-
-        faction.buildings.clear()
-        for bdict in data:
-            cls_id = bdict.get("id")
-            cls_type = cls_map.get(cls_id)
-            if not cls_type:
-                logger.warning(
-                    "Unknown building CLASS_ID %r for faction %r – skipping",
-                    cls_id,
-                    faction.name,
-                )
-                continue
-            inst = cls_type()
-            inst.level = int(bdict.get("level", 1))
-            faction.buildings.append(inst)
-
-    def _restore_projects(self, faction: Faction, data: List[Dict[str, Any]]) -> None:
-        """
-        Given serialized project data for a Faction, clear their .projects list
-        and reinstantiate each GreatProject by copying from GREAT_PROJECT_TEMPLATES,
-        then set its `progress`. Skips unknown project names with a warning.
-        """
-        from copy import deepcopy
-
-        faction.projects.clear()
-        for pdict in data:
-            template = GREAT_PROJECT_TEMPLATES.get(pdict.get("name"))
-            if not template:
-                logger.warning(
-                    "Unknown project %r for faction %r – skipping",
-                    pdict.get("name"),
-                    faction.name,
-                )
-                continue
-            proj_copy = deepcopy(template)
-            proj_copy.progress = int(pdict.get("progress", 0))
-            faction.projects.append(proj_copy)
-
-    # ----------------------------------------------------------------
-    # God Power Utilities
-    # ----------------------------------------------------------------
-    def available_powers(self) -> List[GodPower]:
-        """
-        Return all GodPower objects that:
-          1) Are unlocked (via completed_projects)
-          2) Have cooldown ≤ 0 (ready to cast)
-        If no player faction, returns an empty list.
-        """
-        if not self.player_faction:
-            return []
-
-        # Collect names of all completed GreatProjects
-        completed_set = {p.name for p in self.player_faction.completed_projects()}
-
-        return [
-            pwr
-            for pwr in self.god_powers.values()
-            if pwr.is_unlocked(self.player_faction, completed_set)
-            and self.power_cooldowns.get(pwr.name, 0) <= 0
-        ]
-
-    def use_power(self, name: str) -> None:
-        """
-        Attempt to cast the named GodPower.
-          • Raises ValueError if name not recognized or power still on cooldown.
-          • If successful, calls `power.apply(self)` and resets its cooldown.
-        """
-        if name not in self.god_powers:
-            raise ValueError(f"Unknown power: {name}")
-        if self.power_cooldowns.get(name, 0) > 0:
-            raise ValueError(f"{name} is on cooldown (remaining: {self.power_cooldowns[name]})")
-
-        power = self.god_powers[name]
-        power.apply(self)
-        self.power_cooldowns[name] = power.cooldown
-
 # --------------------------------------------------------------------
 # Module-Level “main()” Function with CLI Support
 # --------------------------------------------------------------------
@@ -1045,6 +962,7 @@ def main() -> int:
       --load-file            : path to an existing save file
       --save-file            : where to write the save data on exit
       --no-save              : skip saving at end (for dry-runs/tests)
+      --log-level            : logging verbosity
     Returns exit code 0 on success, nonzero on failure.
     """
     parser = argparse.ArgumentParser(description="Launch the hex-based strategy game.")
@@ -1085,7 +1003,7 @@ def main() -> int:
     initial_state: Optional[GameState] = None
     if args.load_file:
         try:
-            loaded_state, _ = load_state(save_file=Path(args.load_file))
+            loaded_state, _ = load_state(file_path=Path(args.load_file))
             if loaded_state:
                 initial_state = loaded_state
                 logger.info("Loaded saved game from %r", args.load_file)
@@ -1095,7 +1013,7 @@ def main() -> int:
             logger.error("Error loading save file %r: %s. Starting fresh.", args.load_file, e)
 
     # 2) Instantiate Game (with or without a loaded state)
-    game = Game(state=initial_state)
+    game = Game(state=initial_state, save_file=args.load_file or SAVE_FILE)
 
     # 3) If no loaded state or if the loaded state lacked a player faction, place a new one
     if not initial_state or not game.player_faction:
@@ -1113,7 +1031,7 @@ def main() -> int:
         return 2
 
     # 5) (Optional) Run a single tick for demonstration
-    #game.tick()  # Uncomment if you want to step one tick
+    # game.tick()  # Uncomment if you want to step one tick
 
     # 6) Save unless --no-save was specified
     if not args.no_save:

@@ -51,10 +51,9 @@ def test_projects_can_only_be_claimed_once():
 
 def test_claimed_projects_persist_after_loading(tmp_path, monkeypatch):
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
     monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
 
-    game = Game()
+    game = Game(save_file=tmp_file)
     game.place_initial_settlement(0, 0)
 
     first = copy.deepcopy(GREAT_PROJECT_TEMPLATES["Grand Cathedral"])
@@ -64,7 +63,7 @@ def test_claimed_projects_persist_after_loading(tmp_path, monkeypatch):
     game.save()
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
-    new_game = Game()
+    new_game = Game(save_file=tmp_file)
     new_game.place_initial_settlement(0, 0)
     new_game.begin()
 
@@ -81,10 +80,9 @@ def test_claimed_projects_persist_after_loading(tmp_path, monkeypatch):
 
 def test_claimed_projects_block_reclaim_after_resave(tmp_path, monkeypatch):
     tmp_file = tmp_path / "save.json"
-    monkeypatch.setattr(persistence, "SAVE_FILE", tmp_file)
     monkeypatch.setattr(settings, "AI_FACTION_COUNT", 0)
 
-    game = Game()
+    game = Game(save_file=tmp_file)
     game.place_initial_settlement(0, 0)
 
     first = copy.deepcopy(GREAT_PROJECT_TEMPLATES["Grand Cathedral"])
@@ -94,13 +92,13 @@ def test_claimed_projects_block_reclaim_after_resave(tmp_path, monkeypatch):
     game.save()
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
-    mid_game = Game()
+    mid_game = Game(save_file=tmp_file)
     mid_game.place_initial_settlement(0, 0)
     mid_game.begin()
     mid_game.save()
 
     monkeypatch.setattr(persistence.time, "time", lambda: 1000.0)
-    new_game = Game()
+    new_game = Game(save_file=tmp_file)
     new_game.place_initial_settlement(0, 0)
     new_game.begin()
 

@@ -78,3 +78,32 @@ class ResourceManager:
     def tick(self, factions: List["Faction"]) -> None:
         for faction in factions:
             self.gather_for_faction(faction)
+
+    def get_per_tick_output(self, faction: "Faction") -> Dict[ResourceType, int]:
+        """Return the resource amounts ``gather_for_faction`` would add in one tick."""
+        tiles = self.adjacent_tiles(faction.settlement.position)
+
+        counts: Dict[ResourceType, int] = {}
+        for tile in tiles:
+            for res_type, amount in tile.resources.items():
+                counts[res_type] = counts.get(res_type, 0) + amount
+
+        workers_available = min(faction.workers.assigned, faction.citizens.count)
+        workers_remaining = workers_available
+
+        output: Dict[ResourceType, int] = {}
+        for res_type, amount in counts.items():
+            bonus = sum(
+                b.resource_bonus
+                for b in getattr(faction, "buildings", [])
+                if getattr(b, "resource_type", None) == res_type
+            )
+            gathered = int(min(amount, workers_remaining + bonus) * settings.SCALE_FACTOR)
+            efficiency = getattr(faction, "worker_efficiency", 1.0)
+            gathered = int(round(gathered * efficiency))
+            output[res_type] = gathered
+
+            workers_used = max(0, gathered - bonus)
+            workers_remaining = max(workers_remaining - workers_used, 0)
+
+        return output
