@@ -1539,7 +1539,6 @@ class World:
 # Expose static adjust_settings as module-level helper for legacy imports
 adjust_settings = World.adjust_settings
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # == COMPATIBILITY WRAPPERS ==
 
@@ -1552,7 +1551,7 @@ def perlin_noise(
     lacunarity: float = 2.0,
     scale: float = 0.05,
 ) -> float:
-    """Wrapper that exposes :func:`world.generation.perlin_noise`."""
+    """Wrapper that exposes :func:`world.generation.perlin_noise` with the given parameters."""
     return _perlin_noise(
         x,
         y,
@@ -1574,7 +1573,7 @@ def determine_biome(
     tundra_temp: float = 0.25,
     desert_rain: float = 0.2,
 ) -> str:
-    """Wrapper that exposes :func:`world.generation.determine_biome`."""
+    """Wrapper that exposes :func:`world.generation.determine_biome` with custom thresholds."""
     return _determine_biome(
         elevation,
         temperature,
@@ -1585,10 +1584,27 @@ def determine_biome(
         desert_rain=desert_rain,
     )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# == PUBLIC API EXPOSURES ==
 
-def adjust_settings(settings: WorldSettings, world: Optional["World"] = None, **kwargs: Any) -> None:
-    """Compatibility wrapper that calls :meth:`World.adjust_settings`."""
-    World.adjust_settings(settings, world=world, **kwargs)
+__all__ = [
+    "World",
+    "Road",
+    "RiverSegment",
+    "InvalidCoordinateError",
+    "determine_biome",
+    "determine_biome_at",
+    "perlin_noise",
+    "adjust_settings",
+    "STRATEGIC_RESOURCES",
+    "LUXURY_RESOURCES",
+    "BIOME_COLORS",
+    "register_biome_color",
+    "register_biome_rule",
+    "_stable_hash",
+    "ResourceType",
+]
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1609,6 +1625,8 @@ __all__ = [
     "register_biome_color",
     "register_biome_rule",
     "InvalidCoordinateError",
+    "perlin_noise",
+    "determine_biome",
     "World.adjust_settings",
     "adjust_settings",
 ]
