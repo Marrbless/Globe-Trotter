@@ -1,0 +1,98 @@
+- id: T-0001
+  title: "Add default water flags to Hex dataclass"
+  priority: P1
+  status: open
+  files: ["world/hex.py", "world/world.py", "game/events.py"]
+  type: bug
+  effort: 2h
+  dependencies: []
+  acceptance:
+    - "Hex dataclass defines boolean fields river, lake, persistent_lake, flooded with default False."
+    - "World generation and events set these fields rather than adding attributes dynamically."
+    - "pytest tests related to events and rivers/lakes pass."
+  notes: |
+    Current Hex objects lack these attributes until dynamically assigned, causing AttributeErrors in tests.
+
+- id: T-0002
+  title: "Implement god power API on Game"
+  priority: P1
+  status: open
+  files: ["game/game.py", "game/god_powers.py"]
+  type: feature
+  effort: 4h
+  dependencies: []
+  acceptance:
+    - "Game.available_powers returns unlocked GodPower objects for the player faction."
+    - "Game.use_power(name) deducts costs, checks cooldowns, applies effect, and updates power_cooldowns."
+    - "All tests in tests/test_god_powers.py pass."
+  notes: |
+    The Game class lacks these methods, causing multiple failing tests.
+
+- id: T-0003
+  title: "Support save_file alias in load_state"
+  priority: P2
+  status: open
+  files: ["game/persistence.py"]
+  type: bug
+  effort: 1h
+  dependencies: []
+  acceptance:
+    - "load_state accepts 'save_file' as an alias for 'file_path'."
+    - "tests/test_custom_save_file.py passes without modification."
+  notes: |
+    Tests call load_state(save_file=...), but the function only accepts file_path.
+
+- id: T-0004
+  title: "Ensure resource generation covers all types"
+  priority: P2
+  status: open
+  files: ["world/resources.py", "world/world.py"]
+  type: bug
+  effort: 4h
+  dependencies: []
+  acceptance:
+    - "RESOURCE_RULES and world generation guarantee every ResourceType can appear within 30 seeds."
+    - "tests/test_resources.py::test_all_resource_types_can_generate passes."
+  notes: |
+    Some resource types are never generated with current probabilities/settings.
+
+- id: T-0005
+  title: "Resolve ruff E402 import-order issues"
+  priority: P3
+  status: open
+  files: ["game/ai.py", "game/diplomacy.py"]
+  type: refactor
+  effort: 1h
+  dependencies: []
+  acceptance:
+    - "Top-level imports are placed at the top of the file."
+    - "ruff check game/ai.py game/diplomacy.py reports no E402 errors."
+  notes: |
+    Ruff flagged improper import placement in these modules.
+
+- id: T-0006
+  title: "Add documentation for water system and god powers"
+  priority: P3
+  status: open
+  files: ["README.md"]
+  type: docs
+  effort: 2h
+  dependencies: [T-0001, T-0002]
+  acceptance:
+    - "README describes new Hex water flags and how to use god powers."
+  notes: |
+    Documentation does not mention these newer mechanics.
+
+- id: T-0007
+  title: "Split persistence module into submodules"
+  priority: P3
+  status: open
+  files: ["game/persistence.py"]
+  type: refactor
+  effort: >8h
+  dependencies: []
+  acceptance:
+    - "Persistence logic separated into smaller files (serialization, loading, offline gains)."
+    - "All existing tests continue to pass."
+  notes: |
+    persistence.py is ~650 lines and handles many concerns.
