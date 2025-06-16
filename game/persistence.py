@@ -468,6 +468,7 @@ def load_state(
     factions: Optional[List[FactionModel]] = None,
     strict: bool = False,
     file_path: Optional[Path] = None,
+    save_file: Optional[Path] = None,
 ) -> LoadResult:
     """
     Load the saved game state and optionally apply offline gains.
@@ -478,12 +479,13 @@ def load_state(
                   then apply offline gains on them.
         strict: If True, treat missing or extra keys in save data as errors.
         file_path: Optional path to load from instead of ``SAVE_FILE``.
+        save_file: Deprecated alias for ``file_path``.
 
     Returns:
         A LoadResult containing (GameState, population_updates).
     """
     now = time.time()
-    path = file_path or SAVE_FILE
+    path = file_path or save_file or SAVE_FILE
 
     if path.exists():
         try:

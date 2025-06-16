@@ -1,0 +1,35 @@
+- id: hex_api_mismatch
+  priority: P1
+  files: ["world/hex.py", "game/events.py", "tests/test_events.py"]
+  summary: Hex dataclass lacks river/lake/flooded attributes expected by events and tests.
+  status: done
+  effort: 3
+  notes: Add compatibility properties or adjust events to new water_state API.
+- id: missing_game_powers
+  priority: P1
+  files: ["game/game.py", "game/god_powers.py", "tests/test_god_powers.py"]
+  summary: Game class missing available_powers/use_power methods causing multiple test failures.
+  status: done
+  effort: 4
+  notes: Implement power system or stub minimal features for tests.
+- id: unsafe_pickle
+  priority: P1
+  files: ["world/world.py"]
+  summary: Pickle used for chunk caching without validation; potential security risk.
+  status: open
+  effort: 2
+  notes: Use safer serialization or restrict path/permissions.
+- id: mypy_errors
+  priority: P2
+  files: ["*"]
+  summary: mypy reports 78 errors due to missing attributes and stubs.
+  status: open
+  effort: 5
+  notes: After addressing P1s, update type hints; provide stub files for dearpygui.
+- id: low_test_coverage_ui
+  priority: P3
+  files: ["ui/*", "main.py"]
+  summary: UI modules and main entry point lack tests.
+  status: open
+  effort: 3
+  notes: Add minimal tests or mark as integration-only.

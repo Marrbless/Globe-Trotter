@@ -14,7 +14,7 @@ from .resource_types import ResourceType
 def _hex_to_dict(hex_: Hex) -> dict:
     return {
         "coord": list(hex_.coord),
-        "terrain": hex_.terrain,
+        "terrain": hex_.terrain.value,
         "resources": {r.value: amt for r, amt in hex_.resources.items()},
     }
 
@@ -37,7 +37,7 @@ def export_resources_xml(world: World, path: str | Path) -> None:
             "hex",
             q=str(hex_.coord[0]),
             r=str(hex_.coord[1]),
-            terrain=hex_.terrain,
+            terrain=hex_.terrain.value,
         )
         for rtype, amt in hex_.resources.items():
             ET.SubElement(hex_el, "resource", type=rtype.value, amount=str(amt))
