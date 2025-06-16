@@ -752,6 +752,36 @@ class Game:
         return scores
 
     # ----------------------------------------------------------------
+    # God Power Helpers
+    # ----------------------------------------------------------------
+    def available_powers(self) -> List[GodPower]:
+        """Return a list of GodPowers the player can currently use."""
+        if not self.player_faction:
+            return []
+        completed = {p.name for p in self.player_faction.completed_projects()}
+        return [
+            p
+            for p in self.god_powers.values()
+            if p.is_unlocked(self.player_faction, completed)
+            and self.power_cooldowns.get(p.name, 0) <= 0
+        ]
+
+    def use_power(self, name: str) -> None:
+        """Consume resources and trigger the specified GodPower."""
+        power = self.god_powers.get(name)
+        if power is None:
+            raise ValueError(f"Unknown power '{name}'")
+        if not self.player_faction:
+            raise RuntimeError("Player faction not initialized")
+        completed = {p.name for p in self.player_faction.completed_projects()}
+        if not power.is_unlocked(self.player_faction, completed):
+            raise ValueError(f"{name} not unlocked")
+        if self.power_cooldowns.get(name, 0) > 0:
+            raise ValueError(f"{name} is on cooldown")
+        power.apply(self)
+        self.power_cooldowns[name] = power.cooldown
+
+    # ----------------------------------------------------------------
     # Diplomacy Helpers
     # ----------------------------------------------------------------
     @staticmethod

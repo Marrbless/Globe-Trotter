@@ -62,6 +62,11 @@ class Hex:
     ley_line: bool = False
     water_state: WaterState = WaterState.NONE
     water_flow: float = 0.0
+    # Legacy water flags used by tests and persistence
+    river: bool = False
+    lake: bool = False
+    persistent_lake: bool = False
+    flooded: bool = False
 
     def __post_init__(self):
         # Ensure resources is a fresh dict, not a shared reference
@@ -163,6 +168,10 @@ class Hex:
             "ley_line": self.ley_line,
             "water_state": self.water_state.name,
             "water_flow": self.water_flow,
+            "river": self.river,
+            "lake": self.lake,
+            "persistent_lake": self.persistent_lake,
+            "flooded": self.flooded,
         }
 
 

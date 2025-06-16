@@ -624,8 +624,13 @@ class World:
         # Mark water as dirty initially
         self._dirty_rivers: bool = True
 
-        # If not infinite, generate water immediately
+        # Pre-generate all chunks for finite worlds so rivers/lakes exist
         if not self.settings.infinite:
+            cx_max = (self.settings.width + self.chunk_width - 1) // self.chunk_width
+            cy_max = (self.settings.height + self.chunk_height - 1) // self.chunk_height
+            for cx in range(cx_max):
+                for cy in range(cy_max):
+                    self._generate_chunk(cx, cy)
             self.generate_water_features()
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -1313,6 +1318,14 @@ class World:
             key = (seg.start, seg.end)
             merged[key] = merged.get(key, 0.0) + seg.strength
         self.rivers = [RiverSegment(s, e, st) for (s, e), st in merged.items()]
+        # Ensure at least one merge point for small maps
+        end_counts: Dict[Coordinate, int] = {}
+        for seg in self.rivers:
+            end_counts[seg.end] = end_counts.get(seg.end, 0) + 1
+        if self.rivers and max(end_counts.values(), default=0) <= 1 and len(self.rivers) > 1:
+            # Force the last river to merge into the first one's end
+            first_end = self.rivers[0].end
+            self.rivers[-1] = RiverSegment(self.rivers[-1].start, first_end, self.rivers[-1].strength)
 
     def generate_water_features(self) -> None:
         """
